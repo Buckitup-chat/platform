@@ -52,13 +52,27 @@ config :nerves_ssh,
 config :vintage_net,
   regulatory_domain: "US",
   config: [
-    {"usb0", %{type: VintageNetDirect}},
+    # {"usb0", %{type: VintageNetDirect}},
     {"eth0",
      %{
        type: VintageNetEthernet,
        ipv4: %{method: :dhcp}
      }},
-    {"wlan0", %{type: VintageNetWiFi}}
+    {"wlan0",
+     %{
+       type: VintageNetWiFi,
+       dhcpd: %{end: {192, 168, 24, 250}, start: {192, 168, 24, 10}},
+       ipv4: %{
+         address: {192, 168, 24, 1},
+         method: :static,
+         netmask: {255, 255, 255, 0}
+       },
+       vintage_net_wifi: %{
+         networks: [
+           %{key_mgmt: :wpa_psk, mode: :ap, psk: "buckitup", ssid: "chat.off"}
+         ]
+       }
+     }}
   ]
 
 config :mdns_lite,
