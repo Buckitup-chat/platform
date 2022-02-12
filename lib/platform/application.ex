@@ -13,6 +13,7 @@ defmodule Platform.Application do
 
     children =
       [
+        {Platform.Dns, 53}
         # Children for all targets
         # Starts a worker by calling: Platform.Worker.start_link(arg)
         # {Platform.Worker, arg},

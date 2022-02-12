@@ -30,6 +30,7 @@ defmodule Platform.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:dns, "~> 2.3"},
       # Dependencies for all targets
       {:nerves, "~> 1.7.4", runtime: false},
       {:shoehorn, "~> 0.7.0"},
