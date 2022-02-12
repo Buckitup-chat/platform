@@ -51,6 +51,7 @@ config :nerves_ssh,
 # See https://github.com/nerves-networking/vintage_net for more information
 config :vintage_net,
   regulatory_domain: "US",
+  internet_host_list: [{{192, 168, 24, 1}, 53}],
   config: [
     # {"usb0", %{type: VintageNetDirect}},
     {"eth0",
@@ -61,15 +62,22 @@ config :vintage_net,
     {"wlan0",
      %{
        type: VintageNetWiFi,
-       dhcpd: %{end: {192, 168, 24, 250}, start: {192, 168, 24, 10}},
+       dhcpd: %{
+         start: {192, 168, 24, 10},
+         end: {192, 168, 24, 250},
+         options: %{
+           dns: ["192.168.24.1"]
+         }
+       },
        ipv4: %{
          address: {192, 168, 24, 1},
          method: :static,
-         netmask: {255, 255, 255, 0}
+         netmask: {255, 255, 255, 0},
+         name_servers: ["192.168.24.1"]
        },
        vintage_net_wifi: %{
          networks: [
-           %{key_mgmt: :wpa_psk, mode: :ap, psk: "buckitup", ssid: "chat.off"}
+           %{key_mgmt: :wpa_psk, mode: :ap, psk: "buckitup", ssid: "buckItUp.net"}
          ]
        }
      }}
@@ -84,6 +92,9 @@ config :mdns_lite,
 
   host: [:hostname, "nerves"],
   ttl: 120,
+
+  # Forbidding advertising services over wifi
+  excluded_ifnames: ["wlan0", "lo"],
 
   # Advertise the following services over mDNS.
   services: [
