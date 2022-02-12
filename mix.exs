@@ -23,13 +23,14 @@ defmodule Platform.MixProject do
   def application do
     [
       mod: {Platform.Application, []},
-      extra_applications: [:logger, :runtime_tools]
+      extra_applications: [:logger, :runtime_tools, :inets, :crypto]
     ]
   end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
       {:dns, "~> 2.3"},
       # Dependencies for all targets
       {:nerves, "~> 1.7.4", runtime: false},
@@ -40,6 +41,8 @@ defmodule Platform.MixProject do
       # Dependencies for all targets except :host
       {:nerves_runtime, "~> 0.11.3", targets: @all_targets},
       {:nerves_pack, "~> 0.6.0", targets: @all_targets},
+      # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
+      # {:dns, "~> 2.3", targets: @all_targets},
 
       # Dependencies for specific targets
       # NOTE: It's generally low risk and recommended to follow minor version

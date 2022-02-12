@@ -115,6 +115,27 @@ config :mdns_lite,
     }
   ]
 
+# Chat endpoint config
+config :chat, ChatWeb.Endpoint,
+  render_errors: [view: ChatWeb.ErrorView, accepts: ~w(html json), layout: false],
+  pubsub_server: Chat.PubSub,
+  live_view: [signing_salt: "N+hZlbsm"],
+  cache_static_manifest: "priv/static/cache_manifest.json",
+  # Possibly not needed, but doesn't hurt
+  # http: [port: {:system, "PORT"}],
+  http: [port: 80],
+  url: [host: "chat.buckitup.net"],
+  # url: [host: System.get_env("APP_NAME") <> ".gigalixirapp.com", port: 443],
+  secret_key_base: "HEY05EB1dFVSu6KykKHuS4rQPQzSHv4F7mGVB/gnDLrIu75wE/ytBXy2TaL3A6RA",
+  # secret_key_base: Map.fetch!(System.get_env(), "SECRET_KEY_BASE"),
+  check_origin: ["http://chat.buckitup.net", "https://chat.buckitup.net", "http://192.168.0.127"],
+  server: true,
+  code_reloader: false
+
+config :phoenix, :json_library, Jason
+
+# Do not print debug messages in production
+
 # Import target specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 # Uncomment to use target specific configurations
