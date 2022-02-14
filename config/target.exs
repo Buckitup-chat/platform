@@ -30,6 +30,7 @@ config :nerves,
 
 keys =
   [
+    Path.join([System.user_home!(), ".ssh", "buckit.id_rsa.pub"]),
     Path.join([System.user_home!(), ".ssh", "id_rsa.pub"]),
     Path.join([System.user_home!(), ".ssh", "id_ecdsa.pub"]),
     Path.join([System.user_home!(), ".ssh", "id_ed25519.pub"])
@@ -50,8 +51,10 @@ config :nerves_ssh,
 # Configure the network using vintage_net
 # See https://github.com/nerves-networking/vintage_net for more information
 config :vintage_net,
-  regulatory_domain: "US",
+  regulatory_domain: "00",
+  persistence: VintageNet.Persistence.Null,
   internet_host_list: [{{192, 168, 24, 1}, 53}],
+  additional_name_servers: [{{192, 168, 24, 1}}],
   config: [
     # {"usb0", %{type: VintageNetDirect}},
     {"eth0",
@@ -66,14 +69,21 @@ config :vintage_net,
          start: {192, 168, 24, 10},
          end: {192, 168, 24, 250},
          options: %{
-           dns: ["192.168.24.1"]
+           dns: [{192, 168, 24, 1}],
+           subnet: {255, 255, 255, 0},
+           router: [{192, 168, 24, 1}],
+           domain: "chat.buckitup.net",
+           search: ["chat.buckitup.net"]
          }
+       },
+       dnsd: %{
+         records: [{"chat.buckitup.net", {192, 168, 24, 1}}, {"*", {192, 168, 24, 1}}]
        },
        ipv4: %{
          address: {192, 168, 24, 1},
          method: :static,
-         netmask: {255, 255, 255, 0},
-         name_servers: ["192.168.24.1"]
+         prefix_length: 24,
+         name_servers: [{192, 168, 24, 1}]
        },
        vintage_net_wifi: %{
          networks: [
@@ -128,7 +138,12 @@ config :chat, ChatWeb.Endpoint,
   # url: [host: System.get_env("APP_NAME") <> ".gigalixirapp.com", port: 443],
   secret_key_base: "HEY05EB1dFVSu6KykKHuS4rQPQzSHv4F7mGVB/gnDLrIu75wE/ytBXy2TaL3A6RA",
   # secret_key_base: Map.fetch!(System.get_env(), "SECRET_KEY_BASE"),
-  check_origin: ["http://chat.buckitup.net", "https://chat.buckitup.net", "http://192.168.0.127"],
+  check_origin: [
+    "http://chat.buckitup.net",
+    "https://chat.buckitup.net",
+    "http://192.168.0.127",
+    "http://192.168.24.1"
+  ],
   server: true,
   code_reloader: false
 
