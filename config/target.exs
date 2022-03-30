@@ -72,12 +72,12 @@ config :vintage_net,
            dns: [{192, 168, 24, 1}],
            subnet: {255, 255, 255, 0},
            router: [{192, 168, 24, 1}],
-           domain: "chat.buckitup.net",
-           search: ["chat.buckitup.net"]
+           domain: "buckitup.app",
+           search: ["buckitup.app"]
          }
        },
        dnsd: %{
-         records: [{"chat.buckitup.net", {192, 168, 24, 1}}, {"*", {192, 168, 24, 1}}]
+         records: [{"buckitup.app", {192, 168, 24, 1}}, {"*", {192, 168, 24, 1}}]
        },
        ipv4: %{
          address: {192, 168, 24, 1},
@@ -87,7 +87,7 @@ config :vintage_net,
        },
        vintage_net_wifi: %{
          networks: [
-           %{key_mgmt: :wpa_psk, mode: :ap, psk: "buckitup", ssid: "buckItUp.net"}
+           %{key_mgmt: :wpa_psk, mode: :ap, psk: "buckitup", ssid: "buckItUp.app"}
          ]
        }
      }}
@@ -134,18 +134,28 @@ config :chat, ChatWeb.Endpoint,
   # Possibly not needed, but doesn't hurt
   # http: [port: {:system, "PORT"}],
   http: [port: 80],
-  url: [host: "chat.buckitup.net"],
+  url: [host: "buckitup.app"],
   # url: [host: System.get_env("APP_NAME") <> ".gigalixirapp.com", port: 443],
   secret_key_base: "HEY05EB1dFVSu6KykKHuS4rQPQzSHv4F7mGVB/gnDLrIu75wE/ytBXy2TaL3A6RA",
   # secret_key_base: Map.fetch!(System.get_env(), "SECRET_KEY_BASE"),
   check_origin: [
-    "http://chat.buckitup.net",
-    "https://chat.buckitup.net",
+    "https://buckitup.app",
     "http://192.168.0.127",
     "http://192.168.24.1"
   ],
+  https: [
+    port: 443,
+    cipher_suite: :strong,
+    cacertfile: "priv/cert/buckitup_app.ca-bundle",
+    certfile: "priv/cert/buckitup_app.crt",
+    keyfile: "priv/cert/priv.key"
+  ],
   server: true,
   code_reloader: false
+
+config :chat, :cub_db_file, "/root/db"
+
+config :chat, :set_time, true
 
 config :phoenix, :json_library, Jason
 
