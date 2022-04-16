@@ -12,7 +12,8 @@ config :shoehorn,
 # SystemRegistry. This slows down startup and not many programs make use of
 # this feature.
 
-config :nerves_runtime, :kernel, use_system_registry: false
+config :nerves_runtime, :kernel, use_system_registry: true
+# config :nerves_runtime, :kernel, use_system_registry: false
 
 # Erlinit can be configured without a rootfs_overlay. See
 # https://github.com/nerves-project/erlinit/ for more information on

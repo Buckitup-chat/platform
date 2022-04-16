@@ -36,6 +36,7 @@ defmodule Platform.Application do
       # Children for all targets except host
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
+      Platform.Sync
     ]
   end
 
