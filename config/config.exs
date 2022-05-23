@@ -26,6 +26,9 @@ config :nerves, source_date_epoch: "1644342070"
 
 config :logger, backends: [RingLogger]
 
+config :tzdata, :autoupdate, :disabled
+config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+
 if Mix.target() == :host or Mix.target() == :"" do
   import_config "host.exs"
 else
