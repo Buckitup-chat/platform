@@ -100,6 +100,9 @@ defmodule Platform.UsbWatcher do
     end
   end
 
+  defp use_as_main_storage(_), do: nil
+
+  defp find_max([]), do: nil
   defp find_max([x]), do: x
   defp find_max(list), do: Enum.max_by(list, &elem(&1, 1))
 

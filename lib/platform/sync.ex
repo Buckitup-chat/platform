@@ -11,6 +11,7 @@ defmodule Platform.Sync do
 
   alias Chat.Db
   alias Platform.Leds
+  alias Platform.Tools.Fsck
   alias Platform.Tools.Mount
 
   @doc "One time sync with backup DB"
@@ -18,6 +19,7 @@ defmodule Platform.Sync do
 
   def sync(device) do
     device
+    |> recover_fs_if_errors()
     |> mount()
     |> tap(fn path ->
       path
@@ -32,11 +34,30 @@ defmodule Platform.Sync do
   @doc "Switches from initial to main one"
   def switch_storage_to(device) do
     device
+    |> recover_fs_if_errors()
     |> mount_on_storage_path()
     |> start_new_db()
     |> copy_data_to_new()
     |> switch_on_new()
     |> stop_initial_db()
+  end
+
+  def switch_safe do
+    path = Db.file_path()
+    db_pid = Db.db()
+
+    if path != CubDB.data_dir(db_pid) do
+      {:ok, safe_db} = CubDB.start(path)
+
+      safe_db
+      |> Db.swap_pid()
+      |> CubDB.stop()
+    end
+  end
+
+  defp recover_fs_if_errors(device) do
+    Fsck.vfat(device)
+    device
   end
 
   defp mount_on_storage_path(device) do
