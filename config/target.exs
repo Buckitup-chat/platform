@@ -53,7 +53,8 @@ config :nerves_ssh,
 # See https://github.com/nerves-networking/vintage_net for more information
 config :vintage_net,
   regulatory_domain: "00",
-  persistence: VintageNet.Persistence.Null,
+  # Uncomment following to disable config change persistance
+  # persistence: VintageNet.Persistence.Null,
   internet_host_list: [{{192, 168, 24, 1}, 53}],
   additional_name_servers: [{{192, 168, 24, 1}}],
   config: [
@@ -155,8 +156,11 @@ config :chat, ChatWeb.Endpoint,
   code_reloader: false
 
 config :chat, :cub_db_file, "/root/db"
+config :chat, :admin_cub_db_file, "/root/admin_db"
 
 config :chat, :set_time, true
+
+config :platform, :tmp_size, "1G"
 
 config :phoenix, :json_library, Jason
 

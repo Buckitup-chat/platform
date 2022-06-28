@@ -31,6 +31,7 @@ defmodule Platform.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:observer_cli, "~> 1.7"},
       {:nerves_leds, "~> 0.8.1"},
       # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
       {:chat, path: "../chat", env: Mix.env()},
@@ -74,7 +75,16 @@ defmodule Platform.MixProject do
       cookie: "#{@app}_cookie",
       include_erts: &Nerves.Release.erts/0,
       steps: [&Nerves.Release.init/1, :assemble],
-      strip_beams: Mix.env() == :prod or [keep: ["Docs"]]
+      strip_beams: Mix.env() == :prod or [keep: ["Docs"]],
+      version: build_version()
     ]
+  end
+
+  defp build_version do
+    {platform_hash, 0} = System.cmd("git", ~w|log -1 --date=format:%Y-%m-%d --format=%cd_%h|)
+    {chat_hash, 0} = System.cmd("bash", ["chat_version.sh"])
+
+    [platform_hash, chat_hash]
+    |> Enum.map_join("___", &String.trim/1)
   end
 end

@@ -1,10 +1,15 @@
-.PHONY: 
+.PHONY: zip burn card ssh test nothing
+
+
+platform_version := $(shell git log -1 --date=format:%Y-%m-%d --format=%cd_%h)
+chat_version := $(shell bash chat_version.sh)
+version := "$(platform_version)___$(chat_version)"
 
 nothing: 
+	@echo  $(version)
 
 
-burn: 
-	mix firmware
+burn: zip 
 	mix upload
 
 ssh:
@@ -14,8 +19,10 @@ zip:
 	(cd ../chat && make firmware)
 	mix deps.compile chat --force
 	mix firmware.image
-	mv image.zip image.old.zip
-	zip image.zip platform.img
+	rm -f image.*.zip
+	rm -f platform.*.fw
+	zip image.$(version).zip platform.img
+	cp _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw platform.$(version).fw
 	(cd ../chat && make clean)
 
 card:

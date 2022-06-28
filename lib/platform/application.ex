@@ -37,7 +37,8 @@ defmodule Platform.Application do
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
       Platform.UsbWatcher,
-      Platform.Sync.MainToInitial
+      Platform.Sync.MainToInitial,
+      Platform.ChatBridge.Worker
     ]
   end
 

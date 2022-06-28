@@ -9,6 +9,10 @@ defmodule Platform.Tools.Mount do
     System.cmd("umount", [path])
   end
 
+  def resize_tmp(size) do
+    mount(["/tmp", "-o", "remount,size=" <> size])
+  end
+
   def device(mountpoint, print_source \\ &print/0) do
     print_source.()
     |> parse_print()
