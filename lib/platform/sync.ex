@@ -103,7 +103,7 @@ defmodule Platform.Sync do
 
     other_db
   rescue
-    other_db
+    _ -> other_db
   end
 
   defp get_new_data(other_db) do
@@ -114,8 +114,9 @@ defmodule Platform.Sync do
     Ordering.reset()
     other_db
   rescue
-    Ordering.reset()
-    other_db
+    _ ->
+      Ordering.reset()
+      other_db
   end
 
   defp backup_path(prefix) do

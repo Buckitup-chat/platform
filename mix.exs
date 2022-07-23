@@ -24,7 +24,7 @@ defmodule Platform.MixProject do
   def application do
     [
       mod: {Platform.Application, []},
-      extra_applications: [:logger, :runtime_tools, :inets, :crypto]
+      extra_applications: [:logger, :runtime_tools, :inets, :crypto, :socket]
     ]
   end
 

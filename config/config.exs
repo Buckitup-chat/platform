@@ -28,6 +28,7 @@ config :logger, backends: [RingLogger]
 
 config :tzdata, :autoupdate, :disabled
 config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
+config :phoenix, :json_library, Jason
 
 if Mix.target() == :host or Mix.target() == :"" do
   import_config "host.exs"

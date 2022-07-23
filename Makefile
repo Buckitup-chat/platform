@@ -17,7 +17,7 @@ ssh:
 	
 zip:
 	(cd ../chat && make firmware)
-	mix deps.compile chat --force
+	MIX_ENV=prod mix deps.compile chat --force
 	mix firmware.image
 	rm -f image.*.zip
 	rm -f platform.*.fw
