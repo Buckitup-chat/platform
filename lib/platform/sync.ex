@@ -10,6 +10,7 @@ defmodule Platform.Sync do
   require Logger
 
   alias Chat.Db
+  alias Chat.Ordering
   alias Platform.Leds
   alias Platform.Tools.Fsck
   alias Platform.Tools.Mount
@@ -52,6 +53,8 @@ defmodule Platform.Sync do
       safe_db
       |> Db.swap_pid()
       |> CubDB.stop()
+
+      Ordering.reset()
     end
   end
 
@@ -80,6 +83,7 @@ defmodule Platform.Sync do
 
   defp switch_on_new(new_pid) do
     Db.swap_pid(new_pid)
+    Ordering.reset()
   end
 
   defp stop_initial_db(pid) do
@@ -98,6 +102,8 @@ defmodule Platform.Sync do
     Leds.blink_done()
 
     other_db
+  rescue
+    other_db
   end
 
   defp get_new_data(other_db) do
@@ -105,6 +111,10 @@ defmodule Platform.Sync do
     Db.copy_data(other_db, Db.db())
     Leds.blink_done()
 
+    Ordering.reset()
+    other_db
+  rescue
+    Ordering.reset()
     other_db
   end
 
