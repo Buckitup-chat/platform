@@ -162,7 +162,8 @@ config :chat, :set_time, true
 
 config :platform, :tmp_size, "1G"
 
-config :phoenix, :json_library, Jason
+# config :phoenix, :json_library, Jason
+# config :phoenix, :json_library, Poision
 
 # Do not print debug messages in production
 

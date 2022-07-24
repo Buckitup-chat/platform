@@ -59,7 +59,9 @@ defmodule Platform.Sync do
   end
 
   defp recover_fs_if_errors(device) do
+    Leds.blink_read()
     Fsck.vfat(device)
+    Leds.blink_done()
     device
   end
 
