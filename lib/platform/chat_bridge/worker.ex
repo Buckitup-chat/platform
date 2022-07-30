@@ -34,6 +34,7 @@ defmodule Platform.ChatBridge.Worker do
       :get_wifi_settings -> Logic.get_wifi_settings()
       {:set_wifi, ssid} -> Logic.set_wifi_settings(ssid)
       {:set_wifi, ssid, password} -> Logic.set_wifi_settings(ssid, password)
+      :get_device_log -> Logic.get_device_log()
     end
     |> respond()
 

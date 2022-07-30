@@ -22,6 +22,11 @@ defmodule Platform.ChatBridge.Logic do
     _ -> error(:updating_wifi_settings)
   end
 
+  def get_device_log do
+    RingLogger.get()
+    |> mark(:device_log)
+  end
+
   defp wlan_config do
     VintageNet.get_configuration(@iface)
   end

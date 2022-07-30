@@ -39,6 +39,7 @@ defmodule Platform.Sync do
     |> mount_on_storage_path()
     |> start_new_db()
     |> copy_data_to_new()
+    |> tap(fn _ -> Logger.info("[platform-sync] Data moved to external storage") end)
     |> switch_on_new()
     |> stop_initial_db()
   end
@@ -53,8 +54,7 @@ defmodule Platform.Sync do
       safe_db
       |> Db.swap_pid()
       |> CubDB.stop()
-
-      Ordering.reset()
+      |> tap(fn _ -> Ordering.reset() end)
     end
   end
 
@@ -62,6 +62,7 @@ defmodule Platform.Sync do
     Leds.blink_read()
     Fsck.vfat(device)
     Leds.blink_done()
+    Logger.info("[platform-sync] #{device} health checked")
     device
   end
 
@@ -85,7 +86,7 @@ defmodule Platform.Sync do
 
   defp switch_on_new(new_pid) do
     Db.swap_pid(new_pid)
-    Ordering.reset()
+    |> tap(fn _ -> Ordering.reset() end)
   end
 
   defp stop_initial_db(pid) do
