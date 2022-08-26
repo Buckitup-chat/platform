@@ -1,15 +1,16 @@
 defmodule Platform.Sync do
   @moduledoc """
-    Introduces DB syncronisation logic
+    Introduces DB synchronisation logic
 
     Initial DB - stored on SD card. Is used when no external USB attached on boot time
     Main DB - stored on external USB that attached during boot time
-    Backup DB - extarnal USB attached after bootup. Is used for one time syncronization of its content with main(or initial) one 
+    Backup DB - external USB attached after bootup. Is used for one time synchronization of its content with main (or initial) one
   """
 
   require Logger
 
   alias Chat.Db
+  alias Chat.Db.Pids
   alias Chat.Ordering
   alias Platform.Leds
   alias Platform.Tools.Fsck
@@ -44,14 +45,16 @@ defmodule Platform.Sync do
     |> stop_initial_db()
   end
 
+  @doc "Switch to initial db"
   def switch_safe do
     path = Db.file_path()
     db_pid = Db.db()
 
     if path != CubDB.data_dir(db_pid) do
       {:ok, safe_db} = CubDB.start(path)
+      {:ok, file_db} = CubDB.start(Db.file_db_path())
 
-      safe_db
+      %Pids{main: safe_db, file: file_db}
       |> Db.swap_pid()
       |> CubDB.stop()
       |> tap(fn _ -> Ordering.reset() end)
@@ -80,17 +83,17 @@ defmodule Platform.Sync do
     |> start_db()
   end
 
-  defp copy_data_to_new(pid) do
-    dump_my_data(pid)
+  defp copy_data_to_new(pids) do
+    dump_my_data(pids)
   end
 
-  defp switch_on_new(new_pid) do
-    Db.swap_pid(new_pid)
+  defp switch_on_new(new_pids) do
+    Db.swap_pid(new_pids)
     |> tap(fn _ -> Ordering.reset() end)
   end
 
-  defp stop_initial_db(pid) do
-    stop_db(pid)
+  defp stop_initial_db(pids) do
+    stop_db(pids)
   end
 
   defp find_or_create_db(device_root) do
@@ -99,49 +102,69 @@ defmodule Platform.Sync do
     |> start_db()
   end
 
-  defp dump_my_data(other_db) do
+  defp dump_my_data(other_db_pids) do
     Leds.blink_write()
-    Db.copy_data(Db.db(), other_db)
+    Db.copy_data(Db.db(), other_db_pids.main)
+    Db.copy_data(Db.file_db(), other_db_pids.file)
     Leds.blink_done()
 
-    other_db
+    other_db_pids
   rescue
-    _ -> other_db
+    _ -> other_db_pids
   end
 
-  defp get_new_data(other_db) do
+  defp get_new_data(%Pids{} = other_pids) do
     Leds.blink_read()
-    Db.copy_data(other_db, Db.db())
+    Db.copy_data(other_pids.main, Db.db())
+    Db.copy_data(other_pids.file, Db.file_db())
     Leds.blink_done()
 
     Ordering.reset()
-    other_db
+    other_pids
   rescue
     _ ->
       Ordering.reset()
-      other_db
+      other_pids
   end
 
   defp backup_path(prefix) do
-    [prefix, "bdb", Db.version_path()]
-    |> Path.join()
-    |> tap(&File.mkdir_p!/1)
+    main =
+      [prefix, "bdb", Db.version_path()]
+      |> Path.join()
+      |> tap(&File.mkdir_p!/1)
+
+    file =
+      [prefix, "bdb", "file_" <> Db.version_path()]
+      |> Path.join()
+      |> tap(&File.mkdir_p!/1)
+
+    {main, file}
   end
 
   defp main_db_path(prefix) do
-    [prefix, "main_db", Db.version_path()]
-    |> Path.join()
-    |> tap(&File.mkdir_p!/1)
+    main =
+      [prefix, "main_db", Db.version_path()]
+      |> Path.join()
+      |> tap(&File.mkdir_p!/1)
+
+    file =
+      [prefix, "main_db", "file_" <> Db.version_path()]
+      |> Path.join()
+      |> tap(&File.mkdir_p!/1)
+
+    {main, file}
   end
 
-  defp start_db(path) do
+  defp start_db({path, file_path}) do
     {:ok, pid} = CubDB.start_link(path)
+    {:ok, file_pid} = CubDB.start_link(file_path)
 
-    pid
+    %Pids{main: pid, file: file_pid}
   end
 
-  defp stop_db(other_db) do
-    CubDB.stop(other_db)
+  defp stop_db(%Pids{} = pids) do
+    CubDB.stop(pids.main)
+    CubDB.stop(pids.file)
   end
 
   defp mount(device) do

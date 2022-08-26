@@ -21,6 +21,14 @@ erl_crash.dump
 .env
 
 # Image files
-platform.img
+platform*.img
 image.old.zip
-image.zip
+image*.zip
+
+#IDEA
+.idea/
+*.iml
+
+# Elixir LS
+.elixir_ls/
+
