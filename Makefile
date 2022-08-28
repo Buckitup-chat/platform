@@ -18,6 +18,8 @@ ssh:
 zip:
 	(cd ../chat && make firmware)
 	MIX_ENV=prod mix deps.compile chat --force
+	rm -rf priv/db
+	rm -rf priv/admin_db
 	mix firmware.image
 	rm -f image.*.zip
 	rm -f platform.*.fw
@@ -26,4 +28,5 @@ zip:
 	(cd ../chat && make clean)
 
 card:
-	fwup _build/rpi4_prod/nerves/images/platform.fw
+	fwup _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw
+

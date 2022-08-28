@@ -23,7 +23,7 @@ defmodule Platform.Sync do
     device
     |> recover_fs_if_errors()
     |> mount()
-    |> tap(fn path ->
+    |> tap_if_not_main_storage(fn path ->
       path
       |> find_or_create_db()
       |> dump_my_data()
@@ -38,11 +38,14 @@ defmodule Platform.Sync do
     device
     |> recover_fs_if_errors()
     |> mount_on_storage_path()
-    |> start_new_db()
-    |> copy_data_to_new()
-    |> tap(fn _ -> Logger.info("[platform-sync] Data moved to external storage") end)
-    |> switch_on_new()
-    |> stop_initial_db()
+    |> then_if_not_backup(fn path ->
+      path
+      |> start_new_db()
+      |> copy_data_to_new()
+      |> tap(fn _ -> Logger.info("[platform-sync] Data moved to external storage") end)
+      |> switch_on_new()
+      |> stop_initial_db()
+    end)
   end
 
   @doc "Switch to initial db"
@@ -173,5 +176,23 @@ defmodule Platform.Sync do
     {_, 0} = Mount.mount_at_path(device, path)
 
     path
+  end
+
+  defp tap_if_not_main_storage(path, action) do
+    {main, _} = backup_path(path)
+
+    if not File.exists?(main) do
+      action.(path)
+    end
+  end
+
+  defp then_if_not_backup(path, action) do
+    {main, _} = main_db_path(path)
+
+    if not File.exists?(main) do
+      action.(path)
+    else
+      Mount.unmount(path)
+    end
   end
 end
