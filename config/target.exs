@@ -160,6 +160,14 @@ config :chat, :admin_cub_db_file, "/root/admin_db"
 
 config :chat, :set_time, true
 
+config :chat,
+       data_pid: nil,
+       file_pid: nil,
+       write_budget: 0,
+       mode: :internal,
+       flags: [],
+       writable: :checking
+
 config :platform, :tmp_size, "1G"
 
 # config :phoenix, :json_library, Jason

@@ -23,7 +23,7 @@ defmodule Platform.Sync do
     device
     |> recover_fs_if_errors()
     |> mount()
-    |> tap_if_not_main_storage(fn path ->
+    |> tap(fn path ->
       path
       |> find_or_create_db()
       |> dump_my_data()
@@ -38,14 +38,11 @@ defmodule Platform.Sync do
     device
     |> recover_fs_if_errors()
     |> mount_on_storage_path()
-    |> then_if_not_backup(fn path ->
-      path
-      |> start_new_db()
-      |> copy_data_to_new()
-      |> tap(fn _ -> Logger.info("[platform-sync] Data moved to external storage") end)
-      |> switch_on_new()
-      |> stop_initial_db()
-    end)
+    |> start_new_db()
+    |> copy_data_to_new()
+    |> tap(fn _ -> Logger.info("[platform-sync] Data moved to external storage") end)
+    |> switch_on_new()
+    |> stop_initial_db()
   end
 
   @doc "Switch to initial db"
@@ -62,6 +59,17 @@ defmodule Platform.Sync do
       |> CubDB.stop()
       |> tap(fn _ -> Ordering.reset() end)
     end
+  end
+
+  def dump_my_data(other_db_pids) do
+    Leds.blink_write()
+    Db.copy_data(Db.db(), other_db_pids.main)
+    Db.copy_data(Db.file_db(), other_db_pids.file)
+    Leds.blink_done()
+
+    other_db_pids
+  rescue
+    _ -> other_db_pids
   end
 
   defp recover_fs_if_errors(device) do
@@ -103,17 +111,6 @@ defmodule Platform.Sync do
     device_root
     |> backup_path()
     |> start_db()
-  end
-
-  defp dump_my_data(other_db_pids) do
-    Leds.blink_write()
-    Db.copy_data(Db.db(), other_db_pids.main)
-    Db.copy_data(Db.file_db(), other_db_pids.file)
-    Leds.blink_done()
-
-    other_db_pids
-  rescue
-    _ -> other_db_pids
   end
 
   defp get_new_data(%Pids{} = other_pids) do
@@ -176,23 +173,5 @@ defmodule Platform.Sync do
     {_, 0} = Mount.mount_at_path(device, path)
 
     path
-  end
-
-  defp tap_if_not_main_storage(path, action) do
-    {main, _} = backup_path(path)
-
-    if not File.exists?(main) do
-      action.(path)
-    end
-  end
-
-  defp then_if_not_backup(path, action) do
-    {main, _} = main_db_path(path)
-
-    if not File.exists?(main) do
-      action.(path)
-    else
-      Mount.unmount(path)
-    end
   end
 end

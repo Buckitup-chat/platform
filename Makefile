@@ -8,8 +8,10 @@ version := "$(platform_version)___$(chat_version)"
 nothing: 
 	@echo  $(version)
 
+check:
+	mix compile --warnings-as-errors
 
-burn: zip 
+burn: check zip
 	mix upload
 
 ssh:
@@ -18,8 +20,6 @@ ssh:
 zip:
 	(cd ../chat && make firmware)
 	MIX_ENV=prod mix deps.compile chat --force
-	rm -rf priv/db
-	rm -rf priv/admin_db
 	mix firmware.image
 	rm -f image.*.zip
 	rm -f platform.*.fw

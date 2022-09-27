@@ -21,6 +21,7 @@ erl_crash.dump
 .env
 
 # Image files
+platform*.fw
 platform*.img
 image.old.zip
 image*.zip
