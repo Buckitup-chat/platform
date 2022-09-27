@@ -29,6 +29,7 @@ defmodule Platform.UsbWatcher do
 
   @impl true
   def init(_) do
+    Chat.Time.init_time()
     subscribe()
 
     SystemRegistry.match(:_)
