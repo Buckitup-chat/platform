@@ -166,7 +166,7 @@ config :chat,
        write_budget: 0,
        mode: :internal,
        flags: [],
-       writable: :checking
+       writable: :no
 
 config :platform, :tmp_size, "1G"
 

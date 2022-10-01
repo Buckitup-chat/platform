@@ -51,8 +51,8 @@ defmodule Platform.Sync do
     db_pid = Db.db()
 
     if path != CubDB.data_dir(db_pid) do
-      {:ok, safe_db} = CubDB.start(path)
-      {:ok, file_db} = CubDB.start(Db.file_db_path())
+      {:ok, safe_db} = CubDB.start(path, auto_file_sync: true)
+      {:ok, file_db} = CubDB.start(Db.file_db_path(), auto_file_sync: false, auto_compact: false)
 
       %Pids{main: safe_db, file: file_db}
       |> Db.swap_pid()
@@ -156,8 +156,8 @@ defmodule Platform.Sync do
   end
 
   defp start_db({path, file_path}) do
-    {:ok, pid} = CubDB.start_link(path)
-    {:ok, file_pid} = CubDB.start_link(file_path)
+    {:ok, pid} = CubDB.start_link(path, auto_file_sync: true)
+    {:ok, file_pid} = CubDB.start_link(file_path, auto_file_sync: false, auto_compact: false)
 
     %Pids{main: pid, file: file_pid}
   end

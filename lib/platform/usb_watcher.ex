@@ -39,7 +39,7 @@ defmodule Platform.UsbWatcher do
       |> Enum.map(fn {root, partitions} -> first_partition_of(partitions, root) end)
       |> Logic.on_new()
     end)
-    |> tap(fn _ -> Chat.Db.WritableUpdater.check() end)
+    |> tap(fn _ -> Chat.Db.WritableUpdater.force_check() end)
     |> ok()
   end
 
@@ -81,6 +81,8 @@ defmodule Platform.UsbWatcher do
           first_partition_of(partitions, root)
         end)
       )
+
+      Chat.Db.WritableUpdater.force_check()
     end)
     |> noreply()
   end
