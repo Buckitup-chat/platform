@@ -161,12 +161,12 @@ config :chat, :admin_cub_db_file, "/root/admin_db"
 config :chat, :set_time, true
 
 config :chat,
-       data_pid: nil,
-       file_pid: nil,
-       write_budget: 0,
-       mode: :internal,
-       flags: [],
-       writable: :no
+  data_pid: nil,
+  files_base_dir: "/root/db/files",
+  write_budget: 0,
+  mode: :internal,
+  flags: [],
+  writable: :no
 
 config :platform, :tmp_size, "1G"
 

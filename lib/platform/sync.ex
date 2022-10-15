@@ -13,6 +13,7 @@ defmodule Platform.Sync do
   alias Chat.Db.Pids
   alias Chat.Ordering
   alias Platform.Leds
+  alias Platform.Storage.Transfer
   alias Platform.Tools.Fsck
   alias Platform.Tools.Mount
 
@@ -26,7 +27,7 @@ defmodule Platform.Sync do
     |> tap(fn path ->
       path
       |> find_or_create_db()
-      |> dump_my_data()
+      |> dump_my_data_to_backup()
       |> get_new_data()
       |> stop_db()
     end)
@@ -39,7 +40,7 @@ defmodule Platform.Sync do
     |> recover_fs_if_errors()
     |> mount_on_storage_path()
     |> start_new_db()
-    |> copy_data_to_new()
+    |> dump_my_data_to_internal()
     |> tap(fn _ -> Logger.info("[platform-sync] Data moved to external storage") end)
     |> switch_on_new()
     |> stop_initial_db()
@@ -52,19 +53,39 @@ defmodule Platform.Sync do
 
     if path != CubDB.data_dir(db_pid) do
       {:ok, safe_db} = CubDB.start(path, auto_file_sync: true)
-      {:ok, file_db} = CubDB.start(Db.file_db_path(), auto_file_sync: false, auto_compact: false)
+      file_dir = Db.file_db_path()
 
-      %Pids{main: safe_db, file: file_db}
+      %Pids{main: safe_db, file: file_dir}
       |> Db.swap_pid()
-      |> CubDB.stop()
+      |> stop_db()
       |> tap(fn _ -> Ordering.reset() end)
     end
   end
 
-  def dump_my_data(other_db_pids) do
+  def dump_my_data_to_internal(other_db_pids) do
     Leds.blink_write()
-    Db.copy_data(Db.db(), other_db_pids.main)
-    Db.copy_data(Db.file_db(), other_db_pids.file)
+    # Db.copy_data(Db.db(), other_db_pids.main)
+    "[platform-replicate] going to dump data to internal #{inspect(other_db_pids)}"
+    |> Logger.warn()
+
+    Transfer.one_way(Db.db(), other_db_pids.main)
+    "[platform-replicate] Data dumped. Copying files" |> Logger.warn()
+    Db.copy_files(Db.file_dir(), other_db_pids.file)
+    "[platform-replicate] Files copied" |> Logger.warn()
+    # Db.copy_data(Db.file_db(), other_db_pids.file)
+    Leds.blink_done()
+
+    other_db_pids
+  rescue
+    _ -> other_db_pids
+  end
+
+  def dump_my_data_to_backup(other_db_pids) do
+    Leds.blink_write()
+    # Db.copy_data(Db.db(), other_db_pids.main)
+    Transfer.one_way(Db.db(), other_db_pids.main)
+    Db.copy_files(Db.file_dir(), other_db_pids.file)
+    # Db.copy_data(Db.file_db(), other_db_pids.file)
     Leds.blink_done()
 
     other_db_pids
@@ -94,10 +115,6 @@ defmodule Platform.Sync do
     |> start_db()
   end
 
-  defp copy_data_to_new(pids) do
-    dump_my_data(pids)
-  end
-
   defp switch_on_new(new_pids) do
     Db.swap_pid(new_pids)
     |> tap(fn _ -> Ordering.reset() end)
@@ -115,8 +132,10 @@ defmodule Platform.Sync do
 
   defp get_new_data(%Pids{} = other_pids) do
     Leds.blink_read()
-    Db.copy_data(other_pids.main, Db.db())
-    Db.copy_data(other_pids.file, Db.file_db())
+    # Db.copy_data(other_pids.main, Db.db())
+    Transfer.one_way(other_pids.main, Db.db())
+    Db.copy_files(other_pids.file, Db.file_dir())
+    # Db.copy_data(other_pids.file, Db.file_db())
     Leds.blink_done()
 
     Ordering.reset()
@@ -134,7 +153,7 @@ defmodule Platform.Sync do
       |> tap(&File.mkdir_p!/1)
 
     file =
-      [prefix, "bdb", "file_" <> Db.version_path()]
+      [prefix, "bdb", "files"]
       |> Path.join()
       |> tap(&File.mkdir_p!/1)
 
@@ -148,7 +167,7 @@ defmodule Platform.Sync do
       |> tap(&File.mkdir_p!/1)
 
     file =
-      [prefix, "main_db", "file_" <> Db.version_path()]
+      [prefix, "main_db", "files"]
       |> Path.join()
       |> tap(&File.mkdir_p!/1)
 
@@ -157,14 +176,13 @@ defmodule Platform.Sync do
 
   defp start_db({path, file_path}) do
     {:ok, pid} = CubDB.start_link(path, auto_file_sync: true)
-    {:ok, file_pid} = CubDB.start_link(file_path, auto_file_sync: false, auto_compact: false)
+    file_dir = file_path
 
-    %Pids{main: pid, file: file_pid}
+    %Pids{main: pid, file: file_dir}
   end
 
   defp stop_db(%Pids{} = pids) do
     CubDB.stop(pids.main)
-    CubDB.stop(pids.file)
   end
 
   defp mount(device) do

@@ -27,6 +27,11 @@ defmodule Platform.ChatBridge.Logic do
     |> mark(:device_log)
   end
 
+  def unmount_main do
+    Platform.Storage.Logic.unmount_main()
+    |> mark(:unmounted_main)
+  end
+
   defp wlan_config do
     VintageNet.get_configuration(@iface)
   end

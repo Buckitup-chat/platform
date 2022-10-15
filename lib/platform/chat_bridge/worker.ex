@@ -35,6 +35,7 @@ defmodule Platform.ChatBridge.Worker do
       {:set_wifi, ssid} -> Logic.set_wifi_settings(ssid)
       {:set_wifi, ssid, password} -> Logic.set_wifi_settings(ssid, password)
       :get_device_log -> Logic.get_device_log()
+      :unmount_main -> Logic.unmount_main()
     end
     |> respond()
 
@@ -44,7 +45,7 @@ defmodule Platform.ChatBridge.Worker do
   defp noreply(x), do: {:noreply, x}
 
   defp respond(message) do
-    Logger.info("Platform responds: " <> inspect(message, pretty: true))
+    # Logger.info("Platform responds: " <> inspect(message, pretty: true))
     PubSub.broadcast(Chat.PubSub, @outgoing_topic, {:platform_response, message})
   end
 end

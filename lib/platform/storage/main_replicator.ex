@@ -3,6 +3,8 @@ defmodule Platform.Storage.MainReplicator do
 
   use GenServer
 
+  require Logger
+
   alias Platform.Storage.Logic
 
   @interval :timer.seconds(307)
@@ -51,7 +53,9 @@ defmodule Platform.Storage.MainReplicator do
 
     {:noreply, %{state | timer: schedule()}}
   rescue
-    _ -> {:noreply, %{state | timer: schedule()}}
+    e ->
+      Logger.warn(" [platform] error replicating: #{inspect(e)}")
+      {:noreply, %{state | timer: schedule()}}
   end
 
   defp schedule do

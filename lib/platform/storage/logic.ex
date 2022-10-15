@@ -49,6 +49,26 @@ defmodule Platform.Storage.Logic do
     end)
   end
 
+  def unmount_main do
+    if get_db_mode() == :main do
+      Common.put_chat_db_env(:writable, :no)
+      Common.put_chat_db_env(:mode, :internal_to_main)
+
+      Chat.Db.db()
+      |> CubDB.data_dir()
+      |> Maintenance.path_to_device()
+      |> tap(fn _ ->
+        replicate_main_to_internal()
+        switch_back_to_internal()
+      end)
+      |> umount_removed_device()
+
+      :unmounted
+    else
+      :ignored
+    end
+  end
+
   def replicate_main_to_internal do
     db_mode = get_db_mode()
 
@@ -59,6 +79,8 @@ defmodule Platform.Storage.Logic do
         start_internal_db_pids()
         |> replicate_main()
         |> stop_db_pids()
+
+        "[platform-storage] Replicated to internal" |> Logger.info()
 
       _ ->
         :ignored
@@ -119,13 +141,17 @@ defmodule Platform.Storage.Logic do
   defp replicate_main(db_pids) do
     db_pids
     |> tap(fn _ -> set_db_flag(replication: true) end)
-    |> Sync.dump_my_data()
+    |> Sync.dump_my_data_to_internal()
     |> tap(fn _ -> set_db_flag(replication: false) end)
   end
 
   defp sync_to(device) do
     "[platform-storage] Syncing to device #{device}" |> Logger.info()
+
     Sync.sync(device)
+    |> tap(fn _ ->
+      "[platform-storage] Synced to device #{device}" |> Logger.info()
+    end)
   end
 
   defp sync_and_switch_on(device) do
@@ -144,12 +170,11 @@ defmodule Platform.Storage.Logic do
 
   defp start_internal_db_pids do
     main_path = Db.file_path()
-    file_path = Db.file_db_path()
+    file_dir = Db.file_db_path()
 
     {:ok, data_pid} = CubDB.start(main_path, auto_file_sync: true)
-    {:ok, file_pid} = CubDB.start(file_path, auto_file_sync: false, auto_compact: false)
 
-    %Pids{main: data_pid, file: file_pid}
+    %Pids{main: data_pid, file: file_dir}
   end
 
   defp log(error) do
@@ -188,7 +213,7 @@ defmodule Platform.Storage.Logic do
   defp check_write_budget, do: WritableUpdater.force_check()
 
   defp stop_db_pids(pids) do
-    [pids.main, pids.file]
+    [pids.main]
     |> Enum.each(fn pid ->
       if Process.alive?(pid) do
         CubDB.stop(pid)
