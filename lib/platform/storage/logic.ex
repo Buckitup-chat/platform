@@ -216,6 +216,7 @@ defmodule Platform.Storage.Logic do
     [pids.main]
     |> Enum.each(fn pid ->
       if Process.alive?(pid) do
+        CubDB.file_sync(pid)
         CubDB.stop(pid)
       end
     end)

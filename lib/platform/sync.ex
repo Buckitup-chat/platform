@@ -182,6 +182,7 @@ defmodule Platform.Sync do
   end
 
   defp stop_db(%Pids{} = pids) do
+    CubDB.file_sync(pids.main)
     CubDB.stop(pids.main)
   end
 
