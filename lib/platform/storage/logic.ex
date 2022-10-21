@@ -172,7 +172,7 @@ defmodule Platform.Storage.Logic do
     main_path = Db.file_path()
     file_dir = Db.file_db_path()
 
-    {:ok, data_pid} = CubDB.start(main_path, auto_file_sync: true)
+    {:ok, data_pid} = CubDB.start(main_path, auto_file_sync: false)
 
     %Pids{main: data_pid, file: file_dir}
   end
