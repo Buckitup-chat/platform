@@ -51,8 +51,8 @@ defmodule Platform.Storage.Logic do
 
   def unmount_main do
     if get_db_mode() == :main do
-      Common.put_chat_db_env(:writable, :no)
-      Common.put_chat_db_env(:mode, :internal_to_main)
+      set_db_read_only()
+      set_db_mode(:main_to_internal)
 
       Chat.Db.db()
       |> CubDB.data_dir()
@@ -73,17 +73,9 @@ defmodule Platform.Storage.Logic do
     db_mode = get_db_mode()
 
     case db_mode do
-      :main ->
-        "[platform-storage] Replicating to internal" |> Logger.info()
-
-        start_internal_db_pids()
-        |> replicate_main()
-        |> stop_db_pids()
-
-        "[platform-storage] Replicated to internal" |> Logger.info()
-
-      _ ->
-        :ignored
+      :main_to_internal -> do_replicate_to_internal()
+      :main -> do_replicate_to_internal()
+      _ -> :ignored
     end
   end
 
@@ -100,33 +92,45 @@ defmodule Platform.Storage.Logic do
 
   defp switch_internal_to_main(device) do
     set_db_write_budget_to(0)
+    set_db_read_only()
     set_db_mode(:internal_to_main)
 
     case sync_and_switch_on(device) do
       :ok ->
-        check_write_budget()
         set_db_mode(:main)
+        check_write_budget()
         start_replicating_on_internal()
 
         "[platform-storage] Switched to main" |> Logger.info()
 
       {:error, e} ->
-        check_write_budget()
         set_db_mode(:internal)
+        check_write_budget()
         log(e)
     end
   end
 
   defp switch_back_to_internal do
     set_db_write_budget_to(0)
+    set_db_read_only()
     set_db_mode(:main_to_internal)
     stop_replicating_on_internal()
 
     switch_db_on_internal()
     "[platform-storage] Switched to internal" |> Logger.info()
 
-    check_write_budget()
     set_db_mode(:internal)
+    check_write_budget()
+  end
+
+  defp do_replicate_to_internal do
+    "[platform-storage] Replicating to internal" |> Logger.info()
+
+    start_internal_db_pids()
+    |> replicate_main()
+    |> stop_db_pids()
+
+    "[platform-storage] Replicated to internal" |> Logger.info()
   end
 
   defp make_backups_to(devices) do
@@ -172,7 +176,7 @@ defmodule Platform.Storage.Logic do
     main_path = Db.file_path()
     file_dir = Db.file_db_path()
 
-    {:ok, data_pid} = CubDB.start(main_path, auto_file_sync: false)
+    {:ok, data_pid} = CubDB.start(main_path, auto_file_sync: false, auto_compact: false)
 
     %Pids{main: data_pid, file: file_dir}
   end
@@ -205,7 +209,10 @@ defmodule Platform.Storage.Logic do
   end
 
   defp umount_removed_device(device) do
-    "/dev/#{device}"
+    case device do
+      "/dev/" <> _ -> device
+      _ -> "/dev/#{device}"
+    end
     |> Maintenance.device_to_path()
     |> Mount.unmount()
   end
@@ -226,6 +233,8 @@ defmodule Platform.Storage.Logic do
 
   defp get_db_mode, do: Common.get_chat_db_env(:mode)
   defp set_db_mode(mode), do: Common.put_chat_db_env(:mode, mode)
+
+  defp set_db_read_only, do: Common.put_chat_db_env(:writable, :no)
 
   defp set_db_write_budget_to(amount), do: Common.put_chat_db_env(:write_budget, amount)
 
