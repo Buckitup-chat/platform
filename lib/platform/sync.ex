@@ -10,6 +10,7 @@ defmodule Platform.Sync do
   require Logger
 
   alias Chat.Db
+  alias Chat.Db.Maintenance
   alias Chat.Db.Pids
   alias Chat.Ordering
   alias Platform.Leds
@@ -182,7 +183,7 @@ defmodule Platform.Sync do
   end
 
   defp stop_db(%Pids{} = pids) do
-    CubDB.file_sync(pids.main)
+    Maintenance.maybe_file_sync(pids.main)
     CubDB.stop(pids.main)
   end
 
