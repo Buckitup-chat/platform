@@ -2,7 +2,7 @@ defmodule Platform.MixProject do
   use Mix.Project
 
   @app :platform
-  @version "0.1.0"
+  @version "0.1.1"
   # @all_targets [:rpi, :rpi0, :rpi2, :rpi3, :rpi3a, :rpi4, :bbb, :osd32mp1, :x86_64]
   @all_targets [:rpi3, :rpi3a, :rpi4, :bktp_rpi4]
 
@@ -10,7 +10,7 @@ defmodule Platform.MixProject do
     [
       app: @app,
       version: @version,
-      elixir: "~> 1.9",
+      elixir: "~> 1.13",
       archives: [nerves_bootstrap: "~> 1.10"],
       start_permanent: Mix.env() == :prod,
       build_embedded: true,
@@ -37,7 +37,7 @@ defmodule Platform.MixProject do
       {:chat, path: "../chat", env: Mix.env()},
       {:dns, "~> 2.3"},
       # Dependencies for all targets
-      {:nerves, "~> 1.7.4", runtime: false},
+      {:nerves, "~> 1.9.1", runtime: false},
       {:shoehorn, "~> 0.7.0"},
       {:ring_logger, "~> 0.8.1"},
       {:toolshed, "~> 0.2.13"},
@@ -53,17 +53,17 @@ defmodule Platform.MixProject do
       # bumps to Nerves systems. Since these include Linux kernel and Erlang
       # version updates, please review their release notes in case
       # changes to your application are needed.
-      {:nerves_system_rpi, "~> 1.17", runtime: false, targets: :rpi},
-      {:nerves_system_rpi0, "~> 1.17", runtime: false, targets: :rpi0},
-      {:nerves_system_rpi2, "~> 1.17", runtime: false, targets: :rpi2},
-      {:nerves_system_rpi3, "~> 1.17", runtime: false, targets: :rpi3},
-      {:nerves_system_rpi3a, "~> 1.17", runtime: false, targets: :rpi3a},
-      {:nerves_system_rpi4, "~> 1.17", runtime: false, targets: :rpi4},
+      {:nerves_system_rpi, "~> 1.21", runtime: false, targets: :rpi},
+      {:nerves_system_rpi0, "~> 1.21", runtime: false, targets: :rpi0},
+      {:nerves_system_rpi2, "~> 1.21", runtime: false, targets: :rpi2},
+      {:nerves_system_rpi3, "~> 1.21", runtime: false, targets: :rpi3},
+      {:nerves_system_rpi3a, "~> 1.21", runtime: false, targets: :rpi3a},
+      {:nerves_system_rpi4, "~> 1.21", runtime: false, targets: :rpi4},
       {:bktp_rpi4,
-       path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: false]},
+       path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
       {:nerves_system_bbb, "~> 2.12", runtime: false, targets: :bbb},
       {:nerves_system_osd32mp1, "~> 0.8", runtime: false, targets: :osd32mp1},
-      {:nerves_system_x86_64, "~> 1.17", runtime: false, targets: :x86_64}
+      {:nerves_system_x86_64, "~> 1.21", runtime: false, targets: :x86_64}
     ]
   end
 
