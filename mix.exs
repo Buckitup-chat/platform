@@ -31,6 +31,7 @@ defmodule Platform.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:ramoops_logger, "~> 0.3.0"},
       {:observer_cli, "~> 1.7"},
       {:nerves_leds, "~> 0.8.1"},
       # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},

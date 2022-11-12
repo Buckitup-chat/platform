@@ -23,7 +23,13 @@ defmodule Platform.ChatBridge.Logic do
   end
 
   def get_device_log do
-    RingLogger.get()
+    ram_log =
+      case RamoopsLogger.read() do
+        {:ok, dump} -> dump |> String.replace("\n\n", "\n")
+        _ -> nil
+      end
+
+    {ram_log, RingLogger.get()}
     |> mark(:device_log)
   end
 

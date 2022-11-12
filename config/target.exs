@@ -170,6 +170,12 @@ config :chat,
 
 config :platform, :tmp_size, "1G"
 
+config :logger,
+  backends: [RamoopsLogger, RingLogger],
+  compile_time_purge_matching: [
+    [application: :ssl, level_lower_than: :error]
+  ]
+
 # config :phoenix, :json_library, Jason
 # config :phoenix, :json_library, Poision
 
