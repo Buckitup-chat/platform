@@ -79,7 +79,10 @@ config :vintage_net,
          }
        },
        dnsd: %{
-         records: [{"buckitup.app", {192, 168, 24, 1}}, {"*", {192, 168, 24, 1}}]
+         records: [
+           {"buckitup.app", {192, 168, 24, 1}}
+           # {"*", {192, 168, 24, 1}}
+         ]
        },
        ipv4: %{
          address: {192, 168, 24, 1},
@@ -89,7 +92,15 @@ config :vintage_net,
        },
        vintage_net_wifi: %{
          networks: [
-           %{key_mgmt: :wpa_psk, mode: :ap, psk: "buckitup", ssid: "buckItUp.app"}
+           %{
+             key_mgmt: :wpa_psk,
+             mode: :ap,
+             psk: "buckitup",
+             ssid: "buckItUp.app",
+             proto: "RSN",
+             pairwise: "CCMP",
+             group: "CCMP"
+           }
          ]
        }
      }}
@@ -110,21 +121,21 @@ config :mdns_lite,
 
   # Advertise the following services over mDNS.
   services: [
-    %{
-      protocol: "ssh",
-      transport: "tcp",
-      port: 22
-    },
-    %{
-      protocol: "sftp-ssh",
-      transport: "tcp",
-      port: 22
-    },
-    %{
-      protocol: "epmd",
-      transport: "tcp",
-      port: 4369
-    }
+    # %{
+    #   protocol: "ssh",
+    #   transport: "tcp",
+    #   port: 22
+    # },
+    # %{
+    #   protocol: "sftp-ssh",
+    #   transport: "tcp",
+    #   port: 22
+    # },
+    # %{
+    #   protocol: "epmd",
+    #   transport: "tcp",
+    #   port: 4369
+    # }
   ]
 
 # Chat endpoint config
