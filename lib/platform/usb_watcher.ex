@@ -1,5 +1,5 @@
 defmodule Platform.UsbWatcher do
-  @moduledoc ""
+  @moduledoc "Filters system events to provide usb drives plug/unplug events"
 
   use GenServer
 
@@ -39,7 +39,6 @@ defmodule Platform.UsbWatcher do
       |> Enum.map(fn {root, partitions} -> first_partition_of(partitions, root) end)
       |> Logic.on_new()
     end)
-    |> tap(fn _ -> Chat.Db.WritableUpdater.force_check() end)
     |> ok()
   end
 
@@ -66,7 +65,7 @@ defmodule Platform.UsbWatcher do
       |> Enum.map(fn {root, devices} ->
         devices
         |> first_partition_of(root)
-        |> tap(&Logger.info("New block device found: #{&1}"))
+        |> tap(&Logger.info("[usb watcher] New block device found: #{&1}"))
       end)
       |> Logic.on_new()
 
@@ -74,15 +73,13 @@ defmodule Platform.UsbWatcher do
       |> Enum.map(fn {root, devices} ->
         devices
         |> first_partition_of(root)
-        |> tap(&Logger.info("Block device removed: #{&1}"))
+        |> tap(&Logger.info("[usb warcher] Block device removed: #{&1}"))
       end)
       |> Logic.on_remove(
         Enum.map(unchanged_devices, fn {root, partitions} ->
           first_partition_of(partitions, root)
         end)
       )
-
-      Chat.Db.WritableUpdater.force_check()
     end)
     |> noreply()
   end
