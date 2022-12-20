@@ -36,7 +36,7 @@ defmodule Platform.Application do
       # Children for all targets except host
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
-      Platform.DbSupervisor,
+      Platform.App.DbSupervisor,
       Platform.Storage.MainReplicator,
       Platform.UsbWatcher,
       Platform.ChatBridge.Worker

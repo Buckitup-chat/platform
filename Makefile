@@ -11,7 +11,7 @@ nothing:
 check:
 	mix compile --warnings-as-errors
 
-burn: check zip
+burn: zip
 	mix upload
 
 ssh:

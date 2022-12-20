@@ -1,8 +1,9 @@
-defmodule Platform.DbSupervisor do
+defmodule Platform.App.DbSupervisor do
   @moduledoc """
   Handles Main and Backup database supervision trees
   """
   use Supervisor
+  require Logger
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
