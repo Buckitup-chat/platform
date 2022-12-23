@@ -9,6 +9,8 @@ defmodule Platform.Storage.Logic do
   alias Chat.Db.Maintenance
   alias Chat.Db.Switching
   alias Platform.Storage.Device
+  alias Platform.Leds
+  alias Platform.Storage.MainReplicator
 
   def on_new(devices) do
     db_mode = get_db_mode()
@@ -257,10 +259,10 @@ defmodule Platform.Storage.Logic do
     Device.unmount(device)
   end
 
-  # defp log(error) do
-  #   "[platform-storage] error: #{inspect(error, pretty: true)}"
-  #   |> Logger.error()
-  # end
+  defp log(error) do
+    "[platform-storage] error: #{inspect(error, pretty: true)}"
+    |> Logger.error()
+  end
 
   defp start_replicating_on_internal, do: MainReplicator.start()
   defp stop_replicating_on_internal, do: MainReplicator.stop()
@@ -287,7 +289,7 @@ defmodule Platform.Storage.Logic do
   # DB functions
 
   defp get_db_mode, do: Common.get_chat_db_env(:mode)
-  # defp set_db_mode(mode), do: Common.put_chat_db_env(:mode, mode)
+  defp set_db_mode(mode), do: Common.put_chat_db_env(:mode, mode)
 
   defp set_db_flag([]), do: Common.put_chat_db_env(:flags, [])
 
