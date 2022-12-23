@@ -10,7 +10,7 @@ defmodule Platform.MixProject do
     [
       app: @app,
       version: @version,
-      elixir: "~> 1.13",
+      elixir: "~> 1.14",
       archives: [nerves_bootstrap: "~> 1.10"],
       start_permanent: Mix.env() == :prod,
       build_embedded: true,
@@ -34,8 +34,6 @@ defmodule Platform.MixProject do
       {:ramoops_logger, "~> 0.3.0"},
       {:observer_cli, "~> 1.7"},
       {:nerves_leds, "~> 0.8.1"},
-      # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
-      {:chat, path: "../chat", env: Mix.env()},
       {:dns, "~> 2.3"},
       # Dependencies for all targets
       {:nerves, "~> 1.9.1", runtime: false},
@@ -60,11 +58,13 @@ defmodule Platform.MixProject do
       {:nerves_system_rpi3, "~> 1.21", runtime: false, targets: :rpi3},
       {:nerves_system_rpi3a, "~> 1.21", runtime: false, targets: :rpi3a},
       {:nerves_system_rpi4, "~> 1.21", runtime: false, targets: :rpi4},
-      {:bktp_rpi4,
-       path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
       {:nerves_system_bbb, "~> 2.12", runtime: false, targets: :bbb},
       {:nerves_system_osd32mp1, "~> 0.8", runtime: false, targets: :osd32mp1},
-      {:nerves_system_x86_64, "~> 1.21", runtime: false, targets: :x86_64}
+      {:nerves_system_x86_64, "~> 1.21", runtime: false, targets: :x86_64},
+      {:bktp_rpi4,
+       path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
+      {:chat, path: "../chat", targets: @all_targets, env: Mix.env()}
+      # {:chat, path: "../chat", env: Mix.env()},
     ]
   end
 

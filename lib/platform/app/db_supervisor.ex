@@ -1,4 +1,4 @@
-defmodule Platform.DbSupervisor do
+defmodule Platform.App.DbSupervisor do
   @moduledoc """
   Handles Main and Backup database supervision trees
   """
