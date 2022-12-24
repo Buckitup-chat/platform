@@ -3,6 +3,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   Main DB device mount
   """
   use Supervisor
+
   require Logger
 
   alias Platform.Storage.Backup.Copier
@@ -16,6 +17,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
 
   @impl true
   def init([device]) do
+    "Backup DB Supervisor start" |> Logger.info()
     mount_path = "/root/media"
     full_path = [mount_path, "bdb", Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.BackupDbSupervisor.Tasks
@@ -31,5 +33,8 @@ defmodule Platform.App.Db.BackupDbSupervisor do
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)
+    |> tap(fn res ->
+      "BackupDbSupervisor init result #{inspect(res)}" |> Logger.debug()
+    end)
   end
 end

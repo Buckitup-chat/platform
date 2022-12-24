@@ -31,6 +31,9 @@ defmodule Platform.Storage.Device do
       _ -> "/dev/#{device}"
     end
     |> Maintenance.device_to_path()
-    |> Mount.unmount()
+    |> then(fn
+      nil -> :nothing_to_unmount
+      path -> Mount.unmount(path)
+    end)
   end
 end
