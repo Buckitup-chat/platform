@@ -12,7 +12,7 @@ defmodule Platform.Storage.Logic do
 
   def on_new(devices) do
     db_mode = get_db_mode()
-    "[logic-new] #{db_mode} #{inspect(devices)}" |> Logger.debug()
+    "[platform] [storage] new device on #{db_mode} : #{inspect(devices)}" |> Logger.debug()
 
     case {db_mode, devices} do
       {_, []} ->
@@ -25,9 +25,7 @@ defmodule Platform.Storage.Logic do
         make_backups_to(devices)
 
       {_, devices} ->
-        Logger.warn(
-          "[platform-storage] Cannot decide what to do with devices: #{inspect(devices)}"
-        )
+          "[platform] [storage] Cannot decide devices: #{inspect(devices)}" |> Logger.warn()
     end
   end
 
@@ -68,8 +66,6 @@ defmodule Platform.Storage.Logic do
 
   # Device handling
 
-  # defp handle_removed_devices(device) when not is_list(device), do: [device]
-
   defp handle_removed_devices(devices) do
     devices
     |> Enum.each(fn device ->
@@ -79,7 +75,7 @@ defmodule Platform.Storage.Logic do
           Platform.App.Db.MainDbSupervisor |> Process.whereis()
         )
       else
-        "[logic-remove] #{inspect(device)}" |> Logger.debug()
+        "[platform] [storage] remove #{inspect(device)}" |> Logger.debug()
         Device.unmount(device)
       end
     end)
@@ -105,12 +101,12 @@ defmodule Platform.Storage.Logic do
     main = Chat.Db.MainDb
 
     set_db_flag(replication: true)
-    "[platform-storage] Replicating to internal" |> Logger.info()
+    "[platform] [storage] Replicating to internal" |> Logger.info()
 
     Switching.mirror(main, internal)
     Copying.await_copied(main, internal)
 
-    "[platform-storage] Replicated to internal" |> Logger.info()
+    "[platform] [storage] Replicated to internal" |> Logger.info()
     set_db_flag(replication: false)
   end
 
@@ -130,12 +126,12 @@ defmodule Platform.Storage.Logic do
       db_device == "/dev/#{device}"
     else
       _ ->
-        "[platform-storage] DB process dead" |> Logger.warn()
+        "[platform] [storage] DB process dead" |> Logger.warn()
         true
     end
   rescue
     e ->
-      "[platform-storage] Exception checking main DB : #{inspect(e)}" |> Logger.error()
+      "[platform] [storage] Exception checking main DB : #{inspect(e)}" |> Logger.error()
       true
   end
 
