@@ -31,8 +31,6 @@ defmodule Platform.Storage.Backup.Stopper do
       Platform.BackupDbSupervisor,
       Platform.App.Db.BackupDbSupervisor |> Process.whereis()
     )
-    |> inspect()
-    |> Logger.debug()
 
     {:noreply, state}
   end
