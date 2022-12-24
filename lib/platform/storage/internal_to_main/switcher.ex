@@ -7,7 +7,6 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   require Logger
 
   alias Chat.Db.Common
-  alias Platform.Storage.MainReplicator
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
@@ -39,14 +38,12 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   defp on_start(args) do
     "switcher on start #{inspect(args)}" |> Logger.warn()
     set_db_mode(:main)
-    MainReplicator.start()
     args
   end
 
   defp cleanup(reason, _state) do
     "switcher cleanup #{inspect(reason)}" |> Logger.warn()
     set_db_mode(:main_to_internal)
-    MainReplicator.stop()
   end
 
   defp set_db_mode(mode), do: Common.put_chat_db_env(:mode, mode)

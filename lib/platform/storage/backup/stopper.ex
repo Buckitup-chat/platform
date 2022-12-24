@@ -5,6 +5,7 @@ defmodule Platform.Storage.Backup.Stopper do
   use GenServer
 
   require Logger
+  alias Platform.Leds
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
@@ -25,6 +26,15 @@ defmodule Platform.Storage.Backup.Stopper do
     {:stop, reason, state}
   end
 
+  def handle_info(:stop_supervisor, state) do
+    DynamicSupervisor.terminate_child(
+      Platform.BackupDbSupervisor,
+      Platform.App.Db.BackupDbSupervisor |> Process.whereis()
+    )
+
+    {:noreply, state}
+  end
+
   # handle termination
   @impl true
   def terminate(reason, state) do
@@ -34,18 +44,17 @@ defmodule Platform.Storage.Backup.Stopper do
   end
 
   defp on_start(args) do
+    Leds.blink_dump()
     Process.sleep(5_000)
     Logger.info("backup finished. Stopping supervisor")
 
-    DynamicSupervisor.terminate_child(
-      Platform.BackupDbSupervisor,
-      Platform.App.Db.BackupDbSupervisor |> Process.whereis()
-    )
+    Process.send_after(self(), :stop_supervisor, 5_000)
 
     args
   end
 
   defp cleanup(reason, _state) do
+    Leds.blink_done()
     reason
   end
 end

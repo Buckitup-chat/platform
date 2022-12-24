@@ -1,4 +1,4 @@
-.PHONY: zip burn card ssh test nothing
+.PHONY: zip burn card ssh test nothing await_restart burn_in
 
 
 platform_version := $(shell git log -1 --date=format:%Y-%m-%d --format=%cd_%h)
@@ -16,7 +16,12 @@ burn: zip
 
 ssh:
 	ssh -i ~/.ssh/buckit.id_rsa nerves.local
-	
+
+burn_in: burn await_restart ssh
+
+await_restart: 
+	sleep 45
+
 zip:
 	(cd ../chat && make firmware)
 	MIX_ENV=prod mix deps.compile chat --force

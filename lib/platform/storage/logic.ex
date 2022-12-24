@@ -9,11 +9,10 @@ defmodule Platform.Storage.Logic do
   alias Chat.Db.Maintenance
   alias Chat.Db.Switching
   alias Platform.Storage.Device
-  alias Platform.Leds
-  alias Platform.Storage.MainReplicator
 
   def on_new(devices) do
     db_mode = get_db_mode()
+    "[platform] [storage] new device on #{db_mode} : #{inspect(devices)}" |> Logger.debug()
 
     case {db_mode, devices} do
       {_, []} ->
@@ -26,9 +25,7 @@ defmodule Platform.Storage.Logic do
         make_backups_to(devices)
 
       {_, devices} ->
-        Logger.warn(
-          "[platform-storage] Cannot decide what to do with devices: #{inspect(devices)}"
-        )
+          "[platform] [storage] Cannot decide devices: #{inspect(devices)}" |> Logger.warn()
     end
   end
 
@@ -47,24 +44,10 @@ defmodule Platform.Storage.Logic do
 
   def unmount_main do
     if get_db_mode() == :main do
-      # DynamicSupervisor.terminate_child(
-      #   Platform.MainDbSupervisor,
-      #   Platform.App.Db.MainDbSupervisor |> Process.whereis()
-      # )
-
-      switch_main_to_internal()
-
-      device =
-        Chat.Db.MainDb
-        |> CubDB.data_dir()
-        |> Maintenance.path_to_device()
-
       DynamicSupervisor.terminate_child(
         Platform.MainDbSupervisor,
-        Chat.Db.MainDbSupervisor |> Process.whereis()
+        Platform.App.Db.MainDbSupervisor |> Process.whereis()
       )
-
-      Device.unmount(device)
 
       :unmounted
     else
@@ -87,15 +70,12 @@ defmodule Platform.Storage.Logic do
     devices
     |> Enum.each(fn device ->
       if is_main_device?(device) do
-        # DynamicSupervisor.terminate_child(
-        #   Platform.MainDbSupervisor,
-        #   Platform.App.Db.MainDbSupervisor |> Process.whereis()
-        # )
-
-        switch_back_to_internal()
-        Device.unmount(device)
-
+        DynamicSupervisor.terminate_child(
+          Platform.MainDbSupervisor,
+          Platform.App.Db.MainDbSupervisor |> Process.whereis()
+        )
       else
+        "[platform] [storage] remove #{inspect(device)}" |> Logger.debug()
         Device.unmount(device)
       end
     end)
@@ -111,56 +91,9 @@ defmodule Platform.Storage.Logic do
   # Implementations
 
   defp switch_internal_to_main(device) do
-    # Platform.MainDbSupervisor
-    # |> DynamicSupervisor.start_child({Platform.App.Db.MainDbSupervisor, [device]})
+    Platform.MainDbSupervisor
+    |> DynamicSupervisor.start_child({Platform.App.Db.MainDbSupervisor, [device]})
 
-    # |> inspect()
-    # |> Logger.error()
-
-    # Process.info(self(), :current_stacktrace)
-    # |> inspect(pretty: true)
-    # |> Logger.warn()
-
-    set_db_mode(:internal_to_main)
-
-    case sync_and_switch_on_main(device) do
-      :ok ->
-        set_db_mode(:main)
-        start_replicating_on_internal()
-
-        "[platform-storage] Switched to main" |> Logger.info()
-
-      {:error, e} ->
-        set_db_mode(:internal)
-        log(e)
-    end
-  end
-
-  defp switch_back_to_internal do
-    internal = Chat.Db.InternalDb
-
-    set_db_mode(:main_to_internal)
-    stop_replicating_on_internal()
-
-    Switching.set_default(internal)
-    "[platform-storage] Switched to internal" |> Logger.info()
-
-    set_db_mode(:internal)
-  end
-
-  defp switch_main_to_internal do
-    set_db_mode(:main_to_internal)
-
-    # replicate_main_to_internal()
-    # switch_back_to_internal()
-
-    Chat.Db.db()
-    |> CubDB.data_dir()
-    |> Maintenance.path_to_device()
-    |> tap(fn _ ->
-      replicate_main_to_internal()
-      switch_back_to_internal()
-    end)
   end
 
   defp do_replicate_to_internal do
@@ -168,130 +101,43 @@ defmodule Platform.Storage.Logic do
     main = Chat.Db.MainDb
 
     set_db_flag(replication: true)
-    "[platform-storage] Replicating to internal" |> Logger.info()
+    "[platform] [storage] Replicating to internal" |> Logger.info()
 
     Switching.mirror(main, internal)
     Copying.await_copied(main, internal)
 
-    "[platform-storage] Replicated to internal" |> Logger.info()
+    "[platform] [storage] Replicated to internal" |> Logger.info()
     set_db_flag(replication: false)
   end
 
   defp make_backups_to([device]) do
-    # Platform.BackupDbSupervisor
-    # |> DynamicSupervisor.start_child({Chat.Db.BackupDbSupervisor, device})
+    Platform.BackupDbSupervisor
+    |> DynamicSupervisor.start_child({Platform.App.Db.BackupDbSupervisor, [device]})
 
-    set_db_flag(backup: true)
-    "[platform-storage] Syncing to device #{device}" |> Logger.info()
-
-    start_backup_db(device)
-    Leds.blink_read()
-    Copying.await_copied(Chat.Db.BackupDb, Db.db())
-    Leds.blink_write()
-    Copying.await_copied(Db.db(), Chat.Db.BackupDb)
-    Leds.blink_done()
-    Chat.Ordering.reset()
-    stop_backup_db()
-
-    "[platform-storage] Synced to device #{device}" |> Logger.info()
-    set_db_flag(backup: false)
   end
-
-  defp sync_and_switch_on_main(device) do
-    internal = Chat.Db.InternalDb
-    main = Chat.Db.MainDb
-
-    start_main_db(device)
-    Switching.mirror(internal, main)
-    Copying.await_copied(internal, main)
-    Switching.set_default(main)
-    Process.sleep(500)
-    Switching.mirror(main, internal)
-
-    Logger.info("[platform-sync] Data moved to external storage")
-
-    :ok
-  rescue
-    e -> {:error, e}
-  end
-
-  defp start_main_db(device) do
-    device
-    |> Device.heal()
-    |> Device.mount_on("/root/storage")
-    |> then(fn path ->
-      [path, "main_db", Db.version_path()]
-      |> Path.join()
-      |> tap(&File.mkdir_p!/1)
-    end)
-    |> then(fn full_path ->
-      Platform.MainDbSupervisor
-      |> DynamicSupervisor.start_child({Chat.Db.MainDbSupervisor, full_path})
-    end)
-  end
-
-  defp start_backup_db(device) do
-    device
-    |> Device.heal()
-    |> Device.mount_on("/root/media")
-    |> then(fn path ->
-      [path, "bdb", Db.version_path()]
-      |> Path.join()
-      |> tap(&File.mkdir_p!/1)
-    end)
-    |> then(fn full_path ->
-      Platform.BackupDbSupervisor
-      |> DynamicSupervisor.start_child({Chat.Db.BackupDbSupervisor, full_path})
-    end)
-  end
-
-  defp stop_backup_db do
-    device =
-      Chat.Db.MainDb
-      |> CubDB.data_dir()
-      |> Maintenance.path_to_device()
-
-    DynamicSupervisor.terminate_child(
-      Platform.BackupDbSupervisor,
-      Chat.Db.BackupDbSupervisor |> Process.whereis()
-    )
-
-    Device.unmount(device)
-  end
-
-  defp log(error) do
-    "[platform-storage] error: #{inspect(error, pretty: true)}"
-    |> Logger.error()
-  end
-
-  defp start_replicating_on_internal, do: MainReplicator.start()
-  defp stop_replicating_on_internal, do: MainReplicator.stop()
 
   # Device support functions
 
   defp is_main_device?(device) do
-    with db_pid <- Db.db(),
+    with db_pid <- Db.db() |> Process.whereis(),
          true <- Process.alive?(db_pid),
          db_path <- CubDB.data_dir(db_pid),
          db_device <- Maintenance.path_to_device(db_path) do
       db_device == "/dev/#{device}"
     else
       _ ->
-        "[platform-storage] DB process dead" |> Logger.warn()
+        "[platform] [storage] DB process dead" |> Logger.warn()
         true
     end
   rescue
     e ->
-      "[platform-storage] Exception checking main DB : #{inspect(e)}" |> Logger.error()
+      "[platform] [storage] Exception checking main DB : #{inspect(e)}" |> Logger.error()
       true
   end
 
   # DB functions
 
   defp get_db_mode, do: Common.get_chat_db_env(:mode)
-  defp set_db_mode(mode), do: Common.put_chat_db_env(:mode, mode)
-
-  defp set_db_flag([]), do: Common.put_chat_db_env(:flags, [])
 
   defp set_db_flag(flags) do
     Common.get_chat_db_env(:flags)

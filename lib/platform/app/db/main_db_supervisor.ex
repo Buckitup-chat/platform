@@ -8,6 +8,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
   alias Platform.Storage.InternalToMain.Copier
   alias Platform.Storage.InternalToMain.Starter
   alias Platform.Storage.InternalToMain.Switcher
+  alias Platform.Storage.MainReplicator
   alias Platform.Storage.Mounter
 
   def start_link(init_arg) do
@@ -16,6 +17,8 @@ defmodule Platform.App.Db.MainDbSupervisor do
 
   @impl true
   def init([device]) do
+    "Main Db Supervisor start" |> Logger.debug()
+
     mount_path = "/root/storage"
     full_path = [mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.MainDbSupervisor.Tasks
@@ -27,6 +30,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
       {Chat.Db.MainDbSupervisor, full_path},
       Starter,
       {Copier, tasks},
+      MainReplicator,
       Switcher
     ]
 

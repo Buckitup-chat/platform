@@ -8,7 +8,7 @@ defmodule Platform.Storage.Backup.Copier do
 
   alias Chat.Db
   alias Chat.Db.Copying
-  alias Chat.Db.Ordering
+  alias Chat.Ordering
 
   alias Platform.Leds
 
