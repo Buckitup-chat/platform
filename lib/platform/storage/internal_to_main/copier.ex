@@ -49,7 +49,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
       Process.sleep(500)
       Switching.mirror(main, internal)
     end)
-    |> Task.await()
+    |> Task.await(:infinity)
 
     Logger.info("[internal -> main copier] Data moved to external storage")
   end

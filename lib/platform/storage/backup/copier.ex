@@ -50,7 +50,7 @@ defmodule Platform.Storage.Backup.Copier do
       Copying.await_copied(Db.db(), Chat.Db.BackupDb)
       Leds.blink_done()
     end)
-    |> Task.await()
+    |> Task.await(:infinity)
 
     "[backup] Synced " |> Logger.info()
   end
