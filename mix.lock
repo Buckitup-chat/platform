@@ -1,5 +1,6 @@
 %{
   "beam_notify": {:hex, :beam_notify, "1.0.0", "5b8dceed76f8ac4acadf4d2915ac85b98c42bb17d7dd58253c7593d2a0deedbd", [:make, :mix], [{:elixir_make, "~> 0.6", [hex: :elixir_make, repo: "hexpm", optional: false]}], "hexpm", "a80331f6c3596918affa408d91ed634106b7ae71b3fc589432363aca68378362"},
+  "bktp_rpi4": {:git, "https://github.com/Buckitup-chat/bktp_rpi4.git", "0b1fa699fc7a3760d7f6c4483adb5643ae4afe8c", []},
   "bunt": {:hex, :bunt, "0.2.1", "e2d4792f7bc0ced7583ab54922808919518d0e57ee162901a16a1b6664ef3b14", [:mix], [], "hexpm", "a330bfb4245239787b15005e66ae6845c9cd524a288f0d141c148b02603777a5"},
   "castore": {:hex, :castore, "0.1.20", "62a0126cbb7cb3e259257827b9190f88316eb7aa3fdac01fd6f2dfd64e7f46e9", [:mix], [], "hexpm", "a020b7650529c986c454a4035b6b13a328e288466986307bea3aadb4c95ac98a"},
   "certifi": {:hex, :certifi, "2.9.0", "6f2a475689dd47f19fb74334859d460a2dc4e3252a3324bd2111b8f0429e7e21", [:rebar3], [], "hexpm", "266da46bdb06d6c6d35fde799bcb28d36d985d424ad7c08b5bb48f5b5cdd4641"},
