@@ -96,7 +96,7 @@ config :vintage_net,
              key_mgmt: :wpa_psk,
              mode: :ap,
              psk: "buckitup",
-             ssid: "buckItUp.app",
+             ssid: "buckitup.app",
              proto: "RSN",
              pairwise: "CCMP",
              group: "CCMP"
