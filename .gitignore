@@ -33,3 +33,5 @@ image*.zip
 # Elixir LS
 .elixir_ls/
 
+
+ctags
