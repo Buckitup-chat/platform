@@ -25,7 +25,7 @@ defmodule Platform.Storage.Logic do
         make_backups_to(devices)
 
       {_, devices} ->
-          "[platform] [storage] Cannot decide devices: #{inspect(devices)}" |> Logger.warn()
+        "[platform] [storage] Cannot decide devices: #{inspect(devices)}" |> Logger.warn()
     end
   end
 
@@ -82,7 +82,18 @@ defmodule Platform.Storage.Logic do
   end
 
   defp handle_devices_left_connected(devices) do
-    case {get_db_mode(), devices} do
+    unused_devices =
+      devices
+      |> Enum.reject(fn device ->
+        if String.starts_with?(device, "/dev/") do
+          device
+        else
+          "/dev/" <> device
+        end
+        |> Maintenance.device_to_path()
+      end)
+
+    case {get_db_mode(), unused_devices} do
       {:internal, [device]} -> switch_internal_to_main(device)
       _ -> :skip
     end
@@ -93,7 +104,6 @@ defmodule Platform.Storage.Logic do
   defp switch_internal_to_main(device) do
     Platform.MainDbSupervisor
     |> DynamicSupervisor.start_child({Platform.App.Db.MainDbSupervisor, [device]})
-
   end
 
   defp do_replicate_to_internal do
@@ -113,7 +123,6 @@ defmodule Platform.Storage.Logic do
   defp make_backups_to([device]) do
     Platform.BackupDbSupervisor
     |> DynamicSupervisor.start_child({Platform.App.Db.BackupDbSupervisor, [device]})
-
   end
 
   # Device support functions

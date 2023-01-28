@@ -9,6 +9,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
   alias Chat.Db.Copying
   alias Chat.Db.Switching
 
+  alias Platform.Leds
+
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
   end
@@ -42,16 +44,19 @@ defmodule Platform.Storage.InternalToMain.Copier do
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
 
+    Leds.blink_write()
     Task.Supervisor.async_nolink(tasks_name, fn ->
       Switching.mirror(internal, main)
       Copying.await_copied(internal, main)
       Switching.set_default(main)
-      Process.sleep(500)
+      Process.sleep(1_000)
       Switching.mirror(main, internal)
+      Process.sleep(3_000)
     end)
     |> Task.await(:infinity)
 
     Logger.info("[internal -> main copier] Data moved to external storage")
+    Leds.blink_done()
   end
 
   defp cleanup(reason, _state) do

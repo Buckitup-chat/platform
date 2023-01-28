@@ -20,7 +20,7 @@ defmodule Platform.UsbWatcher do
   end
 
   def subscribe do
-    SystemRegistry.register(min_interval: 1500)
+    SystemRegistry.register(min_interval: 2000)
   end
 
   def start_link(opts) do
