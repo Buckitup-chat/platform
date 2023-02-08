@@ -46,21 +46,21 @@ defmodule Platform.Storage.Mounter do
     state
   end
 
-  defp on_start([device, path, tasks_name]) do
-    Task.Supervisor.async_nolink(tasks_name, fn ->
+  defp on_start([device, path, task_supervisor]) do
+    Task.Supervisor.async_nolink(task_supervisor, fn ->
       device
       |> Device.heal()
       |> Device.mount_on(path)
     end)
     |> Task.await()
 
-    {path, tasks_name}
+    {path, task_supervisor}
   end
 
-  defp cleanup(reason, {path, tasks_name}) do
+  defp cleanup(reason, {path, task_supervisor}) do
     "mount cleanup #{path} #{inspect(reason)}" |> Logger.warn()
 
-    Task.Supervisor.async_nolink(tasks_name, fn ->
+    Task.Supervisor.async_nolink(task_supervisor, fn ->
       Mount.unmount(path)
     end)
     |> Task.await()

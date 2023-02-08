@@ -121,8 +121,8 @@ defmodule Platform.Storage.Logic do
   end
 
   defp make_backups_to([device]) do
-    Platform.BackupDbSupervisor
-    |> DynamicSupervisor.start_child({Platform.App.Db.BackupDbSupervisor, [device]})
+    Platform.App.Media.DynamicSupervisor
+    |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [device]})
   end
 
   # Device support functions
