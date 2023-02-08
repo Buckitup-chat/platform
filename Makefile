@@ -5,11 +5,21 @@ platform_version := $(shell git log -1 --date=format:%Y-%m-%d --format=%cd_%h)
 chat_version := $(shell bash chat_version.sh)
 version := "$(platform_version)___$(chat_version)"
 
-nothing: 
+nothing:
 	@echo  $(version)
 
 check:
 	mix compile --warnings-as-errors
+
+prepare_chat:
+	cd ../chat && make firmware
+	MIX_ENV=prod mix deps.compile chat --force
+
+burn_in_platform:
+	mix firmware
+	mix upload
+	sleep 20
+	ssh nerves.local
 
 burn: zip
 	mix upload
@@ -19,7 +29,7 @@ ssh:
 
 burn_in: burn await_restart ssh
 
-await_restart: 
+await_restart:
 	sleep 45
 
 zip:
