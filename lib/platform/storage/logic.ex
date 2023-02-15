@@ -22,7 +22,7 @@ defmodule Platform.Storage.Logic do
         switch_internal_to_main(device)
 
       {:main, devices} ->
-        make_backups_to(devices)
+        start_media_supervisor(devices)
 
       {_, devices} ->
         "[platform] [storage] Cannot decide devices: #{inspect(devices)}" |> Logger.warn()
@@ -120,7 +120,7 @@ defmodule Platform.Storage.Logic do
     set_db_flag(replication: false)
   end
 
-  defp make_backups_to([device]) do
+  defp start_media_supervisor([device]) do
     Platform.App.Media.DynamicSupervisor
     |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [device]})
   end
