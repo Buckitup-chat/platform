@@ -19,7 +19,8 @@ defmodule Platform.App.Media.Decider do
     "Platform.App.Media.Decider starting functionality" |> Logger.info()
 
     Platform.App.Media.FunctionalityDynamicSupervisor
-    |> DynamicSupervisor.start_child({Platform.App.Db.BackupDbSupervisor, [device]})
+    # |> DynamicSupervisor.start_child({Platform.App.Db.BackupDbSupervisor, [device]})
+    |> DynamicSupervisor.start_child({Platform.App.Sync.OnlinersSyncSupervisor, [device]})
 
     {:noreply, device}
   end
