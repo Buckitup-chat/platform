@@ -8,8 +8,12 @@ defmodule Platform.App.Sync.Onliners.Logic do
   require Logger
 
   alias Chat.Db.Scope.KeyScope
+  alias Phoenix.PubSub
   alias Platform.App.Sync.Onliners.OnlinersDynamicSupervisor
   alias Platform.Storage.Backup.{Copier, Stopper}
+
+  @incoming_topic "chat_onliners->platform_onliners"
+  @outgoing_topic "platform_onliners->chat_onliners"
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
@@ -26,7 +30,10 @@ defmodule Platform.App.Sync.Onliners.Logic do
   def handle_continue(:start_sync, state) do
     "Platform.App.Sync.Onliners.Logic starting sync" |> Logger.info()
 
-    Process.send_after(self(), :do_sync, 5000)
+    PubSub.subscribe(Chat.PubSub, @incoming_topic)
+    PubSub.broadcast(Chat.PubSub, @outgoing_topic, "get_user_keys")
+
+    Process.send_after(self(), :do_sync, 1000)
 
     {:noreply, state}
   end
@@ -38,11 +45,13 @@ defmodule Platform.App.Sync.Onliners.Logic do
     keys = KeyScope.get_keys(Chat.Db.db(), state[:keys])
     opts = Keyword.put(state, :keys, keys)
 
-    OnlinersDynamicSupervisor
-    |> DynamicSupervisor.start_child({Copier, opts})
+    {:ok, _pid} =
+      OnlinersDynamicSupervisor
+      |> DynamicSupervisor.start_child({Copier, opts})
 
-    OnlinersDynamicSupervisor
-    |> DynamicSupervisor.start_child(Stopper)
+    {:ok, _pid} =
+      OnlinersDynamicSupervisor
+      |> DynamicSupervisor.start_child(Stopper)
 
     {:noreply, state}
   end
@@ -52,8 +61,6 @@ defmodule Platform.App.Sync.Onliners.Logic do
       state
       |> Keyword.get(:keys)
       |> MapSet.union(user_keys)
-
-    KeyScope
 
     {:noreply, Keyword.put(state, :keys, keys)}
   end
