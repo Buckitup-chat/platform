@@ -14,7 +14,7 @@ defmodule Platform.UsbWatcher do
       [:state, "devices", "platform", "scb" | _rest] -> true
       _ -> false
     end)
-    |> Enum.map(&Enum.slice(&1, -2..-1))
+    |> Enum.map(&Enum.drop(&1, 16))
     |> Enum.reject(fn x -> x == [] end)
     |> Enum.group_by(&List.first(&1))
   end
