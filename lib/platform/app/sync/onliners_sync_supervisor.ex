@@ -19,7 +19,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   def init([_device]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
     mount_path = "/root/media"
-    full_path = [mount_path, "bdb", Chat.Db.version_path()] |> Path.join()
+    full_path = [mount_path, "onliners_db", Chat.Db.version_path()] |> Path.join()
     tasks = Tasks
 
     children = [
