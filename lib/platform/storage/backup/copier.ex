@@ -43,14 +43,15 @@ defmodule Platform.Storage.Backup.Copier do
     "[backup] Syncing " |> Logger.info()
 
     tasks_name = Keyword.get(args, :tasks_name)
-    keys = Keyword.get(args, :keys)
+    backup_keys = Keyword.get(args, :backup_keys)
+    restoration_keys = Keyword.get(args, :restoration_keys)
 
     Task.Supervisor.async_nolink(tasks_name, fn ->
       Leds.blink_read()
-      Copying.await_copied(Chat.Db.BackupDb, Db.db())
+      Copying.await_copied(Chat.Db.BackupDb, Db.db(), restoration_keys)
       Ordering.reset()
       Leds.blink_write()
-      Copying.await_copied(Db.db(), Chat.Db.BackupDb, keys)
+      Copying.await_copied(Db.db(), Chat.Db.BackupDb, backup_keys)
       Leds.blink_done()
     end)
     |> Task.await(:infinity)

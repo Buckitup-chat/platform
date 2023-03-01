@@ -42,8 +42,13 @@ defmodule Platform.App.Sync.Onliners.Logic do
   def handle_info(:do_sync, state) do
     "Platform.App.Sync.Onliners.Logic syncing" |> Logger.info()
 
-    keys = KeyScope.get_keys(Chat.Db.db(), state[:keys])
-    opts = Keyword.put(state, :keys, keys)
+    backup_keys = KeyScope.get_keys(Chat.Db.db(), state[:keys])
+    restoration_keys = KeyScope.get_keys(Chat.Db.BackupDb, state[:keys])
+
+    opts =
+      state
+      |> Keyword.put(:backup_keys, backup_keys)
+      |> Keyword.put(:restoration_keys, restoration_keys)
 
     {:ok, _pid} =
       OnlinersDynamicSupervisor

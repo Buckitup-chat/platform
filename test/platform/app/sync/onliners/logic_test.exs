@@ -35,14 +35,37 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
 
   test "syncs online users" do
     DynamicSupervisor.start_link(name: OnlinersDynamicSupervisor, strategy: :one_for_one)
+    full_path = "#{Db.file_path()}-onliners"
+    BackupDbSupervisor.start_link(full_path)
+    File.mkdir(full_path)
+
+    Switching.set_default(BackupDb)
+
+    bob = User.login("Bob")
+    User.register(bob)
+    bob_card = Card.from_identity(bob)
+
+    bob_dialog = Dialogs.find_or_open(bob, bob_card)
+
+    {bob_msg_index, bob_message} =
+      "Bob talking to himself again"
+      |> Messages.Text.new(1)
+      |> Dialogs.add_new_message(bob, bob_dialog)
+
+    ChangeTracker.await()
+
+    assert %Dialogs.PrivateMessage{content: "Bob talking to himself again"} =
+             Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob)
+
+    Switching.set_default(InternalDb)
+
+    assert catch_error(Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob))
 
     alice = User.login("Alice")
     User.register(alice)
     alice_key = Identity.pub_key(alice)
 
-    bob = User.login("Bob")
     User.register(bob)
-    bob_card = Card.from_identity(bob)
 
     charlie = User.login("Charlie")
     User.register(charlie)
@@ -120,9 +143,6 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
 
     PubSub.subscribe(Chat.PubSub, "platform_onliners->chat_onliners")
 
-    full_path = "#{Db.file_path()}-onliners"
-    BackupDbSupervisor.start_link(full_path)
-    File.mkdir(full_path)
     Task.Supervisor.start_link(name: Tasks)
     Logic.start_link(Tasks)
 
@@ -135,6 +155,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     :timer.sleep(3000)
 
     users_count = length(User.list())
+    assert catch_error(Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob))
 
     Switching.set_default(BackupDb)
 
