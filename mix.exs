@@ -13,7 +13,7 @@ defmodule Platform.MixProject do
       elixir: "~> 1.14",
       elixirc_paths: elixirc_paths(Mix.env()),
       archives: [nerves_bootstrap: "~> 1.10"],
-      start_permanent: Mix.env() == :prod,
+      start_permanent: Mix.target() != :host,
       build_embedded: true,
       deps: deps(),
       releases: [{@app, release()}],
@@ -73,7 +73,10 @@ defmodule Platform.MixProject do
        nerves: [compile: false]},
       # {:bktp_rpi4,
       #  path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
-      {:chat, path: "../chat", targets: [:host | @all_targets], env: Mix.env()}
+      {:chat,
+       path: "../chat",
+       targets: [:host | @all_targets],
+       env: if(Mix.target() == :host, do: Mix.env(), else: :prod)}
       # {:chat, path: "../chat", env: Mix.env()},
     ]
   end

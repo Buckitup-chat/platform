@@ -49,6 +49,13 @@ if keys == [],
 config :nerves_ssh,
   authorized_keys: Enum.map(keys, &File.read!/1)
 
+maybe_usb =
+  if config_env() == :dev do
+    [{"usb0", %{type: VintageNetDirect}}]
+  else
+    []
+  end
+
 # Configure the network using vintage_net
 # See https://github.com/nerves-networking/vintage_net for more information
 config :vintage_net,
@@ -57,54 +64,54 @@ config :vintage_net,
   # persistence: VintageNet.Persistence.Null,
   internet_host_list: [{{192, 168, 24, 1}, 53}],
   additional_name_servers: [{{192, 168, 24, 1}}],
-  config: [
-    # {"usb0", %{type: VintageNetDirect}},
-    {"eth0",
-     %{
-       type: VintageNetEthernet,
-       ipv4: %{method: :dhcp}
-     }},
-    {"wlan0",
-     %{
-       type: VintageNetWiFi,
-       dhcpd: %{
-         start: {192, 168, 24, 10},
-         end: {192, 168, 24, 250},
-         options: %{
-           dns: [{192, 168, 24, 1}],
-           subnet: {255, 255, 255, 0},
-           router: [{192, 168, 24, 1}],
-           domain: "buckitup.app",
-           search: ["buckitup.app"]
-         }
-       },
-       dnsd: %{
-         records: [
-           {"buckitup.app", {192, 168, 24, 1}}
-           # {"*", {192, 168, 24, 1}}
-         ]
-       },
-       ipv4: %{
-         address: {192, 168, 24, 1},
-         method: :static,
-         prefix_length: 24,
-         name_servers: [{192, 168, 24, 1}]
-       },
-       vintage_net_wifi: %{
-         networks: [
-           %{
-             key_mgmt: :wpa_psk,
-             mode: :ap,
-             psk: "buckitup",
-             ssid: "buckitup.app",
-             proto: "RSN",
-             pairwise: "CCMP",
-             group: "CCMP"
+  config:
+    [
+      {"eth0",
+       %{
+         type: VintageNetEthernet,
+         ipv4: %{method: :dhcp}
+       }},
+      {"wlan0",
+       %{
+         type: VintageNetWiFi,
+         dhcpd: %{
+           start: {192, 168, 24, 10},
+           end: {192, 168, 24, 250},
+           options: %{
+             dns: [{192, 168, 24, 1}],
+             subnet: {255, 255, 255, 0},
+             router: [{192, 168, 24, 1}],
+             domain: "buckitup.app",
+             search: ["buckitup.app"]
            }
-         ]
-       }
-     }}
-  ]
+         },
+         dnsd: %{
+           records: [
+             {"buckitup.app", {192, 168, 24, 1}}
+             # {"*", {192, 168, 24, 1}}
+           ]
+         },
+         ipv4: %{
+           address: {192, 168, 24, 1},
+           method: :static,
+           prefix_length: 24,
+           name_servers: [{192, 168, 24, 1}]
+         },
+         vintage_net_wifi: %{
+           networks: [
+             %{
+               key_mgmt: :wpa_psk,
+               mode: :ap,
+               psk: "buckitup",
+               ssid: "buckitup.app",
+               proto: "RSN",
+               pairwise: "CCMP",
+               group: "CCMP"
+             }
+           ]
+         }
+       }}
+    ] ++ maybe_usb
 
 config :mdns_lite,
   # The `host` key specifies what hostnames mdns_lite advertises.  `:hostname`
