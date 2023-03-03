@@ -1,10 +1,8 @@
 defmodule Platform.App.Sync.Onliners.LogicTest do
   use ExUnit.Case, async: true
 
-  alias Chat.RoomInvites
+  alias Chat.Content.{Files, Memo, RoomInvites}
   alias Chat.Utils.StorageId
-  alias Chat.Memo
-  alias Chat.Files
 
   alias Chat.{
     Card,
@@ -71,7 +69,6 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     User.register(charlie)
     charlie_card = Card.from_identity(charlie)
     charlie_key = Identity.pub_key(charlie)
-    charlie_hash = Utils.hash(charlie_key)
 
     alice_bob_dialog = Dialogs.find_or_open(alice, bob_card)
 
@@ -89,7 +86,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     |> Dialogs.add_new_message(bob, bob_charlie_dialog)
 
     {first_room_identity, first_room} = Rooms.add(alice, "Alice, Bob and Charlie room", :request)
-    first_room_hash = Utils.hash(first_room.pub_key)
+    first_room_key = first_room_identity |> Identity.pub_key()
 
     room_invite =
       first_room_identity
@@ -102,9 +99,8 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
       |> Map.fetch!(:content)
       |> Utils.StorageId.from_json()
 
-    Rooms.add_request(first_room_hash, charlie, 1)
-    Rooms.approve_request(first_room_hash, charlie_hash, first_room_identity, [])
-    Rooms.join_approved_request(first_room_identity, charlie)
+    Rooms.add_request(first_room_key, charlie, 1)
+    Rooms.approve_request(first_room_key, charlie_key, first_room_identity, [])
 
     %Messages.File{data: image_data} = image = FakeData.image("1.pp")
     [first_file_key, encoded_chunk_secret, _, _, _, _] = image_data
@@ -117,7 +113,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
 
     FileIndex.save(
       first_file_key,
-      Utils.hash(first_room.pub_key),
+      first_room.pub_key,
       first_image_message.id,
       chunk_secret
     )
@@ -128,11 +124,10 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     ChunkedFiles.save_upload_chunk(first_file_key, {18, 29}, "another part")
 
     {second_room_identity, second_room} = Rooms.add(bob, "Bob and Charlie room")
-    second_room_hash = Utils.hash(second_room.pub_key)
-    Rooms.Registry.await_saved(second_room_hash)
-    Rooms.add_request(second_room_hash, charlie, 1)
-    Rooms.approve_request(second_room_hash, charlie_hash, second_room_identity, [])
-    Rooms.join_approved_request(second_room_identity, charlie)
+    second_room_key = second_room_identity |> Identity.pub_key()
+    Rooms.Registry.await_saved(second_room_key)
+    Rooms.add_request(second_room_key, charlie, 1)
+    Rooms.approve_request(second_room_key, charlie_key, second_room_identity, [])
 
     {bob_second_room_message_index, bob_second_room_message} =
       "Hello second room from Bob"
@@ -160,12 +155,8 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     Switching.set_default(BackupDb)
 
     assert length(User.list()) == users_count
-
-    {_, list} = Rooms.list([first_room_hash])
-    assert Enum.any?(list, &(&1.hash == first_room_hash))
-
-    {_, list} = Rooms.list([second_room_hash])
-    refute Enum.any?(list, &(&1.hash == second_room_hash))
+    assert Rooms.get(first_room_key)
+    refute Rooms.get(second_room_key)
 
     assert ["Alice, Bob and Charlie room", _] =
              RoomInvites.get(room_invite_key, room_invite_secret)
@@ -181,8 +172,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     assert [^first_file_key, ^encoded_chunk_secret, _, _, _, _] =
              Rooms.read_message(
                {first_image_message_index, first_image_message.id},
-               first_room_identity,
-               &User.id_map_builder/1
+               first_room_identity
              )
              |> Map.get(:content)
              |> StorageId.from_json()
@@ -194,8 +184,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     assert catch_error(
              Rooms.read_message(
                {bob_second_room_message_index, bob_second_room_message.id},
-               second_room_identity,
-               &User.id_map_builder/1
+               second_room_identity
              )
            )
   end
