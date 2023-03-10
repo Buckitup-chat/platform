@@ -69,6 +69,8 @@ defmodule Platform.UsbWatcher do
   def handle_info({:new, x}, state) when x == %{}, do: noreply(state)
 
   def handle_info({:new, %{} = new_devices}, state) do
+    Logger.debug("[usb watcher] New devices found: #{inspect(new_devices)}")
+
     new_devices
     |> Enum.map(fn {root, devices} ->
       devices
@@ -100,6 +102,8 @@ defmodule Platform.UsbWatcher do
   end
 
   defp first_partition_of(device_partitions, root_key) do
+    Logger.debug("[usb watcher] Device partitions: #{inspect(device_partitions)}")
+
     device_partitions
     |> List.flatten()
     |> Enum.reject(&(&1 == root_key))
