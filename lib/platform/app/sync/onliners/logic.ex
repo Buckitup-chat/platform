@@ -20,10 +20,11 @@ defmodule Platform.App.Sync.Onliners.Logic do
   end
 
   @impl GenServer
-  def init(tasks_name) do
+  def init([target_db, tasks_name]) do
     "Platform.App.Sync.Onliners.Logic start" |> Logger.info()
 
-    {:ok, [keys: MapSet.new(), tasks_name: tasks_name], {:continue, :start_sync}}
+    {:ok, [keys: MapSet.new(), target_db: target_db, tasks_name: tasks_name],
+     {:continue, :start_sync}}
   end
 
   @impl GenServer
@@ -43,7 +44,7 @@ defmodule Platform.App.Sync.Onliners.Logic do
     "Platform.App.Sync.Onliners.Logic syncing" |> Logger.info()
 
     backup_keys = KeyScope.get_keys(Chat.Db.db(), state[:keys])
-    restoration_keys = KeyScope.get_keys(Chat.Db.BackupDb, state[:keys])
+    restoration_keys = KeyScope.get_keys(state[:target_db], state[:keys])
 
     opts =
       state

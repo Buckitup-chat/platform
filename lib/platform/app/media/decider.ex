@@ -23,11 +23,11 @@ defmodule Platform.App.Media.Decider do
   def handle_continue(:choose_functionality, %{device: device, mount_path: mount_path} = state) do
     supervisor =
       cond do
-        File.exists?("#{mount_path}/bdb") ->
-          BackupDbSupervisor
-
         File.exists?("#{mount_path}/onliners_db") ->
           OnlinersSyncSupervisor
+
+        File.exists?("#{mount_path}/bdb") ->
+          BackupDbSupervisor
 
         true ->
           new_drive_supervisor()

@@ -19,7 +19,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     Utils
   }
 
-  alias Chat.Db.{BackupDb, BackupDbSupervisor, ChangeTracker, InternalDb, Switching}
+  alias Chat.Db.{BackupDbSupervisor, ChangeTracker, InternalDb, OnlinersDb, Switching}
   alias Phoenix.PubSub
   alias Platform.App.Sync.Onliners.{Logic, OnlinersDynamicSupervisor}
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
@@ -34,10 +34,10 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
   test "syncs online users" do
     DynamicSupervisor.start_link(name: OnlinersDynamicSupervisor, strategy: :one_for_one)
     full_path = "#{Db.file_path()}-onliners"
-    BackupDbSupervisor.start_link(full_path)
+    BackupDbSupervisor.start_link([OnlinersDb, full_path])
     File.mkdir(full_path)
 
-    Switching.set_default(BackupDb)
+    Switching.set_default(OnlinersDb)
 
     bob = User.login("Bob")
     User.register(bob)
@@ -119,9 +119,9 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     )
 
     first_file_secret = ChunkedFiles.new_upload(first_file_key)
-    ChunkedFiles.save_upload_chunk(first_file_key, {0, 17}, "some part of info ")
+    ChunkedFiles.save_upload_chunk(first_file_key, {0, 17}, 30, "some part of info ")
     ChangeTracker.await({:file_chunk, first_file_key, 0, 17})
-    ChunkedFiles.save_upload_chunk(first_file_key, {18, 29}, "another part")
+    ChunkedFiles.save_upload_chunk(first_file_key, {18, 29}, 30, "another part")
 
     {second_room_identity, second_room} = Rooms.add(bob, "Bob and Charlie room")
     second_room_key = second_room_identity |> Identity.pub_key()
@@ -139,7 +139,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     PubSub.subscribe(Chat.PubSub, "platform_onliners->chat_onliners")
 
     Task.Supervisor.start_link(name: Tasks)
-    Logic.start_link(Tasks)
+    Logic.start_link([OnlinersDb, Tasks])
 
     assert_receive "get_user_keys"
 
@@ -152,7 +152,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     users_count = length(User.list())
     assert catch_error(Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob))
 
-    Switching.set_default(BackupDb)
+    Switching.set_default(OnlinersDb)
 
     assert length(User.list()) == users_count
     assert Rooms.get(first_room_key)
