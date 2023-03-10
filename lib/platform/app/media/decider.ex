@@ -8,6 +8,8 @@ defmodule Platform.App.Media.Decider do
   alias Platform.App.Db.BackupDbSupervisor
   alias Platform.App.Sync.OnlinersSyncSupervisor
 
+  @supervisor_map %{backup: BackupDbSupervisor, onliners: OnlinersSyncSupervisor}
+
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
   end
@@ -43,13 +45,6 @@ defmodule Platform.App.Media.Decider do
 
   def new_drive_supervisor() do
     %MediaSettings{} = media_settings = AdminRoom.get_media_settings()
-
-    case media_settings.functionality do
-      :backup ->
-        BackupDbSupervisor
-
-      :onliners ->
-        OnlinersSyncSupervisor
-    end
+    Map.get(@supervisor_map, media_settings.functionality)
   end
 end
