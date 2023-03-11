@@ -19,7 +19,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     Utils
   }
 
-  alias Chat.Db.{BackupDbSupervisor, ChangeTracker, InternalDb, OnlinersDb, Switching}
+  alias Chat.Db.{ChangeTracker, InternalDb, MediaDbSupervisor, OnlinersDb, Switching}
   alias ChatWeb.Presence
   alias Platform.App.Sync.Onliners.{Logic, OnlinersDynamicSupervisor}
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
@@ -34,7 +34,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
   test "syncs online users" do
     DynamicSupervisor.start_link(name: OnlinersDynamicSupervisor, strategy: :one_for_one)
     full_path = "#{Db.file_path()}-onliners"
-    BackupDbSupervisor.start_link([OnlinersDb, full_path])
+    MediaDbSupervisor.start_link([OnlinersDb, full_path])
     File.mkdir(full_path)
 
     Switching.set_default(OnlinersDb)
