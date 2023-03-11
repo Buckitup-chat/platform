@@ -24,12 +24,6 @@ config :nerves, source_date_epoch: "1644342070"
 # See https://hexdocs.pm/ring_logger/readme.html for more information on
 # configuring ring_logger.
 
-config :logger,
-  backends: [RingLogger],
-  compile_time_purge_matching: [
-    [application: :ssl, level_lower_than: :error]
-  ]
-
 config :tzdata, :autoupdate, :disabled
 config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 config :phoenix, :json_library, Jason

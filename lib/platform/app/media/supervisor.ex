@@ -21,7 +21,7 @@ defmodule Platform.App.Media.Supervisor do
       {Task.Supervisor, name: TaskSupervisor},
       {Mounter, [device, mount_path, task_supervisor]},
       {DynamicSupervisor, name: FunctionalityDynamicSupervisor, strategy: :one_for_one},
-      {Decider, [device]}
+      {Decider, [device, mount_path]}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)
