@@ -23,31 +23,32 @@ defmodule Platform.App.Sync.Onliners.Logic do
   def init([target_db, tasks_name]) do
     "Platform.App.Sync.Onliners.Logic start" |> Logger.info()
 
-    {:ok, [keys: MapSet.new(), target_db: target_db, tasks_name: tasks_name],
-     {:continue, :start_sync}}
+    {:ok, [target_db: target_db, tasks_name: tasks_name], {:continue, :start_sync}}
   end
 
   @impl GenServer
-  def handle_continue(:start_sync, state) do
+  def handle_continue(:start_sync, opts) do
     "Platform.App.Sync.Onliners.Logic starting sync" |> Logger.info()
 
     PubSub.subscribe(Chat.PubSub, @incoming_topic)
-    PubSub.broadcast(Chat.PubSub, @outgoing_topic, "get_user_keys")
+    PubSub.broadcast(Chat.PubSub, @outgoing_topic, "get_keys")
 
-    Process.send_after(self(), :do_sync, 1000)
+    receive do
+      {:user_keys, user_keys} ->
+        do_sync(opts, user_keys)
+    end
 
-    {:noreply, state}
+    {:noreply, opts}
   end
 
-  @impl GenServer
-  def handle_info(:do_sync, state) do
+  defp do_sync(opts, keys) do
     "Platform.App.Sync.Onliners.Logic syncing" |> Logger.info()
 
-    backup_keys = KeyScope.get_keys(Chat.Db.db(), state[:keys])
-    restoration_keys = KeyScope.get_keys(state[:target_db], state[:keys])
+    backup_keys = KeyScope.get_keys(Chat.Db.db(), keys)
+    restoration_keys = KeyScope.get_keys(opts[:target_db], keys)
 
     opts =
-      state
+      opts
       |> Keyword.put(:backup_keys, backup_keys)
       |> Keyword.put(:restoration_keys, restoration_keys)
 
@@ -58,16 +59,5 @@ defmodule Platform.App.Sync.Onliners.Logic do
     {:ok, _pid} =
       OnlinersDynamicSupervisor
       |> DynamicSupervisor.start_child(Stopper)
-
-    {:noreply, state}
-  end
-
-  def handle_info({:user_keys, user_keys}, state) do
-    keys =
-      state
-      |> Keyword.get(:keys)
-      |> MapSet.union(user_keys)
-
-    {:noreply, Keyword.put(state, :keys, keys)}
   end
 end

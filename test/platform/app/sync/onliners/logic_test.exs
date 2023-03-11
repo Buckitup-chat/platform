@@ -20,7 +20,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
   }
 
   alias Chat.Db.{BackupDbSupervisor, ChangeTracker, InternalDb, OnlinersDb, Switching}
-  alias Phoenix.PubSub
+  alias ChatWeb.Presence
   alias Platform.App.Sync.Onliners.{Logic, OnlinersDynamicSupervisor}
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
   alias Support.FakeData
@@ -136,18 +136,13 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
 
     ChangeTracker.await()
 
-    PubSub.subscribe(Chat.PubSub, "platform_onliners->chat_onliners")
+    keys = MapSet.new([alice_key, first_room.pub_key])
+    Presence.track(self(), "onliners_sync", Enigma.hash(alice), %{keys: keys})
 
     Task.Supervisor.start_link(name: Tasks)
     Logic.start_link([OnlinersDb, Tasks])
 
-    assert_receive "get_user_keys"
-
-    keys = MapSet.new([alice_key, first_room.pub_key])
-
-    PubSub.broadcast(Chat.PubSub, "chat_onliners->platform_onliners", {:user_keys, keys})
-
-    :timer.sleep(3000)
+    :timer.sleep(100)
 
     users_count = length(User.list())
     assert catch_error(Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob))
