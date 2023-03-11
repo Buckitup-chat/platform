@@ -16,7 +16,7 @@ defmodule Platform.App.DeviceSupervisor do
 
     children = [
       {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one},
-      {DynamicSupervisor, name: Platform.BackupDbSupervisor, strategy: :one_for_one},
+      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one},
       Platform.UsbWatcher
     ]
 

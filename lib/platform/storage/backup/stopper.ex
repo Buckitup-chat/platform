@@ -28,8 +28,8 @@ defmodule Platform.Storage.Backup.Stopper do
 
   def handle_info(:stop_supervisor, state) do
     DynamicSupervisor.terminate_child(
-      Platform.BackupDbSupervisor,
-      Platform.App.Db.BackupDbSupervisor |> Process.whereis()
+      Platform.App.Media.DynamicSupervisor,
+      Platform.App.Media.Supervisor |> Process.whereis()
     )
 
     {:noreply, state}

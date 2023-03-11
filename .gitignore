@@ -16,7 +16,6 @@
 # If the VM crashes, it generates a dump, let's ignore it too.
 erl_crash.dump
 
-
 # Env
 .env
 
@@ -33,5 +32,10 @@ image*.zip
 # Elixir LS
 .elixir_ls/
 
-
 ctags
+
+# Database
+/priv/db
+/priv/admin_db
+/priv/test_db
+/priv/test_admin_db
