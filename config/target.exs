@@ -174,7 +174,7 @@ config :chat, ChatWeb.Endpoint,
   code_reloader: false
 
 config :chat, :cub_db_file, "/root/db"
-config :chat, :admin_cub_db_file, "/root/admin_db"
+config :chat, :admin_cub_db_file, "/root/admin_db_v2"
 
 config :chat, :set_time, true
 
