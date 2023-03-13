@@ -22,7 +22,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
     children = [
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
-      {Chat.Db.BackupDbSupervisor, full_path},
+      {Chat.Db.BackupDbSupervisor, [Chat.Db.BackupDb, full_path]},
       {Copier, tasks}
     ]
 
