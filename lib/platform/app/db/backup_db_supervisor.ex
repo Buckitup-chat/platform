@@ -7,15 +7,13 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   require Logger
 
   alias Platform.Storage.Backup.Copier
-  alias Platform.Storage.Backup.Starter
-  alias Platform.Storage.Backup.Stopper
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
 
   @impl true
-  def init([device]) do
+  def init([_device]) do
     "Backup DB Supervisor start" |> Logger.info()
     mount_path = "/root/media"
     full_path = [mount_path, "bdb", Chat.Db.version_path()] |> Path.join()
@@ -25,9 +23,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
       {Chat.Db.BackupDbSupervisor, full_path},
-      Starter,
-      {Copier, tasks},
-      Stopper
+      {Copier, tasks}
     ]
 
     Supervisor.init(children, strategy: :rest_for_one)

@@ -77,6 +77,11 @@ defmodule Platform.Storage.Logic do
       else
         "[platform] [storage] remove #{inspect(device)}" |> Logger.debug()
         Device.unmount(device)
+
+        DynamicSupervisor.terminate_child(
+          Platform.App.Media.DynamicSupervisor,
+          Platform.App.Media.Supervisor |> Process.whereis()
+        )
       end
     end)
   end
@@ -109,12 +114,23 @@ defmodule Platform.Storage.Logic do
   defp do_replicate_to_internal do
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
+    backup = Chat.Db.BackupDb
 
     set_db_flag(replication: true)
     "[platform] [storage] Replicating to internal" |> Logger.info()
 
-    Switching.mirror(main, internal)
-    Copying.await_copied(main, internal)
+    case Process.whereis(backup) do
+      nil ->
+        Logger.warn("setting mirror: #{inspect(internal)}")
+        Switching.mirror(main, internal)
+        Copying.await_copied(main, internal)
+
+      _pid ->
+        Logger.warn("setting mirrors: #{inspect([internal, backup])}")
+        Switching.mirror(main, [internal, backup])
+        Copying.await_copied(main, internal)
+        Copying.await_copied(main, backup)
+    end
 
     "[platform] [storage] Replicated to internal" |> Logger.info()
     set_db_flag(replication: false)

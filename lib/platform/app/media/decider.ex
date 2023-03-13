@@ -11,16 +11,9 @@ defmodule Platform.App.Media.Decider do
   def init([device]) do
     "Platform.App.Media.Decider start" |> Logger.info()
 
-    {:ok, device, {:continue, :choose_functionality}}
-  end
-
-  @impl GenServer
-  def handle_continue(:choose_functionality, device) do
-    "Platform.App.Media.Decider starting functionality" |> Logger.info()
-
     Platform.App.Media.FunctionalityDynamicSupervisor
     |> DynamicSupervisor.start_child({Platform.App.Db.BackupDbSupervisor, [device]})
 
-    {:noreply, device}
+    {:ok, nil}
   end
 end
