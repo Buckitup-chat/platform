@@ -11,6 +11,7 @@ defmodule Platform.MixProject do
       app: @app,
       version: @version,
       elixir: "~> 1.14",
+      elixirc_paths: elixirc_paths(Mix.env()),
       archives: [nerves_bootstrap: "~> 1.10"],
       start_permanent: Mix.target() != :host,
       build_embedded: true,
@@ -27,6 +28,10 @@ defmodule Platform.MixProject do
       extra_applications: [:logger, :runtime_tools, :inets, :crypto]
     ]
   end
+
+  # Specifies which paths to compile per environment.
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
@@ -70,7 +75,7 @@ defmodule Platform.MixProject do
       #  path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
       {:chat,
        path: "../chat",
-       targets: @all_targets,
+       targets: [:host | @all_targets],
        env: if(Mix.target() == :host, do: Mix.env(), else: :prod)}
       # {:chat, path: "../chat", env: Mix.env()},
     ]
