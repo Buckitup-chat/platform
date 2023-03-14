@@ -98,8 +98,9 @@ defmodule Platform.Storage.Logic do
         |> Maintenance.device_to_path()
       end)
 
-    case {get_db_mode(), unused_devices} do
-      {:internal, [device]} -> switch_internal_to_main(device)
+    case {get_db_mode(), unused_devices, devices} do
+      {:internal, [device], _connected_devices} -> switch_internal_to_main(device)
+      {:internal, [], [device]} -> switch_backup_to_main(device)
       _ -> :skip
     end
   end
@@ -109,6 +110,17 @@ defmodule Platform.Storage.Logic do
   defp switch_internal_to_main(device) do
     Platform.MainDbSupervisor
     |> DynamicSupervisor.start_child({Platform.App.Db.MainDbSupervisor, [device]})
+  end
+
+  defp switch_backup_to_main(device) do
+    DynamicSupervisor.terminate_child(
+      Platform.App.Media.DynamicSupervisor,
+      Platform.App.Media.Supervisor |> Process.whereis()
+    )
+
+    Process.sleep(5_000)
+
+    switch_internal_to_main(device)
   end
 
   defp do_replicate_to_internal do
