@@ -23,7 +23,7 @@ defmodule Platform.App.Media.Decider do
         File.exists?("#{mount_path}/onliners_db") ->
           OnlinersSyncSupervisor
 
-        File.exists?("#{mount_path}/bdb") ->
+        File.exists?("#{mount_path}/main_db") ->
           BackupDbSupervisor
 
         true ->
