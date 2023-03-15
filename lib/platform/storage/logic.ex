@@ -87,9 +87,9 @@ defmodule Platform.Storage.Logic do
   end
 
   defp handle_devices_left_connected(devices) do
-    unused_devices =
+    {devices_in_use, unused_devices} =
       devices
-      |> Enum.reject(fn device ->
+      |> Enum.split_with(fn device ->
         if String.starts_with?(device, "/dev/") do
           device
         else
@@ -98,8 +98,8 @@ defmodule Platform.Storage.Logic do
         |> Maintenance.device_to_path()
       end)
 
-    case {get_db_mode(), unused_devices, devices} do
-      {:internal, [device], _connected_devices} -> switch_internal_to_main(device)
+    case {get_db_mode(), unused_devices, devices_in_use} do
+      {:internal, [device], _devices_in_use} -> switch_internal_to_main(device)
       {:internal, [], [device]} -> switch_backup_to_main(device)
       _ -> :skip
     end
