@@ -31,7 +31,7 @@ defmodule Platform.App.Sync.Onliners.Logic do
     "Platform.App.Sync.Onliners.Logic starting sync" |> Logger.info()
 
     PubSub.subscribe(Chat.PubSub, @incoming_topic)
-    PubSub.broadcast(Chat.PubSub, @outgoing_topic, "get_keys")
+    PubSub.broadcast(Chat.PubSub, @outgoing_topic, "get_online_users_keys")
 
     receive do
       {:user_keys, user_keys} ->
