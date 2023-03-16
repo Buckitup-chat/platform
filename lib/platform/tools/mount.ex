@@ -44,6 +44,6 @@ defmodule Platform.Tools.Mount do
   end
 
   defp mount(params \\ []) do
-    System.cmd("mount", params)
+    System.cmd("mount", Enum.concat(["-o", "sync"], params))
   end
 end
