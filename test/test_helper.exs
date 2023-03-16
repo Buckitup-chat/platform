@@ -1,3 +1,5 @@
 File.rm_rf!("priv/test_admin_db")
 File.rm_rf!("priv/test_db")
+File.rm_rf!("priv/test_media")
+File.rm_rf!("priv/test_storage")
 ExUnit.start()

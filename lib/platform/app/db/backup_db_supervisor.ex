@@ -15,7 +15,9 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   @impl true
   def init([_device]) do
     "Backup DB Supervisor start" |> Logger.info()
-    mount_path = "/root/media"
+
+    env = Application.get_env(:platform, :env)
+    mount_path = if(env == :test, do: "priv/test_media", else: "/root/media")
     full_path = [mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.BackupDbSupervisor.Tasks
 
