@@ -10,7 +10,7 @@ defmodule Platform.App.Sync.Onliners.Logic do
   alias Chat.Db.Scope.KeyScope
   alias Phoenix.PubSub
   alias Platform.App.Sync.Onliners.OnlinersDynamicSupervisor
-  alias Platform.Storage.Backup.{Copier, Stopper}
+  alias Platform.Storage.Onliners.{Copier, Stopper}
 
   @incoming_topic "chat_onliners->platform_onliners"
   @outgoing_topic "platform_onliners->chat_onliners"

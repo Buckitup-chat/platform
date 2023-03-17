@@ -9,7 +9,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   alias Chat.Db.BackupDbSupervisor
   alias Platform.App.Sync.Onliners.{Logic, OnlinersDynamicSupervisor}
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
-  alias Platform.Storage.Backup.Starter
+  alias Platform.Storage.Onliners.Starter
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)

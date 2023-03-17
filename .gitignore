@@ -39,3 +39,5 @@ ctags
 /priv/admin_db
 /priv/test_db
 /priv/test_admin_db
+/priv/test_media
+/priv/test_storage

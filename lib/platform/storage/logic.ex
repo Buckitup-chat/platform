@@ -77,14 +77,19 @@ defmodule Platform.Storage.Logic do
       else
         "[platform] [storage] remove #{inspect(device)}" |> Logger.debug()
         Device.unmount(device)
+
+        DynamicSupervisor.terminate_child(
+          Platform.App.Media.DynamicSupervisor,
+          Platform.App.Media.Supervisor |> Process.whereis()
+        )
       end
     end)
   end
 
   defp handle_devices_left_connected(devices) do
-    unused_devices =
+    {devices_in_use, unused_devices} =
       devices
-      |> Enum.reject(fn device ->
+      |> Enum.split_with(fn device ->
         if String.starts_with?(device, "/dev/") do
           device
         else
@@ -93,8 +98,9 @@ defmodule Platform.Storage.Logic do
         |> Maintenance.device_to_path()
       end)
 
-    case {get_db_mode(), unused_devices} do
-      {:internal, [device]} -> switch_internal_to_main(device)
+    case {get_db_mode(), unused_devices, devices_in_use} do
+      {:internal, [device], _devices_in_use} -> switch_internal_to_main(device)
+      {:internal, [], [device]} -> switch_backup_to_main(device)
       _ -> :skip
     end
   end
@@ -106,15 +112,37 @@ defmodule Platform.Storage.Logic do
     |> DynamicSupervisor.start_child({Platform.App.Db.MainDbSupervisor, [device]})
   end
 
+  defp switch_backup_to_main(device) do
+    DynamicSupervisor.terminate_child(
+      Platform.App.Media.DynamicSupervisor,
+      Platform.App.Media.Supervisor |> Process.whereis()
+    )
+
+    Process.sleep(5_000)
+
+    switch_internal_to_main(device)
+  end
+
   defp do_replicate_to_internal do
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
+    backup = Chat.Db.BackupDb
 
     set_db_flag(replication: true)
     "[platform] [storage] Replicating to internal" |> Logger.info()
 
-    Switching.mirror(main, internal)
-    Copying.await_copied(main, internal)
+    case Process.whereis(backup) do
+      nil ->
+        Logger.warn("setting mirror: #{inspect(internal)}")
+        Switching.mirror(main, internal)
+        Copying.await_copied(main, internal)
+
+      _pid ->
+        Logger.warn("setting mirrors: #{inspect([internal, backup])}")
+        Switching.mirror(main, [internal, backup])
+        Copying.await_copied(main, internal)
+        Copying.await_copied(main, backup)
+    end
 
     "[platform] [storage] Replicated to internal" |> Logger.info()
     set_db_flag(replication: false)

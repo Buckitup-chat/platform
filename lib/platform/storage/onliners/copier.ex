@@ -1,13 +1,13 @@
-defmodule Platform.Storage.Backup.Copier do
+defmodule Platform.Storage.Onliners.Copier do
   @moduledoc """
-  Copies data from backup to current db and vice versa
+  Copies data from onliners db to current db and vice versa
   """
   use GenServer
 
   require Logger
 
   alias Chat.Db
-  alias Chat.Db.{Common, Copying, Switching}
+  alias Chat.Db.Copying
   alias Chat.Ordering
 
   alias Platform.Leds
@@ -39,45 +39,29 @@ defmodule Platform.Storage.Backup.Copier do
     state
   end
 
-  defp on_start(tasks_name) do
-    "[backup] Syncing " |> Logger.info()
+  defp on_start(args) do
+    "[onliners] Syncing " |> Logger.info()
 
-    internal = Chat.Db.InternalDb
-    main = Chat.Db.MainDb
-    backup = Chat.Db.BackupDb
-
-    set_db_flag(backup: true)
+    target_db = Keyword.get(args, :target_db)
+    tasks_name = Keyword.get(args, :tasks_name)
+    backup_keys = Keyword.get(args, :backup_keys)
+    restoration_keys = Keyword.get(args, :restoration_keys)
 
     Task.Supervisor.async_nolink(tasks_name, fn ->
       Leds.blink_read()
-      Copying.await_copied(Chat.Db.BackupDb, Db.db())
+      Copying.await_copied(target_db, Db.db(), restoration_keys)
       Ordering.reset()
       Leds.blink_write()
-      Copying.await_copied(Db.db(), Chat.Db.BackupDb)
-      Process.sleep(1_000)
-      Switching.mirror(main, [internal, backup])
-      Process.sleep(3_000)
+      Copying.await_copied(Db.db(), target_db, backup_keys)
       Leds.blink_done()
     end)
     |> Task.await(:infinity)
 
-    set_db_flag(backup: false)
-
-    "[backup] Synced " |> Logger.info()
+    "[onliners] Synced " |> Logger.info()
   end
 
   defp cleanup(_reason, _state) do
-    internal = Chat.Db.InternalDb
-    main = Chat.Db.MainDb
-
     Leds.blink_done()
-    Switching.mirror(main, internal)
     Ordering.reset()
-  end
-
-  defp set_db_flag(flags) do
-    Common.get_chat_db_env(:flags)
-    |> Keyword.merge(flags)
-    |> then(&Common.put_chat_db_env(:flags, &1))
   end
 end

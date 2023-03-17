@@ -145,6 +145,13 @@ config :mdns_lite,
     # }
   ]
 
+maybe_nerves_local =
+  if config_env() == :dev do
+    ["http://nerves.local"]
+  else
+    []
+  end
+
 # Chat endpoint config
 config :chat, ChatWeb.Endpoint,
   render_errors: [view: ChatWeb.ErrorView, accepts: ~w(html json), layout: false],
@@ -158,11 +165,12 @@ config :chat, ChatWeb.Endpoint,
   # url: [host: System.get_env("APP_NAME") <> ".gigalixirapp.com", port: 443],
   secret_key_base: "HEY05EB1dFVSu6KykKHuS4rQPQzSHv4F7mGVB/gnDLrIu75wE/ytBXy2TaL3A6RA",
   # secret_key_base: Map.fetch!(System.get_env(), "SECRET_KEY_BASE"),
-  check_origin: [
-    "https://buckitup.app",
-    "http://192.168.0.127",
-    "http://192.168.24.1"
-  ],
+  check_origin:
+    [
+      "https://buckitup.app",
+      "http://192.168.0.127",
+      "http://192.168.24.1"
+    ] ++ maybe_nerves_local,
   https: [
     port: 443,
     cipher_suite: :strong,

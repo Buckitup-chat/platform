@@ -45,6 +45,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
     main = Chat.Db.MainDb
 
     Leds.blink_write()
+
     Task.Supervisor.async_nolink(tasks_name, fn ->
       Switching.mirror(internal, main)
       Copying.await_copied(internal, main)
