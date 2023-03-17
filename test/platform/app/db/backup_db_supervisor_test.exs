@@ -111,7 +111,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
         ["priv/test_media", "main_db", Chat.Db.version_path()]
         |> Path.join()
 
-      Chat.Db.BackupDbSupervisor.start_link([BackupDb, path])
+      Chat.Db.MediaDbSupervisor.start_link([BackupDb, path])
 
       Switching.set_default(BackupDb)
 

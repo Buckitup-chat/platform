@@ -27,7 +27,8 @@ defmodule Platform.App.Media.Decider do
           BackupDbSupervisor
 
         true ->
-          new_drive_supervisor()
+          %MediaSettings{} = media_settings = AdminRoom.get_media_settings()
+          Map.get(@supervisor_map, media_settings.functionality)
       end
 
     "Platform.App.Media.Decider starting #{supervisor}" |> Logger.info()
@@ -36,10 +37,5 @@ defmodule Platform.App.Media.Decider do
     |> DynamicSupervisor.start_child({supervisor, [device]})
 
     {:ok, nil}
-  end
-
-  def new_drive_supervisor() do
-    %MediaSettings{} = media_settings = AdminRoom.get_media_settings()
-    Map.get(@supervisor_map, media_settings.functionality)
   end
 end
