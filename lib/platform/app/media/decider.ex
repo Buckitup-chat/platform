@@ -6,9 +6,13 @@ defmodule Platform.App.Media.Decider do
   alias Chat.Admin.MediaSettings
   alias Chat.AdminRoom
   alias Platform.App.Db.BackupDbSupervisor
-  alias Platform.App.Sync.OnlinersSyncSupervisor
+  alias Platform.App.Sync.{CargoSyncSupervisor, OnlinersSyncSupervisor}
 
-  @supervisor_map %{backup: BackupDbSupervisor, onliners: OnlinersSyncSupervisor}
+  @supervisor_map %{
+    backup: BackupDbSupervisor,
+    cargo: CargoSyncSupervisor,
+    onliners: OnlinersSyncSupervisor
+  }
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
@@ -20,6 +24,9 @@ defmodule Platform.App.Media.Decider do
 
     supervisor =
       cond do
+        File.exists?("#{mount_path}/cargo_db") ->
+          CargoSyncSupervisor
+
         File.exists?("#{mount_path}/onliners_db") ->
           OnlinersSyncSupervisor
 

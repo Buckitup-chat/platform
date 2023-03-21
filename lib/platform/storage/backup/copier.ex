@@ -1,6 +1,6 @@
 defmodule Platform.Storage.Backup.Copier do
   @moduledoc """
-  Copies data from backup to current db and vice versa
+  Syncs data between backup and current DB
   """
   use GenServer
 

@@ -6,10 +6,10 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
 
   require Logger
 
-  alias Chat.Db.BackupDbSupervisor
+  alias Chat.Db.MediaDbSupervisor
   alias Platform.App.Sync.Onliners.{Logic, OnlinersDynamicSupervisor}
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
-  alias Platform.Storage.Onliners.Starter
+  alias Platform.Storage.Backup.Starter
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
@@ -26,7 +26,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
     children = [
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
-      {BackupDbSupervisor, [target_db, full_path]},
+      {MediaDbSupervisor, [target_db, full_path]},
       Starter,
       {DynamicSupervisor, name: OnlinersDynamicSupervisor, strategy: :one_for_one},
       {Logic, [target_db, tasks]}
