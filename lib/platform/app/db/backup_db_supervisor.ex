@@ -8,6 +8,8 @@ defmodule Platform.App.Db.BackupDbSupervisor do
 
   alias Platform.Storage.Backup.Copier
 
+  @mount_path Application.compile_env(:platform, :mount_path_media)
+
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
@@ -16,9 +18,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   def init([_device]) do
     "Backup DB Supervisor start" |> Logger.info()
 
-    env = Application.get_env(:platform, :env)
-    mount_path = if(env == :test, do: "priv/test_media", else: "/root/media")
-    full_path = [mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
+    full_path = [@mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.BackupDbSupervisor.Tasks
 
     children = [

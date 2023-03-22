@@ -11,6 +11,8 @@ defmodule Platform.App.Db.MainDbSupervisor do
   alias Platform.Storage.MainReplicator
   alias Platform.Storage.Mounter
 
+  @mount_path Application.compile_env(:platform, :mount_path_storage)
+
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
@@ -19,9 +21,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
   def init([device]) do
     "Main Db Supervisor start" |> Logger.debug()
 
-    env = Application.get_env(:platform, :env)
-    mount_path = if(env == :test, do: "priv/test_storage", else: "/root/storage")
-    full_path = [mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
+    full_path = [@mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.MainDbSupervisor.Tasks
 
     children = [
@@ -35,12 +35,12 @@ defmodule Platform.App.Db.MainDbSupervisor do
     ]
 
     children =
-      case env do
+      case Application.get_env(:platform, :env) do
         :test ->
           children
 
         _ ->
-          List.insert_at(children, 1, {Mounter, [device, mount_path, tasks]})
+          List.insert_at(children, 1, {Mounter, [device, @mount_path, tasks]})
       end
 
     Supervisor.init(children, strategy: :rest_for_one)

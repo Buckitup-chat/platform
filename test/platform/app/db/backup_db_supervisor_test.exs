@@ -17,6 +17,9 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
   alias Platform.App.Media.FunctionalityDynamicSupervisor
   alias Support.FakeData
 
+  @media_mount_path Application.compile_env(:platform, :mount_path_media)
+  @storage_mount_path Application.compile_env(:platform, :mount_path_storage)
+
   setup do
     on_exit(fn ->
       Switching.set_default(InternalDb)
@@ -89,7 +92,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
       assert ChunkedFiles.read({file_key, file_secret}) ==
                "some part of info another part"
 
-      ["priv/test_storage", "main_db", Chat.Db.version_path()]
+      [@storage_mount_path, "main_db", Chat.Db.version_path()]
       |> Path.join()
       |> Chat.Db.MainDbSupervisor.start_link()
 
@@ -107,10 +110,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
       assert ChunkedFiles.read({file_key, file_secret}) ==
                "some part of info another part"
 
-      path =
-        ["priv/test_media", "main_db", Chat.Db.version_path()]
-        |> Path.join()
-
+      path = [@media_mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
       Chat.Db.MediaDbSupervisor.start_link([BackupDb, path])
 
       Switching.set_default(BackupDb)

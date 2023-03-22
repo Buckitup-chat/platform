@@ -78,10 +78,13 @@ defmodule Platform.Storage.Logic do
         "[platform] [storage] remove #{inspect(device)}" |> Logger.debug()
         Device.unmount(device)
 
-        DynamicSupervisor.terminate_child(
-          Platform.App.Media.DynamicSupervisor,
-          Platform.App.Media.Supervisor |> Process.whereis()
-        )
+        case Process.whereis(Platform.App.Media.Supervisor) do
+          nil ->
+            nil
+
+          pid ->
+            DynamicSupervisor.terminate_child(Platform.App.Media.DynamicSupervisor, pid)
+        end
       end
     end)
   end

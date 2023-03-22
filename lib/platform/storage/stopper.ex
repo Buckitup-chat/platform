@@ -1,12 +1,12 @@
-defmodule Platform.Storage.Onliners.Starter do
+defmodule Platform.Storage.Stopper do
   @moduledoc """
-  Sets backup flag
+  Awaits few seconds and finalizes copying
   """
+
   use GenServer
 
   require Logger
-
-  alias Chat.Db.Common
+  alias Platform.Leds
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
@@ -27,6 +27,15 @@ defmodule Platform.Storage.Onliners.Starter do
     {:stop, reason, state}
   end
 
+  def handle_info(:stop_supervisor, state) do
+    DynamicSupervisor.terminate_child(
+      Platform.App.Media.DynamicSupervisor,
+      Platform.App.Media.Supervisor |> Process.whereis()
+    )
+
+    {:noreply, state}
+  end
+
   # handle termination
   @impl true
   def terminate(reason, state) do
@@ -36,17 +45,17 @@ defmodule Platform.Storage.Onliners.Starter do
   end
 
   defp on_start(args) do
-    set_db_flag(backup: true)
+    Leds.blink_dump()
+    Process.sleep(5_000)
+    Logger.info("backup finished. Stopping supervisor")
+
+    Process.send_after(self(), :stop_supervisor, 5_000)
+
     args
   end
 
-  defp cleanup(_reason, _state) do
-    set_db_flag(backup: false)
-  end
-
-  defp set_db_flag(flags) do
-    Common.get_chat_db_env(:flags)
-    |> Keyword.merge(flags)
-    |> then(&Common.put_chat_db_env(:flags, &1))
+  defp cleanup(reason, _state) do
+    Leds.blink_done()
+    reason
   end
 end

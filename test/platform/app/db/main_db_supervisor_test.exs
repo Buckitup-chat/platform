@@ -16,6 +16,8 @@ defmodule Platform.App.Db.MainDbSupervisorTest do
   alias Platform.App.Db.MainDbSupervisor
   alias Support.FakeData
 
+  @mount_path Application.compile_env(:platform, :mount_path_storage)
+
   setup do
     on_exit(fn ->
       Switching.set_default(InternalDb)
@@ -76,7 +78,7 @@ defmodule Platform.App.Db.MainDbSupervisorTest do
       assert ChunkedFiles.read({file_key, file_secret}) ==
                "some part of info another part"
 
-      ["priv/test_storage", "main_db", Chat.Db.version_path()]
+      [@mount_path, "main_db", Chat.Db.version_path()]
       |> Path.join()
       |> Chat.Db.MainDbSupervisor.start_link()
 

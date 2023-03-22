@@ -1,6 +1,6 @@
-defmodule Platform.Storage.Onliners.Copier do
+defmodule Platform.Storage.Copier do
   @moduledoc """
-  Copies data from onliners db to current db and vice versa
+  Copies data from the target db to current db and vice versa
   """
   use GenServer
 
@@ -40,7 +40,7 @@ defmodule Platform.Storage.Onliners.Copier do
   end
 
   defp on_start(args) do
-    "[onliners] Syncing " |> Logger.info()
+    "[media] Syncing " |> Logger.info()
 
     target_db = Keyword.get(args, :target_db)
     tasks_name = Keyword.get(args, :tasks_name)
@@ -57,7 +57,7 @@ defmodule Platform.Storage.Onliners.Copier do
     end)
     |> Task.await(:infinity)
 
-    "[onliners] Synced " |> Logger.info()
+    "[media] Synced " |> Logger.info()
   end
 
   defp cleanup(_reason, _state) do
