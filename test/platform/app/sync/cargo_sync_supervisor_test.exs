@@ -10,11 +10,14 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   alias Chat.Utils.StorageId
   alias Support.FakeData
 
+  @cub_db_file Application.compile_env(:chat, :cub_db_file)
+  @mount_path Application.compile_env(:platform, :mount_path_media)
+
   setup do
     CubDB.clear(Db.db())
 
-    File.rm_rf!("priv/test_db")
-    File.rm_rf!("priv/test_media")
+    File.rm_rf!(@cub_db_file)
+    File.rm_rf!(@mount_path)
 
     DynamicSupervisor.start_link(name: FunctionalityDynamicSupervisor, strategy: :one_for_one)
 
@@ -79,10 +82,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     internal_db_users_count = length(User.list())
 
-    path =
-      ["priv/test_media", "cargo_db", Chat.Db.version_path()]
-      |> Path.join()
-
+    path = [@mount_path, "cargo_db", Chat.Db.version_path()] |> Path.join()
     {:ok, media_db_supervisor_pid} = MediaDbSupervisor.start_link([CargoDb, path])
 
     Switching.set_default(CargoDb)
@@ -207,10 +207,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     users_count = length(User.list())
 
-    path =
-      ["priv/test_media", "cargo_db", Chat.Db.version_path()]
-      |> Path.join()
-
+    path = [@mount_path, "cargo_db", Chat.Db.version_path()] |> Path.join()
     start_supervised!({MediaDbSupervisor, [CargoDb, path]})
 
     Switching.set_default(CargoDb)

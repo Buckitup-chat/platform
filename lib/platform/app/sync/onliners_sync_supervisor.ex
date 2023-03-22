@@ -11,6 +11,8 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
 
+  @mount_path Application.compile_env(:platform, :mount_path_media)
+
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
@@ -18,8 +20,8 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   @impl true
   def init([_device]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
-    mount_path = "/root/media"
-    full_path = [mount_path, "onliners_db", Chat.Db.version_path()] |> Path.join()
+
+    full_path = [@mount_path, "onliners_db", Chat.Db.version_path()] |> Path.join()
     target_db = Chat.Db.OnlinersDb
     tasks = Tasks
 

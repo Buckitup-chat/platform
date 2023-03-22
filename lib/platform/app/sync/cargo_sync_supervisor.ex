@@ -8,6 +8,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   alias Platform.App.Sync.CargoSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
 
+  @mount_path Application.compile_env(:platform, :mount_path_media)
+
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
   end
@@ -16,9 +18,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   def init([_device]) do
     "CargoSyncSupervisor start" |> Logger.info()
 
-    env = Application.get_env(:platform, :env)
-    mount_path = if(env == :test, do: "priv/test_media", else: "/root/media")
-    full_path = [mount_path, "cargo_db", Chat.Db.version_path()] |> Path.join()
+    full_path = [@mount_path, "cargo_db", Chat.Db.version_path()] |> Path.join()
     target_db = Chat.Db.CargoDb
     tasks = Tasks
 

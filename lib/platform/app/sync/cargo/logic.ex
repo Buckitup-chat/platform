@@ -36,18 +36,16 @@ defmodule Platform.App.Sync.Cargo.Logic do
     CubDB.with_snapshot(target_db, fn snap ->
       snap
       |> CubDB.Snapshot.select(min_key: {:rooms, 0}, max_key: {:"rooms\0", 0})
-      |> Stream.map(fn {{:rooms, room_key}, _value} -> room_key end)
       |> Stream.take(1)
+      |> Stream.map(fn {{:rooms, room_key}, _value} -> room_key end)
       |> Enum.to_list()
       |> List.first()
     end)
   end
 
   defp get_room_key_from_internal_db do
-    {_my_rooms, available_rooms} = Rooms.list(%{})
-
-    case available_rooms do
-      [%Room{} = cargo_room] -> cargo_room.pub_key
+    case Rooms.list(%{}) do
+      {_my_rooms, [%Room{} = cargo_room]} -> cargo_room.pub_key
       _ -> nil
     end
   end

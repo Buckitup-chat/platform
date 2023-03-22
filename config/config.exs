@@ -10,6 +10,8 @@ Application.start(:nerves_bootstrap)
 
 config :platform,
   env: Mix.env(),
+  mount_path_media: "/root/media",
+  mount_path_storage: "/root/storage",
   target: Mix.target()
 
 # Customize non-Elixir parts of the firmware. See
