@@ -7,6 +7,7 @@ defmodule Platform.App.Sync.Cargo.Logic do
 
   require Logger
 
+  alias Chat.Db
   alias Chat.Db.Scope.KeyScope
   alias Chat.Sync.CargoRoom
   alias Platform.App.Sync.Cargo.CargoDynamicSupervisor
@@ -51,8 +52,9 @@ defmodule Platform.App.Sync.Cargo.Logic do
   end
 
   defp do_sync(cargo_room_key, opts) do
-    backup_keys = KeyScope.get_keys(Chat.Db.db(), [cargo_room_key])
-    restoration_keys = KeyScope.get_keys(opts[:target_db], [cargo_room_key])
+    users = get_all_users()
+    backup_keys = KeyScope.get_keys(Chat.Db.db(), [cargo_room_key | users])
+    restoration_keys = KeyScope.get_keys(opts[:target_db], [cargo_room_key | users])
 
     opts =
       opts
@@ -68,5 +70,14 @@ defmodule Platform.App.Sync.Cargo.Logic do
       |> DynamicSupervisor.start_child(Stopper)
 
     "Platform.App.Sync.Cargo.Logic syncing finished" |> Logger.info()
+  end
+
+  defp get_all_users do
+    CubDB.with_snapshot(Db.db(), fn snap ->
+      snap
+      |> CubDB.Snapshot.select(min_key: {:users, 0}, max_key: {:"users\0", 0})
+      |> Stream.map(fn {{:users, user_key}, _value} -> user_key end)
+      |> Enum.to_list()
+    end)
   end
 end
