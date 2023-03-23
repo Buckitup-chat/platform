@@ -34,8 +34,10 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     User.register(sensor)
     sensor_key = Identity.pub_key(sensor)
 
-    {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :public)
+    {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :cargo)
     cargo_room_key = cargo_room_identity |> Identity.pub_key()
+
+    Rooms.add(operator, "Other room", :public)
 
     ChangeTracker.await()
 

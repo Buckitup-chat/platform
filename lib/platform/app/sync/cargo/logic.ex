@@ -8,8 +8,7 @@ defmodule Platform.App.Sync.Cargo.Logic do
   require Logger
 
   alias Chat.Db.Scope.KeyScope
-  alias Chat.Rooms
-  alias Chat.Rooms.Room
+  alias Chat.Sync.CargoRoom
   alias Platform.App.Sync.Cargo.CargoDynamicSupervisor
   alias Platform.Storage.{Copier, Stopper}
 
@@ -29,7 +28,7 @@ defmodule Platform.App.Sync.Cargo.Logic do
   end
 
   defp get_room_key(target_db) do
-    get_room_key_from_target_db(target_db) || get_room_key_from_internal_db()
+    get_room_key_from_target_db(target_db) || CargoRoom.get()
   end
 
   defp get_room_key_from_target_db(target_db) do
@@ -41,13 +40,6 @@ defmodule Platform.App.Sync.Cargo.Logic do
       |> Enum.to_list()
       |> List.first()
     end)
-  end
-
-  defp get_room_key_from_internal_db do
-    case Rooms.list(%{}) do
-      {_my_rooms, [%Room{} = cargo_room]} -> cargo_room.pub_key
-      _ -> nil
-    end
   end
 
   defp do_sync(nil, _opts) do
