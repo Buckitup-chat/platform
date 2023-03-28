@@ -1,11 +1,24 @@
 defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   use ExUnit.Case, async: false
 
+  alias Chat.Admin.CargoSettings
+
+  alias Chat.{
+    AdminDb,
+    AdminRoom,
+    Card,
+    ChunkedFiles,
+    Db,
+    Dialogs,
+    FileIndex,
+    Identity,
+    Messages,
+    Rooms,
+    User
+  }
+
   alias Chat.Sync.CargoRoom
-  alias Chat.Dialogs
-  alias Chat.{Card, ChunkedFiles, FileIndex, Identity, Messages, Rooms, User}
   alias Chat.Content.Files
-  alias Chat.Db
   alias Chat.Db.{CargoDb, ChangeTracker, InternalDb, MediaDbSupervisor, Switching}
   alias Chat.Utils.StorageId
   alias Platform.App.Media.FunctionalityDynamicSupervisor
@@ -16,6 +29,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
   setup do
+    CubDB.clear(AdminDb.db())
     CubDB.clear(Db.db())
     CargoRoom.set(nil)
 
@@ -35,6 +49,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     sensor = User.login("Sensor")
     User.register(sensor)
+    sensor_card = Card.from_identity(sensor)
     sensor_key = Identity.pub_key(sensor)
 
     bob = User.login("Bob")
@@ -50,6 +65,15 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
       "Bob greets Charlie"
       |> Messages.Text.new(1)
       |> Dialogs.add_new_message(bob, bob_charlie_dialog)
+
+    bob_sensor_dialog = Dialogs.find_or_open(bob, sensor_card)
+
+    {bob_sensor_msg_index, bob_sensor_message} =
+      "Bob fiddles with the sensor"
+      |> Messages.Text.new(1)
+      |> Dialogs.add_new_message(bob, bob_sensor_dialog)
+
+    AdminRoom.store_cargo_settings(%CargoSettings{checkpoints: [sensor_key]})
 
     {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :cargo)
     cargo_room_key = cargo_room_identity |> Identity.pub_key()
@@ -126,12 +150,20 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
            )
            |> Map.get(:content) == "Hello from the sensor"
 
+    assert catch_error(
+             Dialogs.read_message(
+               bob_charlie_dialog,
+               {bob_charlie_msg_index, bob_charlie_message.id},
+               bob
+             )
+           )
+
     assert Dialogs.read_message(
-             bob_charlie_dialog,
-             {bob_charlie_msg_index, bob_charlie_message.id},
+             bob_sensor_dialog,
+             {bob_sensor_msg_index, bob_sensor_message.id},
              bob
            )
-           |> Map.get(:content) == "Bob greets Charlie"
+           |> Map.get(:content) == "Bob fiddles with the sensor"
 
     another_sensor = User.login("Another Sensor")
     User.register(another_sensor)
