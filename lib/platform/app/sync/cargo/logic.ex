@@ -7,9 +7,10 @@ defmodule Platform.App.Sync.Cargo.Logic do
 
   require Logger
 
+  alias Chat.Admin.CargoSettings
+  alias Chat.AdminRoom
   alias Chat.Db.Scope.KeyScope
-  alias Chat.Rooms
-  alias Chat.Rooms.Room
+  alias Chat.Sync.CargoRoom
   alias Platform.App.Sync.Cargo.CargoDynamicSupervisor
   alias Platform.Storage.{Copier, Stopper}
 
@@ -29,7 +30,7 @@ defmodule Platform.App.Sync.Cargo.Logic do
   end
 
   defp get_room_key(target_db) do
-    get_room_key_from_target_db(target_db) || get_room_key_from_internal_db()
+    get_room_key_from_target_db(target_db) || CargoRoom.get()
   end
 
   defp get_room_key_from_target_db(target_db) do
@@ -43,13 +44,6 @@ defmodule Platform.App.Sync.Cargo.Logic do
     end)
   end
 
-  defp get_room_key_from_internal_db do
-    case Rooms.list(%{}) do
-      {_my_rooms, [%Room{} = cargo_room]} -> cargo_room.pub_key
-      _ -> nil
-    end
-  end
-
   defp do_sync(nil, _opts) do
     "Platform.App.Sync.Cargo.Logic cannot decide which room is for cargo" |> Logger.error()
 
@@ -59,8 +53,9 @@ defmodule Platform.App.Sync.Cargo.Logic do
   end
 
   defp do_sync(cargo_room_key, opts) do
-    backup_keys = KeyScope.get_keys(Chat.Db.db(), [cargo_room_key])
-    restoration_keys = KeyScope.get_keys(opts[:target_db], [cargo_room_key])
+    %CargoSettings{checkpoints: checkpoints} = AdminRoom.get_cargo_settings()
+    backup_keys = KeyScope.get_keys(Chat.Db.db(), [cargo_room_key | checkpoints])
+    restoration_keys = KeyScope.get_keys(opts[:target_db], [cargo_room_key | checkpoints])
 
     opts =
       opts

@@ -1,20 +1,37 @@
 defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   use ExUnit.Case, async: false
 
-  alias Platform.App.Media.FunctionalityDynamicSupervisor
-  alias Platform.App.Sync.CargoSyncSupervisor
-  alias Chat.{ChunkedFiles, FileIndex, Identity, Messages, Rooms, User}
+  alias Chat.Admin.CargoSettings
+
+  alias Chat.{
+    AdminDb,
+    AdminRoom,
+    Card,
+    ChunkedFiles,
+    Db,
+    Dialogs,
+    FileIndex,
+    Identity,
+    Messages,
+    Rooms,
+    User
+  }
+
+  alias Chat.Sync.CargoRoom
   alias Chat.Content.Files
-  alias Chat.Db
   alias Chat.Db.{CargoDb, ChangeTracker, InternalDb, MediaDbSupervisor, Switching}
   alias Chat.Utils.StorageId
+  alias Platform.App.Media.FunctionalityDynamicSupervisor
+  alias Platform.App.Sync.CargoSyncSupervisor
   alias Support.FakeData
 
   @cub_db_file Application.compile_env(:chat, :cub_db_file)
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
   setup do
+    CubDB.clear(AdminDb.db())
     CubDB.clear(Db.db())
+    CargoRoom.set(nil)
 
     File.rm_rf!(@cub_db_file)
     File.rm_rf!(@mount_path)
@@ -32,10 +49,36 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     sensor = User.login("Sensor")
     User.register(sensor)
+    sensor_card = Card.from_identity(sensor)
     sensor_key = Identity.pub_key(sensor)
 
-    {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :public)
+    bob = User.login("Bob")
+    User.register(bob)
+
+    charlie = User.login("Charlie")
+    User.register(charlie)
+    charlie_card = Card.from_identity(charlie)
+
+    bob_charlie_dialog = Dialogs.find_or_open(bob, charlie_card)
+
+    {bob_charlie_msg_index, bob_charlie_message} =
+      "Bob greets Charlie"
+      |> Messages.Text.new(1)
+      |> Dialogs.add_new_message(bob, bob_charlie_dialog)
+
+    bob_sensor_dialog = Dialogs.find_or_open(bob, sensor_card)
+
+    {bob_sensor_msg_index, bob_sensor_message} =
+      "Bob fiddles with the sensor"
+      |> Messages.Text.new(1)
+      |> Dialogs.add_new_message(bob, bob_sensor_dialog)
+
+    AdminRoom.store_cargo_settings(%CargoSettings{checkpoints: [sensor_key]})
+
+    {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :cargo)
     cargo_room_key = cargo_room_identity |> Identity.pub_key()
+
+    Rooms.add(operator, "Other room", :public)
 
     ChangeTracker.await()
 
@@ -73,7 +116,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     FunctionalityDynamicSupervisor
     |> DynamicSupervisor.start_child({CargoSyncSupervisor, [nil]})
 
-    :timer.sleep(100)
+    :timer.sleep(500)
 
     DynamicSupervisor.terminate_child(
       FunctionalityDynamicSupervisor,
@@ -106,6 +149,21 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
              cargo_room_identity
            )
            |> Map.get(:content) == "Hello from the sensor"
+
+    assert catch_error(
+             Dialogs.read_message(
+               bob_charlie_dialog,
+               {bob_charlie_msg_index, bob_charlie_message.id},
+               bob
+             )
+           )
+
+    assert Dialogs.read_message(
+             bob_sensor_dialog,
+             {bob_sensor_msg_index, bob_sensor_message.id},
+             bob
+           )
+           |> Map.get(:content) == "Bob fiddles with the sensor"
 
     another_sensor = User.login("Another Sensor")
     User.register(another_sensor)
@@ -145,7 +203,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     FunctionalityDynamicSupervisor
     |> DynamicSupervisor.start_child({CargoSyncSupervisor, [nil]})
 
-    :timer.sleep(100)
+    :timer.sleep(500)
 
     DynamicSupervisor.terminate_child(
       FunctionalityDynamicSupervisor,
@@ -188,7 +246,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     sensor = User.login("Sensor")
     User.register(sensor)
 
-    {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :public)
+    {cargo_room_identity, _cargo_room} = Rooms.add(operator, "First room", :public)
     cargo_room_key = cargo_room_identity |> Identity.pub_key()
     {other_room_identity, _other_room} = Rooms.add(operator, "Other room", :public)
     other_room_key = other_room_identity |> Identity.pub_key()
@@ -198,7 +256,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     FunctionalityDynamicSupervisor
     |> DynamicSupervisor.start_child({CargoSyncSupervisor, [nil]})
 
-    :timer.sleep(100)
+    :timer.sleep(500)
 
     DynamicSupervisor.terminate_child(
       FunctionalityDynamicSupervisor,

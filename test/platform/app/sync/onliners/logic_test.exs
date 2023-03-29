@@ -72,7 +72,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
 
     alice_bob_dialog = Dialogs.find_or_open(alice, bob_card)
 
-    bob_alice_msg =
+    {bob_alice_msg_index, bob_alice_message} =
       "-"
       |> String.duplicate(151)
       |> Messages.Text.new(1)
@@ -157,7 +157,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
              RoomInvites.get(room_invite_key, room_invite_secret)
 
     memo =
-      Dialogs.read_message(alice_bob_dialog, bob_alice_msg, bob)
+      Dialogs.read_message(alice_bob_dialog, {bob_alice_msg_index, bob_alice_message.id}, bob)
       |> Map.get(:content)
       |> StorageId.from_json()
       |> Memo.get()
