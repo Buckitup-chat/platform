@@ -1,6 +1,7 @@
 defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   use ExUnit.Case, async: false
 
+  alias Phoenix.PubSub
   alias Chat.Admin.CargoSettings
 
   alias Chat.{
@@ -31,7 +32,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   setup do
     CubDB.clear(AdminDb.db())
     CubDB.clear(Db.db())
-    CargoRoom.set(nil)
+    CargoRoom.activate(nil)
 
     File.rm_rf!(@cub_db_file)
     File.rm_rf!(@mount_path)
@@ -44,6 +45,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   end
 
   test "syncs cargo room messages" do
+    PubSub.subscribe(Chat.PubSub, "chat::cargo_room")
+
     operator = User.login("Operator")
     User.register(operator)
 
@@ -77,6 +80,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :cargo)
     cargo_room_key = cargo_room_identity |> Identity.pub_key()
+
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :pending}}
 
     Rooms.add(operator, "Other room", :public)
 
@@ -116,12 +121,14 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     FunctionalityDynamicSupervisor
     |> DynamicSupervisor.start_child({CargoSyncSupervisor, [nil]})
 
-    :timer.sleep(500)
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
 
     DynamicSupervisor.terminate_child(
       FunctionalityDynamicSupervisor,
       CargoSyncSupervisor |> Process.whereis()
     )
+
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
 
     internal_db_users_count = length(User.list())
 
@@ -203,12 +210,14 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     FunctionalityDynamicSupervisor
     |> DynamicSupervisor.start_child({CargoSyncSupervisor, [nil]})
 
-    :timer.sleep(500)
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
 
     DynamicSupervisor.terminate_child(
       FunctionalityDynamicSupervisor,
       CargoSyncSupervisor |> Process.whereis()
     )
+
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
 
     internal_db_users_count = length(User.list())
 
