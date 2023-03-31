@@ -46,6 +46,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
   test "syncs cargo room messages" do
     PubSub.subscribe(Chat.PubSub, "chat::cargo_room")
+    PubSub.subscribe(Chat.PubSub, "chat::lobby")
 
     operator = User.login("Operator")
     User.register(operator)
@@ -130,6 +131,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     )
 
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
+    assert_receive {:new_room, ^cargo_room_key}
+    assert_receive {:new_user, nil}
 
     internal_db_users_count = length(User.list())
 
@@ -219,6 +222,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     )
 
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
+    assert_receive {:new_room, ^cargo_room_key}
+    assert_receive {:new_user, nil}
 
     internal_db_users_count = length(User.list())
 
