@@ -80,6 +80,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :cargo)
     cargo_room_key = cargo_room_identity |> Identity.pub_key()
+    CargoRoom.activate(cargo_room_key)
 
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :pending}}
 
