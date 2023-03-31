@@ -22,6 +22,8 @@ defmodule Platform.App.Sync.Cargo.Logic do
   def init([target_db, tasks]) do
     "Platform.App.Sync.Cargo.Logic syncing" |> Logger.info()
 
+    Process.flag(:trap_exit, true)
+
     target_db
     |> get_room_key()
     |> do_sync(target_db: target_db, tasks_name: tasks)
@@ -30,7 +32,7 @@ defmodule Platform.App.Sync.Cargo.Logic do
   end
 
   defp get_room_key(target_db) do
-    get_room_key_from_target_db(target_db) || CargoRoom.get()
+    get_room_key_from_target_db(target_db) || CargoRoom.get_room_key()
   end
 
   defp get_room_key_from_target_db(target_db) do
@@ -53,6 +55,8 @@ defmodule Platform.App.Sync.Cargo.Logic do
   end
 
   defp do_sync(cargo_room_key, opts) do
+    CargoRoom.sync(cargo_room_key)
+
     %CargoSettings{checkpoints: checkpoints} = AdminRoom.get_cargo_settings()
     backup_keys = KeyScope.get_keys(Chat.Db.db(), [cargo_room_key | checkpoints])
     restoration_keys = KeyScope.get_keys(opts[:target_db], [cargo_room_key | checkpoints])
@@ -70,6 +74,14 @@ defmodule Platform.App.Sync.Cargo.Logic do
       CargoDynamicSupervisor
       |> DynamicSupervisor.start_child(Stopper)
 
+    CargoRoom.mark_successful()
+
     "Platform.App.Sync.Cargo.Logic syncing finished" |> Logger.info()
+  end
+
+  @impl GenServer
+  def terminate(_reason, _state) do
+    Logger.info("terminating #{__MODULE__}")
+    CargoRoom.complete()
   end
 end
