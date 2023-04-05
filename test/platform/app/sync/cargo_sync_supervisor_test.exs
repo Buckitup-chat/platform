@@ -1,8 +1,7 @@
 defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   use ExUnit.Case, async: false
 
-  alias Phoenix.PubSub
-  alias Chat.Admin.CargoSettings
+  alias Chat.Admin.{CargoSettings, MediaSettings}
 
   alias Chat.{
     AdminDb,
@@ -18,12 +17,11 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     User
   }
 
-  alias Chat.Sync.CargoRoom
   alias Chat.Content.Files
   alias Chat.Db.{CargoDb, ChangeTracker, InternalDb, MediaDbSupervisor, Switching}
+  alias Chat.Sync.CargoRoom
   alias Chat.Utils.StorageId
-  alias Platform.App.Media.FunctionalityDynamicSupervisor
-  alias Platform.App.Sync.CargoSyncSupervisor
+  alias Phoenix.PubSub
   alias Support.FakeData
 
   @cub_db_file Application.compile_env(:chat, :cub_db_file)
@@ -37,7 +35,11 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     File.rm_rf!(@cub_db_file)
     File.rm_rf!(@mount_path)
 
-    DynamicSupervisor.start_link(name: FunctionalityDynamicSupervisor, strategy: :one_for_one)
+    AdminRoom.store_media_settings(%MediaSettings{functionality: :cargo})
+
+    start_supervised!(
+      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
+    )
 
     on_exit(fn ->
       Switching.set_default(InternalDb)
@@ -120,19 +122,19 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     ChangeTracker.await()
 
-    FunctionalityDynamicSupervisor
-    |> DynamicSupervisor.start_child({CargoSyncSupervisor, [nil]})
+    assert {:ok, _pid} =
+             Platform.App.Media.DynamicSupervisor
+             |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
 
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
 
-    DynamicSupervisor.terminate_child(
-      FunctionalityDynamicSupervisor,
-      CargoSyncSupervisor |> Process.whereis()
-    )
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}},
+                   6000
 
-    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
     assert_receive {:new_room, ^cargo_room_key}
     assert_receive {:new_user, nil}
+
+    Process.sleep(100)
 
     internal_db_users_count = length(User.list())
 
@@ -211,17 +213,15 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     Process.exit(media_db_supervisor_pid, :normal)
 
-    FunctionalityDynamicSupervisor
-    |> DynamicSupervisor.start_child({CargoSyncSupervisor, [nil]})
+    assert {:ok, _pid} =
+             Platform.App.Media.DynamicSupervisor
+             |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
 
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
 
-    DynamicSupervisor.terminate_child(
-      FunctionalityDynamicSupervisor,
-      CargoSyncSupervisor |> Process.whereis()
-    )
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}},
+                   6000
 
-    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
     assert_receive {:new_room, ^cargo_room_key}
     assert_receive {:new_user, nil}
 
@@ -255,6 +255,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   end
 
   test "skips copying if it can't decide which room to sync" do
+    PubSub.subscribe(Chat.PubSub, "chat::cargo_room")
+
     operator = User.login("Operator")
     User.register(operator)
 
@@ -268,15 +270,11 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     ChangeTracker.await()
 
-    FunctionalityDynamicSupervisor
-    |> DynamicSupervisor.start_child({CargoSyncSupervisor, [nil]})
+    assert {:ok, _pid} =
+             Platform.App.Media.DynamicSupervisor
+             |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
 
-    :timer.sleep(500)
-
-    DynamicSupervisor.terminate_child(
-      FunctionalityDynamicSupervisor,
-      CargoSyncSupervisor |> Process.whereis()
-    )
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: nil, status: :failed}}, 1000
 
     users_count = length(User.list())
 

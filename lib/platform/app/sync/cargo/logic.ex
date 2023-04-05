@@ -31,6 +31,21 @@ defmodule Platform.App.Sync.Cargo.Logic do
     {:ok, nil}
   end
 
+  # handle the trapped exit call
+  @impl GenServer
+  def handle_info({:EXIT, _from, reason}, state) do
+    Logger.info("exiting #{__MODULE__}")
+    cleanup(reason, state)
+    {:stop, reason, state}
+  end
+
+  @impl GenServer
+  def terminate(reason, state) do
+    Logger.info("terminating #{__MODULE__}")
+    cleanup(reason, state)
+    state
+  end
+
   defp get_room_key(target_db) do
     get_room_key_from_target_db(target_db) || CargoRoom.get_room_key()
   end
@@ -49,9 +64,7 @@ defmodule Platform.App.Sync.Cargo.Logic do
   defp do_sync(nil, _opts) do
     "Platform.App.Sync.Cargo.Logic cannot decide which room is for cargo" |> Logger.error()
 
-    {:ok, _pid} =
-      CargoDynamicSupervisor
-      |> DynamicSupervisor.start_child(Stopper)
+    Stopper.start_link(wait: 100)
   end
 
   defp do_sync(cargo_room_key, opts) do
@@ -70,18 +83,14 @@ defmodule Platform.App.Sync.Cargo.Logic do
       CargoDynamicSupervisor
       |> DynamicSupervisor.start_child({Copier, opts})
 
-    {:ok, _pid} =
-      CargoDynamicSupervisor
-      |> DynamicSupervisor.start_child(Stopper)
-
     CargoRoom.mark_successful()
 
     "Platform.App.Sync.Cargo.Logic syncing finished" |> Logger.info()
+
+    Stopper.start_link()
   end
 
-  @impl GenServer
-  def terminate(_reason, _state) do
-    Logger.info("terminating #{__MODULE__}")
+  defp cleanup(_reason, _state) do
     CargoRoom.complete()
   end
 end

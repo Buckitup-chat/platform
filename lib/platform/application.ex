@@ -17,6 +17,7 @@ defmodule Platform.Application do
         # Children for all targets
         # Starts a worker by calling: Platform.Worker.start_link(arg)
         # {Platform.Worker, arg},
+        {Task.Supervisor, name: Platform.TaskSupervisor}
       ] ++ children(target())
 
     Supervisor.start_link(children, opts)

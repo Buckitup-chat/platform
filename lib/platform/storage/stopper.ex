@@ -3,59 +3,34 @@ defmodule Platform.Storage.Stopper do
   Awaits few seconds and finalizes copying
   """
 
-  use GenServer
-
   require Logger
+
   alias Platform.Leds
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, [])
-  end
+  @default_wait if(Application.compile_env(:platform, :target) == :host, do: 100, else: 5000)
 
-  @impl true
-  def init(args) do
+  def start_link(opts \\ []) do
     Logger.info("starting #{__MODULE__}")
-    Process.flag(:trap_exit, true)
-    {:ok, on_start(args)}
-  end
 
-  # handle the trapped exit call
-  @impl true
-  def handle_info({:EXIT, _from, reason}, state) do
-    Logger.info("exiting #{__MODULE__}")
-    cleanup(reason, state)
-    {:stop, reason, state}
-  end
+    wait = Keyword.get(opts, :wait, @default_wait)
 
-  def handle_info(:stop_supervisor, state) do
-    DynamicSupervisor.terminate_child(
-      Platform.App.Media.DynamicSupervisor,
-      Platform.App.Media.Supervisor |> Process.whereis()
-    )
+    Task.Supervisor.async_nolink(Platform.TaskSupervisor, fn ->
+      Leds.blink_dump()
+      Logger.info("backup finished. Stopping supervisor")
 
-    {:noreply, state}
-  end
+      Process.sleep(wait)
 
-  # handle termination
-  @impl true
-  def terminate(reason, state) do
-    Logger.info("terminating #{__MODULE__}")
-    cleanup(reason, state)
-    state
-  end
+      case Process.whereis(Platform.App.Media.Supervisor) do
+        nil ->
+          nil
 
-  defp on_start(args) do
-    Leds.blink_dump()
-    Process.sleep(5_000)
-    Logger.info("backup finished. Stopping supervisor")
+        pid ->
+          DynamicSupervisor.terminate_child(Platform.App.Media.DynamicSupervisor, pid)
+      end
 
-    Process.send_after(self(), :stop_supervisor, 5_000)
+      Leds.blink_done()
+    end)
 
-    args
-  end
-
-  defp cleanup(reason, _state) do
-    Leds.blink_done()
-    reason
+    {:ok, nil}
   end
 end
