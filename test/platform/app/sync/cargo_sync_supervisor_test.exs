@@ -30,7 +30,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   setup do
     CubDB.clear(AdminDb.db())
     CubDB.clear(Db.db())
-    CargoRoom.activate(nil)
+    CargoRoom.remove()
 
     File.rm_rf!(@cub_db_file)
     File.rm_rf!(@mount_path)
@@ -274,7 +274,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
              Platform.App.Media.DynamicSupervisor
              |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
 
-    assert_receive {:update_cargo_room, %CargoRoom{pub_key: nil, status: :failed}}, 1000
+    assert process_not_running(Platform.App.Media.Supervisor)
+    refute_received {:update_cargo_room, _cargo_room}
 
     users_count = length(User.list())
 
@@ -286,5 +287,23 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     refute length(User.list()) == users_count
     refute Rooms.get(cargo_room_key)
     refute Rooms.get(other_room_key)
+  end
+
+  defp process_not_running(process, timeout \\ 5000, start \\ System.monotonic_time(:millisecond))
+
+  defp process_not_running(process, timeout, start) do
+    pid = Process.whereis(process)
+
+    cond do
+      is_nil(pid) ->
+        true
+
+      System.monotonic_time(:millisecond) - start >= timeout ->
+        false
+
+      true ->
+        Process.sleep(100)
+        process_not_running(process, timeout, start)
+    end
   end
 end
