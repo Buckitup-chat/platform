@@ -26,7 +26,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]},
-      Starter,
+      {Starter, flag: :cargo},
       {DynamicSupervisor, name: CargoDynamicSupervisor, strategy: :one_for_one},
       {Logic, [target_db, tasks]}
     ]

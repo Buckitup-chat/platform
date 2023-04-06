@@ -13,10 +13,11 @@ defmodule Platform.Storage.Backup.Starter do
   end
 
   @impl true
-  def init(args) do
+  def init(opts) do
     Logger.info("starting #{__MODULE__}")
     Process.flag(:trap_exit, true)
-    {:ok, on_start(args)}
+    flag = Keyword.get(opts, :flag, :backup)
+    {:ok, on_start(flag)}
   end
 
   # handle the trapped exit call
@@ -35,13 +36,13 @@ defmodule Platform.Storage.Backup.Starter do
     state
   end
 
-  defp on_start(args) do
-    set_db_flag(backup: true)
-    args
+  defp on_start(flag) do
+    set_db_flag([{flag, true}])
+    flag
   end
 
-  defp cleanup(_reason, _state) do
-    set_db_flag(backup: false)
+  defp cleanup(_reason, flag) do
+    set_db_flag([{flag, false}])
   end
 
   defp set_db_flag(flags) do

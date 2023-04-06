@@ -18,7 +18,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   }
 
   alias Chat.Content.Files
-  alias Chat.Db.{CargoDb, ChangeTracker, InternalDb, MediaDbSupervisor, Switching}
+  alias Chat.Db.{CargoDb, ChangeTracker, Common, InternalDb, MediaDbSupervisor, Switching}
   alias Chat.Sync.CargoRoom
   alias Chat.Utils.StorageId
   alias Phoenix.PubSub
@@ -31,6 +31,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     CubDB.clear(AdminDb.db())
     CubDB.clear(Db.db())
     CargoRoom.remove()
+    Common.put_chat_db_env(:flags, [])
 
     File.rm_rf!(@cub_db_file)
     File.rm_rf!(@mount_path)
@@ -122,10 +123,13 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     ChangeTracker.await()
 
+    assert Common.get_chat_db_env(:flags) == []
+
     assert {:ok, _pid} =
              Platform.App.Media.DynamicSupervisor
              |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
 
+    assert [cargo: true] = Common.get_chat_db_env(:flags)
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
 
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}},
@@ -136,6 +140,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     Process.sleep(100)
 
+    assert [cargo: false] = Common.get_chat_db_env(:flags)
     internal_db_users_count = length(User.list())
 
     path = [@mount_path, "cargo_db", Chat.Db.version_path()] |> Path.join()
@@ -217,6 +222,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
              Platform.App.Media.DynamicSupervisor
              |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
 
+    assert [cargo: true] = Common.get_chat_db_env(:flags)
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
 
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}},
@@ -225,6 +231,9 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     assert_receive {:new_room, ^cargo_room_key}
     assert_receive {:new_user, nil}
 
+    Process.sleep(100)
+
+    assert [cargo: false] = Common.get_chat_db_env(:flags)
     internal_db_users_count = length(User.list())
 
     assert Rooms.read_message(
@@ -270,12 +279,17 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     ChangeTracker.await()
 
+    assert Common.get_chat_db_env(:flags) == []
+
     assert {:ok, _pid} =
              Platform.App.Media.DynamicSupervisor
              |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
 
+    assert [cargo: true] = Common.get_chat_db_env(:flags)
+
     assert process_not_running(Platform.App.Media.Supervisor)
     refute_received {:update_cargo_room, _cargo_room}
+    assert [cargo: false] = Common.get_chat_db_env(:flags)
 
     users_count = length(User.list())
 
