@@ -56,8 +56,6 @@ defmodule Platform.App.Sync.Onliners.Logic do
       OnlinersDynamicSupervisor
       |> DynamicSupervisor.start_child({Copier, opts})
 
-    {:ok, _pid} =
-      OnlinersDynamicSupervisor
-      |> DynamicSupervisor.start_child(Stopper)
+    Stopper.start_link(wait: 100)
   end
 end

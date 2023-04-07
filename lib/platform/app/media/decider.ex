@@ -40,8 +40,9 @@ defmodule Platform.App.Media.Decider do
 
     "Platform.App.Media.Decider starting #{supervisor}" |> Logger.info()
 
-    Platform.App.Media.FunctionalityDynamicSupervisor
-    |> DynamicSupervisor.start_child({supervisor, [device]})
+    {:ok, _pid} =
+      Platform.App.Media.FunctionalityDynamicSupervisor
+      |> DynamicSupervisor.start_child({supervisor, [device]})
 
     {:ok, nil}
   end
