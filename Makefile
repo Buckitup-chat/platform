@@ -13,6 +13,8 @@ check:
 
 prepare_chat:
 	(cd ../chat && MIX_ENV=prod make firmware)
+	# Run MIX_ENV=prod MIX_TARGET=bktp_rpi4 mix compile
+	# first if the following command fails
 	MIX_ENV=prod mix deps.compile chat --force
 
 clean_chat:
