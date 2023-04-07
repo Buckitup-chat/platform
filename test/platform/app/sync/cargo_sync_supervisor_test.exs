@@ -131,12 +131,16 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     assert [cargo: true] = Common.get_chat_db_env(:flags)
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
-
-    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}},
-                   6000
-
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
     assert_receive {:new_room, ^cargo_room_key}
     assert_receive {:new_user, nil}
+
+    DynamicSupervisor.terminate_child(
+      Platform.App.Media.DynamicSupervisor,
+      Platform.App.Media.Supervisor |> Process.whereis()
+    )
+
+    assert_receive {:update_cargo_room, nil}, 1000
 
     Process.sleep(100)
 
@@ -224,12 +228,16 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     assert [cargo: true] = Common.get_chat_db_env(:flags)
     assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
-
-    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}},
-                   6000
-
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
     assert_receive {:new_room, ^cargo_room_key}
     assert_receive {:new_user, nil}
+
+    DynamicSupervisor.terminate_child(
+      Platform.App.Media.DynamicSupervisor,
+      Platform.App.Media.Supervisor |> Process.whereis()
+    )
+
+    assert_receive {:update_cargo_room, nil}, 1000
 
     Process.sleep(100)
 
@@ -288,7 +296,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     assert [cargo: true] = Common.get_chat_db_env(:flags)
 
     assert process_not_running(Platform.App.Media.Supervisor)
-    refute_received {:update_cargo_room, _cargo_room}
+    assert_receive {:update_cargo_room, nil}
     assert [cargo: false] = Common.get_chat_db_env(:flags)
 
     users_count = length(User.list())

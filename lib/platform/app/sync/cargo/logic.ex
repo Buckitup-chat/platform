@@ -64,6 +64,8 @@ defmodule Platform.App.Sync.Cargo.Logic do
   defp do_sync(nil, _opts) do
     "Platform.App.Sync.Cargo.Logic cannot decide which room is for cargo" |> Logger.error()
 
+    CargoRoom.complete()
+
     Stopper.start_link(wait: 100)
   end
 
@@ -84,13 +86,12 @@ defmodule Platform.App.Sync.Cargo.Logic do
       |> DynamicSupervisor.start_child({Copier, opts})
 
     CargoRoom.mark_successful()
+    CargoRoom.complete()
 
     "Platform.App.Sync.Cargo.Logic syncing finished" |> Logger.info()
-
-    Stopper.start_link(wait: 100)
   end
 
   defp cleanup(_reason, _state) do
-    CargoRoom.complete()
+    CargoRoom.remove()
   end
 end
