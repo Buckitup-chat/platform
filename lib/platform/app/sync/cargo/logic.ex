@@ -87,7 +87,7 @@ defmodule Platform.App.Sync.Cargo.Logic do
 
     "Platform.App.Sync.Cargo.Logic syncing finished" |> Logger.info()
 
-    Stopper.start_link()
+    Stopper.start_link(wait: 100)
   end
 
   defp cleanup(_reason, _state) do
