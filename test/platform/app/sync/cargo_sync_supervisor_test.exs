@@ -34,7 +34,6 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     Common.put_chat_db_env(:flags, [])
 
     File.rm_rf!(@cub_db_file)
-    File.rm_rf!(@mount_path)
 
     AdminRoom.store_media_settings(%MediaSettings{functionality: :cargo})
 
