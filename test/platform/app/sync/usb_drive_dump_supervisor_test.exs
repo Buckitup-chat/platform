@@ -1,6 +1,8 @@
 defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
   use ExUnit.Case, async: false
 
+  alias Chat.{ChunkedFiles, ChunkedFilesBroker}
+
   alias Chat.{
     Db,
     Identity,
@@ -142,5 +144,11 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
                type: :image
              }
            ] = Rooms.read(room, room_identity)
+
+    ChunkedFilesBroker
+    |> :sys.get_state()
+    |> Enum.map(fn {key, secret} ->
+      assert ChunkedFiles.read({key, secret})
+    end)
   end
 end
