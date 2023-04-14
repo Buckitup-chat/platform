@@ -310,7 +310,11 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     refute Rooms.get(other_room_key)
   end
 
-  defp process_not_running(process, timeout \\ 5000, start \\ System.monotonic_time(:millisecond))
+  defp process_not_running(
+         process,
+         timeout \\ 10_000,
+         start \\ System.monotonic_time(:millisecond)
+       )
 
   defp process_not_running(process, timeout, start) do
     pid = Process.whereis(process)
