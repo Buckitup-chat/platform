@@ -9,22 +9,23 @@ defmodule Platform.Storage.Mounter do
   alias Platform.Storage.Device
   alias Platform.Tools.Mount
 
+  alias GracefulGenServer.Functions, as: Graceful
+
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, timeout: :timer.minutes(1))
   end
 
   @impl true
-  def init(args) do
-    Logger.info("starting #{__MODULE__} #{inspect(args)}")
-    Process.flag(:trap_exit, true)
-    state = on_start(args)
-    inspect(state) |> Logger.debug()
-    {:ok, state}
-  end
+  def init(args), do: Graceful.init(args, do: &on_start/1, as: __MODULE__)
 
-  # handle the trapped exit call
   @impl true
-  def handle_info({:EXIT, from, _}, state) when is_port(from), do: {:noreply, state}
+  def handle_info(msg, state),
+    do:
+      Graceful.handle_info(msg, state,
+        on_exit: &cleanup/2,
+        on_msg: &handle_msg/2,
+        as: __MODULE__
+      )
 
   def handle_info({:EXIT, from, reason}, state) do
     Logger.info("exiting #{__MODULE__} #{inspect(self())} from #{inspect(from)}")
@@ -32,10 +33,10 @@ defmodule Platform.Storage.Mounter do
     {:stop, reason, state}
   end
 
-  def handle_info(some, _, state) do
+  def handle_msg(some, state) do
     Logger.info("info msg #{inspect(some)}")
 
-    {:noreply, state}
+    state
   end
 
   # handle termination
