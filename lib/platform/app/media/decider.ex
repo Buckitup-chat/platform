@@ -5,8 +5,9 @@ defmodule Platform.App.Media.Decider do
 
   alias Chat.Admin.MediaSettings
   alias Chat.AdminRoom
+  alias Chat.Sync.UsbDriveDumpRoom
   alias Platform.App.Db.BackupDbSupervisor
-  alias Platform.App.Sync.{CargoSyncSupervisor, OnlinersSyncSupervisor}
+  alias Platform.App.Sync.{CargoSyncSupervisor, OnlinersSyncSupervisor, UsbDriveDumpSupervisor}
 
   @supervisor_map %{
     backup: BackupDbSupervisor,
@@ -24,6 +25,9 @@ defmodule Platform.App.Media.Decider do
 
     supervisor =
       cond do
+        UsbDriveDumpRoom.get() ->
+          UsbDriveDumpSupervisor
+
         File.exists?("#{mount_path}/cargo_db") ->
           CargoSyncSupervisor
 

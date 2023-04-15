@@ -32,6 +32,8 @@ config :tzdata, :autoupdate, :disabled
 config :elixir, :time_zone_database, Tzdata.TimeZoneDatabase
 config :phoenix, :json_library, Jason
 
+config :chat, file_chunk_size: 10 * 1024 * 1024
+
 if Mix.target() == :host or Mix.target() == :"" do
   import_config "host.exs"
 else
