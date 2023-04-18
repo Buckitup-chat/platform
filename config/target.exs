@@ -178,6 +178,7 @@ config :chat, ChatWeb.Endpoint,
     certfile: "priv/cert/buckitup_app.crt",
     keyfile: "priv/cert/priv.key"
   ],
+  force_ssl: [rewrite_on: [:x_forwarded_proto]],
   server: true,
   code_reloader: false
 
