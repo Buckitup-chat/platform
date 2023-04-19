@@ -47,21 +47,30 @@ defmodule Platform.App.Sync.UsbDriveDump.Logic do
 
         dump_room = UsbDriveDumpRoom.get()
 
-        "#{path}/**/*.*"
-        |> Path.wildcard()
-        |> Enum.map(fn path ->
-          filename =
-            path
-            |> Path.split()
-            |> List.last()
+        {files, total_size} =
+          "#{path}/**/*.*"
+          |> Path.wildcard()
+          |> Enum.map_reduce(0, fn path, total_size ->
+            filename =
+              path
+              |> Path.split()
+              |> List.last()
 
-          %File.Stat{size: size, mtime: time} = File.stat!(path)
-          datetime = NaiveDateTime.from_erl!(time)
+            %File.Stat{size: size, mtime: time} = File.stat!(path)
+            datetime = NaiveDateTime.from_erl!(time)
+            file = %UsbDriveDumpFile{datetime: datetime, name: filename, path: path, size: size}
 
-          %UsbDriveDumpFile{datetime: datetime, name: filename, path: path, size: size}
-        end)
+            {file, total_size + size}
+          end)
+
+        UsbDriveDumpRoom.set_total(length(files), total_size)
+
+        files
         |> Enum.sort_by(& &1.datetime, NaiveDateTime)
-        |> Enum.each(&UsbDriveFileDumper.dump(&1, dump_room.pub_key, dump_room.identity))
+        |> Enum.with_index(1)
+        |> Enum.each(fn {file, file_number} ->
+          UsbDriveFileDumper.dump(file, file_number, dump_room.pub_key, dump_room.identity)
+        end)
 
         UsbDriveDumpRoom.mark_successful()
 
