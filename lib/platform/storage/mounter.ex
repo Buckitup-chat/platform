@@ -27,24 +27,14 @@ defmodule Platform.Storage.Mounter do
         as: __MODULE__
       )
 
-  def handle_info({:EXIT, from, reason}, state) do
-    Logger.info("exiting #{__MODULE__} #{inspect(self())} from #{inspect(from)}")
-    cleanup(reason, state)
-    {:stop, reason, state}
-  end
+  @impl true
+  def terminate(reason, state),
+    do: Graceful.terminate(reason, state, on_exit: &cleanup/2, as: __MODULE__)
 
-  def handle_msg(some, state) do
+  defp handle_msg(some, state) do
     Logger.info("info msg #{inspect(some)}")
 
-    state
-  end
-
-  # handle termination
-  @impl true
-  def terminate(reason, state) do
-    Logger.info("terminating #{__MODULE__}")
-    cleanup(reason, state)
-    state
+    {:noreply, state}
   end
 
   defp on_start([device, path, task_supervisor]) do
