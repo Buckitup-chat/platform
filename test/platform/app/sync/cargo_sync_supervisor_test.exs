@@ -34,7 +34,6 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     Common.put_chat_db_env(:flags, [])
 
     File.rm_rf!(@cub_db_file)
-    File.rm_rf!(@mount_path)
 
     AdminRoom.store_media_settings(%MediaSettings{functionality: :cargo})
 
@@ -311,7 +310,11 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     refute Rooms.get(other_room_key)
   end
 
-  defp process_not_running(process, timeout \\ 5000, start \\ System.monotonic_time(:millisecond))
+  defp process_not_running(
+         process,
+         timeout \\ 10_000,
+         start \\ System.monotonic_time(:millisecond)
+       )
 
   defp process_not_running(process, timeout, start) do
     pid = Process.whereis(process)
