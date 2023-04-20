@@ -124,6 +124,11 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
                       }}}},
                    5000
 
+    DynamicSupervisor.terminate_child(
+      Platform.App.Media.DynamicSupervisor,
+      Platform.App.Media.Supervisor |> Process.whereis()
+    )
+
     assert [
              %PlainMessage{
                index: 1,
@@ -150,5 +155,105 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
     |> Enum.map(fn {key, secret} ->
       assert ChunkedFiles.read({key, secret})
     end)
+
+    assert ProcessHelper.process_not_running(Platform.App.Media.Supervisor)
+
+    UsbDriveDumpRoom.activate(room_key, room_identity)
+
+    assert_receive {:update_usb_drive_dump_room,
+                    %UsbDriveDumpRoom{
+                      identity: ^room_identity,
+                      pub_key: ^room_key,
+                      status: :pending
+                    }}
+
+    assert {:ok, _pid} =
+             Platform.App.Media.DynamicSupervisor
+             |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
+
+    assert [usb_drive_dump: true] = Common.get_chat_db_env(:flags)
+
+    assert_receive {:update_usb_drive_dump_room,
+                    %UsbDriveDumpRoom{
+                      identity: ^room_identity,
+                      pub_key: ^room_key,
+                      status: :dumping
+                    }}
+
+    assert_receive {:update_usb_drive_dump_room,
+                    %UsbDriveDumpRoom{
+                      identity: ^room_identity,
+                      pub_key: ^room_key,
+                      status: :complete
+                    }}
+
+    assert_receive {:room,
+                    {:new_message,
+                     {4,
+                      %Message{
+                        timestamp: 1_681_263_987,
+                        author_key: ^room_key,
+                        type: :file
+                      }}}},
+                   5000
+
+    assert_receive {:room,
+                    {:new_message,
+                     {5,
+                      %Message{
+                        timestamp: 1_681_264_949,
+                        author_key: ^room_key,
+                        type: :video
+                      }}}},
+                   5000
+
+    assert_receive {:room,
+                    {:new_message,
+                     {6,
+                      %Message{
+                        timestamp: 1_681_302_707,
+                        author_key: ^room_key,
+                        type: :image
+                      }}}},
+                   5000
+
+    assert [
+             %PlainMessage{
+               index: 1,
+               timestamp: 1_681_263_987,
+               author_key: ^room_key,
+               type: :file
+             },
+             %PlainMessage{
+               index: 2,
+               timestamp: 1_681_264_949,
+               author_key: ^room_key,
+               type: :video
+             },
+             %PlainMessage{
+               index: 3,
+               timestamp: 1_681_302_707,
+               author_key: ^room_key,
+               type: :image
+             },
+             %PlainMessage{
+               index: 4,
+               timestamp: 1_681_263_987,
+               author_key: ^room_key,
+               type: :file
+             },
+             %PlainMessage{
+               index: 5,
+               timestamp: 1_681_264_949,
+               author_key: ^room_key,
+               type: :video
+             },
+             %PlainMessage{
+               index: 6,
+               timestamp: 1_681_302_707,
+               author_key: ^room_key,
+               type: :image
+             }
+           ] = Rooms.read(room, room_identity)
   end
 end

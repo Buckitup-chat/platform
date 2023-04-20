@@ -294,7 +294,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
     assert [cargo: true] = Common.get_chat_db_env(:flags)
 
-    assert process_not_running(Platform.App.Media.Supervisor)
+    assert ProcessHelper.process_not_running(Platform.App.Media.Supervisor)
     assert_receive {:update_cargo_room, nil}
     assert [cargo: false] = Common.get_chat_db_env(:flags)
 
@@ -308,27 +308,5 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     refute length(User.list()) == users_count
     refute Rooms.get(cargo_room_key)
     refute Rooms.get(other_room_key)
-  end
-
-  defp process_not_running(
-         process,
-         timeout \\ 10_000,
-         start \\ System.monotonic_time(:millisecond)
-       )
-
-  defp process_not_running(process, timeout, start) do
-    pid = Process.whereis(process)
-
-    cond do
-      is_nil(pid) ->
-        true
-
-      System.monotonic_time(:millisecond) - start >= timeout ->
-        false
-
-      true ->
-        Process.sleep(100)
-        process_not_running(process, timeout, start)
-    end
   end
 end
