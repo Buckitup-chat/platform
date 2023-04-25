@@ -18,7 +18,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   def init([_device]) do
     "Backup DB Supervisor start" |> Logger.info()
 
-    full_path = [@mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
+    full_path = [@mount_path, "backup_db", Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.BackupDbSupervisor.Tasks
 
     children = [

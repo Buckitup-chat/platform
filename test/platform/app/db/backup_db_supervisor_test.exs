@@ -110,7 +110,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
       assert ChunkedFiles.read({file_key, file_secret}) ==
                "some part of info another part"
 
-      path = [@media_mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
+      path = [@media_mount_path, "backup_db", Chat.Db.version_path()] |> Path.join()
       Chat.Db.MediaDbSupervisor.start_link([BackupDb, path])
 
       Switching.set_default(BackupDb)
