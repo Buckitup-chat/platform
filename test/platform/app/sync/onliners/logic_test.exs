@@ -57,7 +57,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
 
     Switching.set_default(InternalDb)
 
-    assert catch_error(Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob))
+    refute Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob)
 
     alice = User.login("Alice")
     User.register(alice)
@@ -145,7 +145,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     :timer.sleep(100)
 
     users_count = length(User.list())
-    assert catch_error(Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob))
+    refute Dialogs.read_message(bob_dialog, {bob_msg_index, bob_message.id}, bob)
 
     Switching.set_default(OnlinersDb)
 

@@ -174,12 +174,10 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
            )
            |> Map.get(:content) == "Hello from the sensor"
 
-    assert catch_error(
-             Dialogs.read_message(
-               bob_charlie_dialog,
-               {bob_charlie_msg_index, bob_charlie_message.id},
-               bob
-             )
+    refute Dialogs.read_message(
+             bob_charlie_dialog,
+             {bob_charlie_msg_index, bob_charlie_message.id},
+             bob
            )
 
     assert Dialogs.read_message(
