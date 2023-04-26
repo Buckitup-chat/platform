@@ -32,10 +32,13 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     CubDB.clear(Db.db())
     CargoRoom.remove()
     Common.put_chat_db_env(:flags, [])
-
     File.rm_rf!(@cub_db_file)
-
     AdminRoom.store_media_settings(%MediaSettings{functionality: :cargo})
+
+    "#{@mount_path}/**/*"
+    |> Path.wildcard()
+    |> Enum.reject(&String.contains?(&1, "DCIM"))
+    |> Enum.each(&File.rm_rf!/1)
 
     start_supervised!(
       {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
