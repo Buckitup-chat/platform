@@ -51,7 +51,12 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
 
     Rooms.add(operator, "Other room", :public)
 
-    UsbDriveDumpRoom.activate(room_key, room_identity)
+    monotonic_offset =
+      DateTime.utc_now()
+      |> DateTime.to_unix()
+      |> Chat.Time.monotonic_offset()
+
+    UsbDriveDumpRoom.activate(room_key, room_identity, monotonic_offset)
 
     assert_receive {:update_usb_drive_dump_room,
                     %UsbDriveDumpRoom{
@@ -158,7 +163,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
 
     assert ProcessHelper.process_not_running(Platform.App.Media.Supervisor)
 
-    UsbDriveDumpRoom.activate(room_key, room_identity)
+    UsbDriveDumpRoom.activate(room_key, room_identity, monotonic_offset)
 
     assert_receive {:update_usb_drive_dump_room,
                     %UsbDriveDumpRoom{

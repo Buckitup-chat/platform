@@ -45,7 +45,7 @@ defmodule Platform.App.Sync.UsbDriveDump.Logic do
       Task.Supervisor.async_nolink(tasks_name, fn ->
         Leds.blink_read()
 
-        dump_room = UsbDriveDumpRoom.get()
+        %UsbDriveDumpRoom{} = dump_room = UsbDriveDumpRoom.get()
 
         {files, total_size} =
           "#{path}/**/*.*"
@@ -69,7 +69,13 @@ defmodule Platform.App.Sync.UsbDriveDump.Logic do
         |> Enum.sort_by(& &1.datetime, NaiveDateTime)
         |> Enum.with_index(1)
         |> Enum.each(fn {file, file_number} ->
-          UsbDriveFileDumper.dump(file, file_number, dump_room.pub_key, dump_room.identity)
+          UsbDriveFileDumper.dump(
+            file,
+            file_number,
+            dump_room.pub_key,
+            dump_room.identity,
+            dump_room.monotonic_offset
+          )
         end)
 
         UsbDriveDumpRoom.mark_successful()
