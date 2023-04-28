@@ -20,15 +20,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   def init([_device]) do
     "Backup DB Supervisor start" |> Logger.info()
 
-    continuous? =
-      case AdminRoom.get_backup_settings() do
-        %BackupSettings{type: :continuous} ->
-          true
-
-        _ ->
-          false
-      end
-
+    continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
     full_path = [@mount_path, "backup_db", Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.BackupDbSupervisor.Tasks
 
