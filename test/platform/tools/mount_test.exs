@@ -1,5 +1,5 @@
 defmodule Platform.Tools.MountTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Platform.Tools.Mount
 

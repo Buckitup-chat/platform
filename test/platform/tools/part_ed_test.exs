@@ -1,5 +1,5 @@
 defmodule Platform.Tools.PartEdTools do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
   alias Platform.Tools.PartEd
 

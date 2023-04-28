@@ -1,15 +1,7 @@
 defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
   use ExUnit.Case, async: false
 
-  alias Chat.{ChunkedFiles, ChunkedFilesBroker}
-
-  alias Chat.{
-    Db,
-    Identity,
-    Rooms,
-    User
-  }
-
+  alias Chat.{ChunkedFiles, ChunkedFilesBroker, Db, Identity, Rooms, User}
   alias Chat.Db.{ChangeTracker, Common}
   alias Chat.Rooms.{Message, PlainMessage}
   alias Chat.Sync.UsbDriveDumpRoom
@@ -22,8 +14,8 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
     CubDB.clear(Db.db())
     UsbDriveDumpRoom.remove()
     Common.put_chat_db_env(:flags, [])
-
     File.rm_rf!(@cub_db_file)
+    :sys.replace_state(ChunkedFilesBroker, fn _ -> %{} end)
 
     "#{@mount_path}/DCIM/**/.DS_Store"
     |> Path.wildcard(match_dot: true)

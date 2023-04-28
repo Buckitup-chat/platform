@@ -11,6 +11,7 @@ defmodule Platform.Storage.Backup.Copier do
   alias Chat.Ordering
 
   alias Platform.Leds
+  alias Platform.Storage.Stopper
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
@@ -39,8 +40,11 @@ defmodule Platform.Storage.Backup.Copier do
     state
   end
 
-  defp on_start(tasks_name) do
+  defp on_start(opts) do
     "[backup] Syncing " |> Logger.info()
+
+    tasks_name = Keyword.get(opts, :tasks_name)
+    continuous? = Keyword.get(opts, :continuous?)
 
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
@@ -54,14 +58,22 @@ defmodule Platform.Storage.Backup.Copier do
       Ordering.reset()
       Leds.blink_write()
       Copying.await_copied(Db.db(), Chat.Db.BackupDb)
-      Process.sleep(1_000)
-      Switching.mirror(main, [internal, backup])
-      Process.sleep(3_000)
+
+      if continuous? do
+        Process.sleep(1_000)
+        Switching.mirror(main, [internal, backup])
+        Process.sleep(3_000)
+      end
+
       Leds.blink_done()
     end)
     |> Task.await(:infinity)
 
     set_db_flag(backup: false)
+
+    unless continuous? do
+      Stopper.start_link(wait: 100)
+    end
 
     "[backup] Synced " |> Logger.info()
   end
