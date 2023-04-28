@@ -19,7 +19,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
 
   alias Chat.Content.Files
   alias Chat.Db.{CargoDb, ChangeTracker, Common, InternalDb, MediaDbSupervisor, Switching}
-  alias Chat.Sync.CargoRoom
+  alias Chat.Sync.{CargoRoom, UsbDriveDumpRoom}
   alias Chat.Utils.StorageId
   alias Phoenix.PubSub
   alias Support.FakeData
@@ -31,6 +31,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     CubDB.clear(AdminDb.db())
     CubDB.clear(Db.db())
     CargoRoom.remove()
+    UsbDriveDumpRoom.remove()
     Common.put_chat_db_env(:flags, [])
     File.rm_rf!(@cub_db_file)
     AdminRoom.store_media_settings(%MediaSettings{functionality: :cargo})
@@ -309,5 +310,34 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     refute length(User.list()) == users_count
     refute Rooms.get(cargo_room_key)
     refute Rooms.get(other_room_key)
+  end
+
+  test "stops the process early" do
+    PubSub.subscribe(Chat.PubSub, "chat::cargo_room")
+
+    operator = User.login("Operator")
+    User.register(operator)
+
+    {cargo_room_identity, _cargo_room} = Rooms.add(operator, "Cargo room", :cargo)
+    cargo_room_key = cargo_room_identity |> Identity.pub_key()
+    CargoRoom.activate(cargo_room_key)
+
+    ChangeTracker.await()
+
+    Task.async(fn ->
+      :timer.sleep(100)
+
+      DynamicSupervisor.terminate_child(
+        Platform.App.Media.DynamicSupervisor,
+        Platform.App.Media.Supervisor |> Process.whereis()
+      )
+
+      assert ProcessHelper.process_not_running(Platform.App.Media.Supervisor)
+      assert_receive {:update_cargo_room, nil}, 1000
+    end)
+
+    assert {:ok, _pid} =
+             Platform.App.Media.DynamicSupervisor
+             |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
   end
 end
