@@ -147,6 +147,9 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
 
       ChangeTracker.await()
 
+      :timer.sleep(200)
+      assert Process.whereis(BackupDbSupervisor)
+
       DynamicSupervisor.terminate_child(
         Platform.App.Media.DynamicSupervisor,
         Platform.App.Media.Supervisor |> Process.whereis()

@@ -70,7 +70,10 @@ defmodule Platform.Storage.Backup.Copier do
     |> Task.await(:infinity)
 
     set_db_flag(backup: false)
-    Stopper.start_link(wait: 100)
+
+    unless continuous? do
+      Stopper.start_link(wait: 100)
+    end
 
     "[backup] Synced " |> Logger.info()
   end
