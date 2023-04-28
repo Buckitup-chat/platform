@@ -233,6 +233,13 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     assert_receive {:new_room, ^cargo_room_key}
     assert_receive {:new_user, nil}
 
+    PubSub.broadcast(Chat.PubSub, "chat_cargo->platform_cargo", :sync)
+
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :syncing}}
+    assert_receive {:update_cargo_room, %CargoRoom{pub_key: ^cargo_room_key, status: :complete}}
+    assert_receive {:new_room, ^cargo_room_key}
+    assert_receive {:new_user, nil}
+
     DynamicSupervisor.terminate_child(
       Platform.App.Media.DynamicSupervisor,
       Platform.App.Media.Supervisor |> Process.whereis()

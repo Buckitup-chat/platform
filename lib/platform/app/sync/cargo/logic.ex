@@ -11,24 +11,23 @@ defmodule Platform.App.Sync.Cargo.Logic do
   alias Chat.AdminRoom
   alias Chat.Db.Scope.KeyScope
   alias Chat.Sync.CargoRoom
+  alias Phoenix.PubSub
   alias Platform.App.Sync.Cargo.CargoDynamicSupervisor
   alias Platform.Storage.{Copier, Stopper}
+
+  @incoming_topic "chat_cargo->platform_cargo"
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args, [])
   end
 
   @impl GenServer
-  def init([target_db, tasks]) do
-    "Platform.App.Sync.Cargo.Logic syncing" |> Logger.info()
-
+  def init(args) do
     Process.flag(:trap_exit, true)
+    sync(args)
+    PubSub.subscribe(Chat.PubSub, @incoming_topic)
 
-    target_db
-    |> get_room_key()
-    |> do_sync(target_db: target_db, tasks_name: tasks)
-
-    {:ok, nil}
+    {:ok, args}
   end
 
   # handle the trapped exit call
@@ -39,11 +38,24 @@ defmodule Platform.App.Sync.Cargo.Logic do
     {:stop, reason, state}
   end
 
+  def handle_info(:sync, args) do
+    sync(args)
+    {:noreply, args}
+  end
+
   @impl GenServer
   def terminate(reason, state) do
     Logger.info("terminating #{__MODULE__}")
     cleanup(reason, state)
     state
+  end
+
+  defp sync([target_db, tasks]) do
+    "Platform.App.Sync.Cargo.Logic syncing" |> Logger.info()
+
+    target_db
+    |> get_room_key()
+    |> do_sync(target_db: target_db, tasks_name: tasks)
   end
 
   defp get_room_key(target_db) do
