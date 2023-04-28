@@ -4,7 +4,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
   alias Chat.{ChunkedFiles, ChunkedFilesBroker, Db, Identity, Rooms, User}
   alias Chat.Db.{ChangeTracker, Common}
   alias Chat.Rooms.{Message, PlainMessage}
-  alias Chat.Sync.UsbDriveDumpRoom
+  alias Chat.Sync.{CargoRoom, UsbDriveDumpRoom}
   alias Phoenix.PubSub
 
   @cub_db_file Application.compile_env(:chat, :cub_db_file)
@@ -12,6 +12,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
 
   setup do
     CubDB.clear(Db.db())
+    CargoRoom.remove()
     UsbDriveDumpRoom.remove()
     Common.put_chat_db_env(:flags, [])
     File.rm_rf!(@cub_db_file)
@@ -252,5 +253,51 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
                type: :image
              }
            ] = Rooms.read(room, room_identity)
+  end
+
+  test "stops the process early" do
+    PubSub.subscribe(Chat.PubSub, "chat::usb_drive_dump_room")
+
+    operator = User.login("Operator")
+    User.register(operator)
+
+    {room_identity, _room} = Rooms.add(operator, "Room", :public)
+    room_key = room_identity |> Identity.pub_key()
+
+    room_key
+    |> Base.encode16(case: :lower)
+    |> then(&PubSub.subscribe(Chat.PubSub, "room:#{&1}"))
+
+    monotonic_offset =
+      DateTime.utc_now()
+      |> DateTime.to_unix()
+      |> Chat.Time.monotonic_offset()
+
+    UsbDriveDumpRoom.activate(room_key, room_identity, monotonic_offset)
+
+    assert_receive {:update_usb_drive_dump_room,
+                    %UsbDriveDumpRoom{
+                      identity: ^room_identity,
+                      pub_key: ^room_key,
+                      status: :pending
+                    }}
+
+    ChangeTracker.await()
+
+    Task.async(fn ->
+      :timer.sleep(100)
+
+      DynamicSupervisor.terminate_child(
+        Platform.App.Media.DynamicSupervisor,
+        Platform.App.Media.Supervisor |> Process.whereis()
+      )
+
+      assert ProcessHelper.process_not_running(Platform.App.Media.Supervisor)
+      assert_receive {:update_usb_drive_dump_room, nil}, 1000
+    end)
+
+    assert {:ok, _pid} =
+             Platform.App.Media.DynamicSupervisor
+             |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [nil]})
   end
 end
