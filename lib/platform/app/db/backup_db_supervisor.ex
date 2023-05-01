@@ -9,6 +9,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   alias Chat.Admin.BackupSettings
   alias Chat.AdminRoom
   alias Platform.Storage.Backup.Copier
+  alias Platform.Storage.Bouncer
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
@@ -20,14 +21,17 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   def init([_device]) do
     "Backup DB Supervisor start" |> Logger.info()
 
-    continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
-    full_path = [@mount_path, "backup_db", Chat.Db.version_path()] |> Path.join()
+    type = "backup_db"
+    full_path = [@mount_path, type, Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.BackupDbSupervisor.Tasks
+    db = Chat.Db.BackupDb
+    continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
 
     children = [
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
-      {Chat.Db.MediaDbSupervisor, [Chat.Db.BackupDb, full_path]},
+      {Chat.Db.MediaDbSupervisor, [db, full_path]},
+      {Bouncer, db: db, type: type},
       {Copier, continuous?: continuous?, tasks_name: tasks}
     ]
 

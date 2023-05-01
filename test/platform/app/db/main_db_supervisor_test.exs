@@ -19,6 +19,10 @@ defmodule Platform.App.Db.MainDbSupervisorTest do
   @mount_path Application.compile_env(:platform, :mount_path_storage)
 
   setup do
+    start_supervised!(
+      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
+    )
+
     on_exit(fn ->
       Switching.set_default(InternalDb)
     end)
@@ -26,8 +30,6 @@ defmodule Platform.App.Db.MainDbSupervisorTest do
 
   describe "sync" do
     test "mirrors changes made to main to internal DB" do
-      DynamicSupervisor.start_link(name: Platform.MainDbSupervisor, strategy: :one_for_one)
-
       Platform.MainDbSupervisor
       |> DynamicSupervisor.start_child({MainDbSupervisor, [nil]})
 

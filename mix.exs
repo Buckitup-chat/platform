@@ -17,7 +17,13 @@ defmodule Platform.MixProject do
       build_embedded: true,
       deps: deps(),
       releases: [{@app, release()}],
-      preferred_cli_target: [run: :host, test: :host]
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.html": :test
+      ],
+      preferred_cli_target: [run: :host, test: :host],
+      test_coverage: [tool: ExCoveralls]
     ]
   end
 
@@ -76,8 +82,9 @@ defmodule Platform.MixProject do
       {:chat,
        path: "../chat",
        targets: [:host | @all_targets],
-       env: if(Mix.target() == :host, do: Mix.env(), else: :prod)}
+       env: if(Mix.target() == :host, do: Mix.env(), else: :prod)},
       # {:chat, path: "../chat", env: Mix.env()},
+      {:excoveralls, "~> 0.14", only: [:test]}
     ]
   end
 
