@@ -10,6 +10,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   alias Platform.App.Sync.Onliners.{Logic, OnlinersDynamicSupervisor}
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
+  alias Platform.Storage.Bouncer
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
@@ -21,14 +22,16 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   def init([_device]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
 
-    full_path = [@mount_path, "onliners_db", Chat.Db.version_path()] |> Path.join()
-    target_db = Chat.Db.OnlinersDb
+    type = "onliners_db"
+    full_path = [@mount_path, type, Chat.Db.version_path()] |> Path.join()
     tasks = Tasks
+    target_db = Chat.Db.OnlinersDb
 
     children = [
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]},
+      {Bouncer, db: target_db, type: type},
       Starter,
       {DynamicSupervisor, name: OnlinersDynamicSupervisor, strategy: :one_for_one},
       {Logic, [target_db, tasks]}

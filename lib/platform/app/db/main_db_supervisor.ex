@@ -5,11 +5,8 @@ defmodule Platform.App.Db.MainDbSupervisor do
   use Supervisor
   require Logger
 
-  alias Platform.Storage.InternalToMain.Copier
-  alias Platform.Storage.InternalToMain.Starter
-  alias Platform.Storage.InternalToMain.Switcher
-  alias Platform.Storage.MainReplicator
-  alias Platform.Storage.Mounter
+  alias Platform.Storage.InternalToMain.{Copier, Starter, Switcher}
+  alias Platform.Storage.{Bouncer, MainReplicator, Mounter}
 
   @mount_path Application.compile_env(:platform, :mount_path_storage)
 
@@ -28,6 +25,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
       {Chat.Db.MainDbSupervisor, full_path},
+      {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       Starter,
       {Copier, tasks},
       MainReplicator,

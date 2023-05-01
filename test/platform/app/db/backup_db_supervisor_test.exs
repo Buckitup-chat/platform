@@ -27,6 +27,10 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
     AdminRoom.store_media_settings(%MediaSettings{functionality: :backup})
 
     start_supervised!(
+      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
+    )
+
+    start_supervised!(
       {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
     )
 
@@ -38,8 +42,6 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
   describe "regular backup" do
     test "copies data once from main to backup DB and vice versa" do
       AdminRoom.store_backup_settings(%BackupSettings{type: :regular})
-
-      DynamicSupervisor.start_link(name: Platform.MainDbSupervisor, strategy: :one_for_one)
 
       Platform.MainDbSupervisor
       |> DynamicSupervisor.start_child({MainDbSupervisor, [nil]})
