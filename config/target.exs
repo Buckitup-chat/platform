@@ -171,16 +171,24 @@ config :chat, ChatWeb.Endpoint,
       "http://192.168.0.127",
       "http://192.168.24.1"
     ] ++ maybe_nerves_local,
-  https: [
-    port: 443,
-    cipher_suite: :strong,
-    cacertfile: "priv/cert/buckitup_app.ca-bundle",
-    certfile: "priv/cert/buckitup_app.crt",
-    keyfile: "priv/cert/priv.key"
-  ],
-  force_ssl: [rewrite_on: [:x_forwarded_proto]],
   server: true,
   code_reloader: false
+
+ssl_cacertfile = "priv/cert/buckitup_app.ca-bundle"
+ssl_certfile = "priv/cert/buckitup_app.crt"
+ssl_keyfile = "priv/cert/priv.key"
+
+if Enum.all?([ssl_cacertfile, ssl_certfile, ssl_keyfile], &File.exists?/1) do
+  config :chat, ChatWeb.Endpoint,
+    https: [
+      port: 443,
+      cipher_suite: :strong,
+      cacertfile: ssl_cacertfile,
+      certfile: ssl_certfile,
+      keyfile: ssl_keyfile
+    ],
+    force_ssl: [rewrite_on: [:x_forwarded_proto]]
+end
 
 config :chat, :cub_db_file, "/root/db"
 config :chat, :admin_cub_db_file, "/root/admin_db_v2"
