@@ -63,6 +63,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
   defp cleanup(reason, _state) do
     "copier cleanup #{inspect(reason)}" |> Logger.warn()
 
+    Leds.blink_done()
+
     Chat.Db.InternalDb
     |> Switching.set_default()
   end
