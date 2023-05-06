@@ -2,7 +2,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
   @moduledoc """
   Copies data from internal to main db
   """
-  use GenServer
+  use GracefulGenServer
 
   require Logger
 
@@ -11,34 +11,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
   alias Platform.Leds
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, [])
-  end
-
   @impl true
-  def init(args) do
-    Logger.info("starting #{__MODULE__}")
-    Process.flag(:trap_exit, true)
-    {:ok, on_start(args)}
-  end
-
-  # handle the trapped exit call
-  @impl true
-  def handle_info({:EXIT, _from, reason}, state) do
-    Logger.info("exiting #{__MODULE__}")
-    cleanup(reason, state)
-    {:stop, reason, state}
-  end
-
-  # handle termination
-  @impl true
-  def terminate(reason, state) do
-    Logger.info("terminating #{__MODULE__}")
-    cleanup(reason, state)
-    state
-  end
-
-  defp on_start(tasks_name) do
+  def on_init(tasks_name) do
     "copying internal to main" |> Logger.warn()
 
     internal = Chat.Db.InternalDb
@@ -60,7 +34,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
     Leds.blink_done()
   end
 
-  defp cleanup(reason, _state) do
+  @impl true
+  def on_exit(reason, _state) do
     "copier cleanup #{inspect(reason)}" |> Logger.warn()
 
     Leds.blink_done()
