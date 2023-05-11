@@ -84,7 +84,8 @@ defmodule Platform.MixProject do
        targets: [:host | @all_targets],
        env: if(Mix.target() == :host, do: Mix.env(), else: :prod)},
       # {:chat, path: "../chat", env: Mix.env()},
-      {:excoveralls, "~> 0.14", only: [:test]}
+      {:excoveralls, "~> 0.14", only: [:test]},
+      {:graceful_genserver, "~> 0.1.0"}
     ]
   end
 

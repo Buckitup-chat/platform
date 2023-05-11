@@ -3,42 +3,15 @@ defmodule Platform.App.Sync.UsbDriveDump.Logic do
   Starts dumping USB drive files to the specified room.
   """
 
-  use GenServer
+  use GracefulGenServer
 
   require Logger
 
   alias Chat.Sync.{UsbDriveDumpFile, UsbDriveDumpRoom, UsbDriveFileDumper}
   alias Platform.Leds
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, [])
-  end
-
-  @impl GenServer
-  def init([path, tasks_name]) do
-    "Platform.App.Sync.UsbDriveDump.Logic dumping" |> Logger.info()
-
-    Process.flag(:trap_exit, true)
-
-    {:ok, dump(path, tasks_name)}
-  end
-
-  # handle the trapped exit call
-  @impl GenServer
-  def handle_info({:EXIT, _from, reason}, state) do
-    Logger.info("exiting #{__MODULE__}")
-    cleanup(reason, state)
-    {:stop, reason, state}
-  end
-
-  @impl GenServer
-  def terminate(reason, state) do
-    Logger.info("terminating #{__MODULE__}")
-    cleanup(reason, state)
-    state
-  end
-
-  defp dump(path, tasks_name) do
+  @impl true
+  def on_init([path, tasks_name]) do
     UsbDriveDumpRoom.dump()
 
     try do
@@ -92,7 +65,8 @@ defmodule Platform.App.Sync.UsbDriveDump.Logic do
     UsbDriveDumpRoom.complete()
   end
 
-  defp cleanup(_reason, _state) do
+  @impl true
+  def on_exit(_reason, _state) do
     UsbDriveDumpRoom.remove()
   end
 end

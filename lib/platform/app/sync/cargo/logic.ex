@@ -3,7 +3,7 @@ defmodule Platform.App.Sync.Cargo.Logic do
   Starts the sync process for cargo room messages.
   """
 
-  use GenServer
+  use GracefulGenServer
 
   require Logger
 
@@ -17,37 +17,24 @@ defmodule Platform.App.Sync.Cargo.Logic do
 
   @incoming_topic "chat_cargo->platform_cargo"
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, [])
-  end
-
-  @impl GenServer
-  def init(args) do
-    Process.flag(:trap_exit, true)
+  @impl true
+  def on_init(args) do
     sync(args)
     PubSub.subscribe(Chat.PubSub, @incoming_topic)
 
-    {:ok, args}
+    args
   end
 
-  # handle the trapped exit call
-  @impl GenServer
-  def handle_info({:EXIT, _from, reason}, state) do
-    Logger.info("exiting #{__MODULE__}")
-    cleanup(reason, state)
-    {:stop, reason, state}
-  end
-
-  def handle_info(:sync, args) do
+  @impl true
+  def on_msg(:sync, args) do
     sync(args)
     {:noreply, args}
   end
 
-  @impl GenServer
-  def terminate(reason, state) do
-    Logger.info("terminating #{__MODULE__}")
-    cleanup(reason, state)
-    state
+  @impl true
+  def on_exit(_reason, _state) do
+    PubSub.unsubscribe(Chat.PubSub, @incoming_topic)
+    CargoRoom.remove()
   end
 
   defp sync([target_db, tasks]) do
@@ -101,9 +88,5 @@ defmodule Platform.App.Sync.Cargo.Logic do
     CargoRoom.complete()
 
     "Platform.App.Sync.Cargo.Logic syncing finished" |> Logger.info()
-  end
-
-  defp cleanup(_reason, _state) do
-    CargoRoom.remove()
   end
 end

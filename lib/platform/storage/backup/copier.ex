@@ -2,7 +2,7 @@ defmodule Platform.Storage.Backup.Copier do
   @moduledoc """
   Syncs data between backup and current DB
   """
-  use GenServer
+  use GracefulGenServer
 
   require Logger
 
@@ -13,34 +13,8 @@ defmodule Platform.Storage.Backup.Copier do
   alias Platform.Leds
   alias Platform.Storage.Stopper
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, [])
-  end
-
   @impl true
-  def init(args) do
-    Logger.info("starting #{__MODULE__}")
-    Process.flag(:trap_exit, true)
-    {:ok, on_start(args)}
-  end
-
-  # handle the trapped exit call
-  @impl true
-  def handle_info({:EXIT, _from, reason}, state) do
-    Logger.info("exiting #{__MODULE__}")
-    cleanup(reason, state)
-    {:stop, reason, state}
-  end
-
-  # handle termination
-  @impl true
-  def terminate(reason, state) do
-    Logger.info("terminating #{__MODULE__}")
-    cleanup(reason, state)
-    state
-  end
-
-  defp on_start(opts) do
+  def on_init(opts) do
     "[backup] Syncing " |> Logger.info()
 
     tasks_name = Keyword.get(opts, :tasks_name)
@@ -78,7 +52,8 @@ defmodule Platform.Storage.Backup.Copier do
     "[backup] Synced " |> Logger.info()
   end
 
-  defp cleanup(_reason, _state) do
+  @impl true
+  def on_exit(_reason, _state) do
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
 

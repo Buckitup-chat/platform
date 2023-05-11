@@ -2,7 +2,7 @@ defmodule Platform.Storage.Copier do
   @moduledoc """
   Copies data from the target db to current db and vice versa
   """
-  use GenServer
+  use GracefulGenServer
 
   require Logger
 
@@ -12,34 +12,8 @@ defmodule Platform.Storage.Copier do
 
   alias Platform.Leds
 
-  def start_link(args) do
-    GenServer.start_link(__MODULE__, args, [])
-  end
-
   @impl true
-  def init(args) do
-    Logger.info("starting #{__MODULE__}")
-    Process.flag(:trap_exit, true)
-    {:ok, on_start(args)}
-  end
-
-  # handle the trapped exit call
-  @impl true
-  def handle_info({:EXIT, _from, reason}, state) do
-    Logger.info("exiting #{__MODULE__}")
-    cleanup(reason, state)
-    {:stop, reason, state}
-  end
-
-  # handle termination
-  @impl true
-  def terminate(reason, state) do
-    Logger.info("terminating #{__MODULE__}")
-    cleanup(reason, state)
-    state
-  end
-
-  defp on_start(args) do
+  def on_init(args) do
     "[media] Syncing " |> Logger.info()
 
     target_db = Keyword.get(args, :target_db)
@@ -60,7 +34,8 @@ defmodule Platform.Storage.Copier do
     "[media] Synced " |> Logger.info()
   end
 
-  defp cleanup(_reason, _state) do
+  @impl true
+  def on_exit(_reason, _state) do
     Leds.blink_done()
     Ordering.reset()
   end
