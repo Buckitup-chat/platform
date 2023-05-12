@@ -145,6 +145,10 @@ config :mdns_lite,
     # }
   ]
 
+config :mime, :types, %{
+  "text/plain" => ["social_part"]
+}
+
 maybe_nerves_local =
   if config_env() == :dev do
     ["http://nerves.local"]
@@ -160,14 +164,14 @@ config :chat, ChatWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json",
   # Possibly not needed, but doesn't hurt
   # http: [port: {:system, "PORT"}],
-  http: [port: 80],
+  #  http: [port: 80],
   url: [host: "buckitup.app"],
   # url: [host: System.get_env("APP_NAME") <> ".gigalixirapp.com", port: 443],
   secret_key_base: "HEY05EB1dFVSu6KykKHuS4rQPQzSHv4F7mGVB/gnDLrIu75wE/ytBXy2TaL3A6RA",
   # secret_key_base: Map.fetch!(System.get_env(), "SECRET_KEY_BASE"),
   check_origin:
     [
-      "https://buckitup.app",
+      "//buckitup.app",
       "http://192.168.0.127",
       "http://192.168.24.1"
     ] ++ maybe_nerves_local,
@@ -178,7 +182,12 @@ ssl_cacertfile = "priv/cert/buckitup_app.ca-bundle"
 ssl_certfile = "priv/cert/buckitup_app.crt"
 ssl_keyfile = "priv/cert/priv.key"
 
-if Enum.all?([ssl_cacertfile, ssl_certfile, ssl_keyfile], &File.exists?/1) do
+cert_present? =
+  [ssl_cacertfile, ssl_certfile, ssl_keyfile]
+  |> Enum.map(&("../chat/" <> &1))
+  |> Enum.all?(&File.exists?/1)
+
+if cert_present? do
   config :chat, ChatWeb.Endpoint,
     https: [
       port: 443,
