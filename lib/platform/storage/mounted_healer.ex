@@ -1,15 +1,17 @@
-defmodule Platform.Storage.Healer do
+defmodule Platform.Storage.MountedHealer do
   @moduledoc """
-    Heals device, checking all known FSs
+    Heals mounted device, checking all known FSs
   """
   use GracefulGenServer, timeout: :timer.minutes(3)
 
   alias Platform.Storage.Device
 
   @impl true
-  def on_init([device, task_supervisor]) do
+  def on_init([device, path, task_supervisor]) do
     Task.Supervisor.async_nolink(task_supervisor, fn ->
+      Device.unmount(device)
       Device.heal(device)
+      Device.mount_on(device, path)
     end)
     |> Task.await()
 

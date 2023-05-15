@@ -6,6 +6,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
   alias Platform.App.Sync.UsbDriveDump.Logic
   alias Platform.App.Sync.UsbDriveDumpSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
+  alias Platform.Storage.MountedHealer
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
@@ -14,19 +15,19 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
   end
 
   @impl Supervisor
-  def init([_device]) do
+  def init([device]) do
     "UsbDriveDumpSupervisor start" |> Logger.info()
 
     full_path = [@mount_path, "DCIM"] |> Path.join()
     tasks = Tasks
 
-    children = [
+    [
       {Task.Supervisor, name: tasks},
+      {MountedHealer, [device, full_path, tasks]},
       {Starter, flag: :usb_drive_dump},
       {Logic, [full_path, tasks]}
     ]
-
-    Supervisor.init(children, strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one)
     |> tap(fn res ->
       "UsbDriveDumpSupervisor init result #{inspect(res)}" |> Logger.debug()
     end)
