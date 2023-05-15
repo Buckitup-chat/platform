@@ -1,6 +1,22 @@
 defmodule Platform.Tools.Fsck do
   @moduledoc "Fsck wrapper"
 
+  def all(device) do
+    cond do
+      match?({_, 0}, Fsck.exfat(device)) -> :ok
+      match?({_, 0}, Fsck.vfat(device)) -> :ok
+      true -> :unsupported_fs
+    end
+  end
+
+  def exfat(device) do
+    System.cmd("fsck.exfat", ["-y", "/dev/" <> device])
+  end
+
+  def vfat(device) do
+    System.cmd("fsck.vfat", ["-y", "/dev/" <> device])
+  end
+
   def vfat(device) do
     fn ->
       {:spawn, "fsck.vfat /dev/" <> device}

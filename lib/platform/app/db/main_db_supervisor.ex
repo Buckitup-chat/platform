@@ -5,8 +5,18 @@ defmodule Platform.App.Db.MainDbSupervisor do
   use Supervisor
   require Logger
 
-  alias Platform.Storage.InternalToMain.{Copier, Starter, Switcher}
-  alias Platform.Storage.{Bouncer, MainReplicator, Mounter}
+  alias Platform.Storage.{
+    Bouncer,
+    Healer,
+    MainReplicator,
+    Mounter
+  }
+
+  alias Platform.Storage.InternalToMain.{
+    Copier,
+    Starter,
+    Switcher
+  }
 
   @mount_path Application.compile_env(:platform, :mount_path_storage)
 
@@ -21,9 +31,11 @@ defmodule Platform.App.Db.MainDbSupervisor do
     full_path = [@mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
     tasks = Platform.App.Db.MainDbSupervisor.Tasks
 
-    children = [
+    [
       {Task.Supervisor, name: tasks},
-      {Task, fn -> File.mkdir_p!(full_path) end},
+      dir_creator(full_path),
+      healer_unless_test(device, tasks),
+      mounter_unless_test(device, tasks),
       {Chat.Db.MainDbSupervisor, full_path},
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       Starter,
@@ -31,16 +43,23 @@ defmodule Platform.App.Db.MainDbSupervisor do
       MainReplicator,
       Switcher
     ]
-
-    children =
-      case Application.get_env(:platform, :env) do
-        :test ->
-          children
-
-        _ ->
-          List.insert_at(children, 1, {Mounter, [device, @mount_path, tasks]})
-      end
-
-    Supervisor.init(children, strategy: :rest_for_one)
+    |> Enum.reject(&is_nil/1)
+    |> Supervisor.init(strategy: :rest_for_one)
   end
+
+  defp dir_creator(path), do: {Task, fn -> File.mkdir_p!(path) end}
+
+  defp healer_unless_test(device, tasks) do
+    if not_test_env?() do
+      {Healer, [device, tasks]}
+    end
+  end
+
+  defp mounter_unless_test(device, tasks) do
+    if not_test_env?() do
+      {Mounter, [device, @mount_path, tasks]}
+    end
+  end
+
+  defp not_test_env?, do: Application.get_env(:platform, :env) != :test
 end
