@@ -103,7 +103,7 @@ defmodule Platform.Storage.Logic do
 
     case {get_db_mode(), unused_devices, devices_in_use} do
       {:internal, [device], _devices_in_use} -> switch_internal_to_main(device)
-      {:internal, [], [device]} -> switch_backup_to_main(device)
+      # {:internal, [], [device]} -> switch_backup_to_main(device)
       _ -> :skip
     end
   end
