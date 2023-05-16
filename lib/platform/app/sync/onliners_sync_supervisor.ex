@@ -11,6 +11,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
+  alias Platform.Storage.MountedHealer
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
@@ -19,7 +20,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   end
 
   @impl true
-  def init([_device]) do
+  def init([device]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
 
     type = "onliners_db"
@@ -27,8 +28,9 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
     tasks = Tasks
     target_db = Chat.Db.OnlinersDb
 
-    children = [
+    [
       {Task.Supervisor, name: tasks},
+      {MountedHealer, [device, full_path, tasks]},
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]},
       {Bouncer, db: target_db, type: type},
@@ -36,8 +38,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
       {DynamicSupervisor, name: OnlinersDynamicSupervisor, strategy: :one_for_one},
       {Logic, [target_db, tasks]}
     ]
-
-    Supervisor.init(children, strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one)
     |> tap(fn res ->
       "OnlinersSyncSupervisor init result #{inspect(res)}" |> Logger.debug()
     end)

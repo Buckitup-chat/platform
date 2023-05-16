@@ -13,7 +13,6 @@ defmodule Platform.Storage.Mounter do
   def on_init([device, path, task_supervisor]) do
     Task.Supervisor.async_nolink(task_supervisor, fn ->
       device
-      |> Device.heal()
       |> Device.mount_on(path)
     end)
     |> Task.await()

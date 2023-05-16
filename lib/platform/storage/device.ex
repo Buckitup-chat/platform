@@ -11,7 +11,7 @@ defmodule Platform.Storage.Device do
 
   def heal(device) do
     Leds.blink_read()
-    Fsck.vfat(device)
+    Fsck.all(device)
     Leds.blink_done()
     Logger.info("[platform-sync] #{device} health checked")
 
