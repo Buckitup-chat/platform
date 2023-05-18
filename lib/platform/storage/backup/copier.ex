@@ -9,6 +9,7 @@ defmodule Platform.Storage.Backup.Copier do
   alias Chat.Db
   alias Chat.Db.{Common, Copying, Switching}
   alias Chat.Ordering
+  alias Chat.Sync.DbBrokers
 
   alias Platform.Leds
   alias Platform.Storage.Stopper
@@ -39,6 +40,7 @@ defmodule Platform.Storage.Backup.Copier do
         Process.sleep(3_000)
       end
 
+      DbBrokers.refresh()
       Leds.blink_done()
     end)
     |> Task.await(:infinity)
@@ -60,6 +62,7 @@ defmodule Platform.Storage.Backup.Copier do
     Leds.blink_done()
     Switching.mirror(main, internal)
     Ordering.reset()
+    DbBrokers.refresh()
   end
 
   defp set_db_flag(flags) do
