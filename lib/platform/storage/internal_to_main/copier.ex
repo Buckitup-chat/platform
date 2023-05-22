@@ -8,6 +8,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
   alias Chat.Db.Copying
   alias Chat.Db.Switching
+  alias Chat.Sync.DbBrokers
 
   alias Platform.Leds
 
@@ -27,6 +28,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
       Process.sleep(1_000)
       Switching.mirror(main, internal)
       Process.sleep(3_000)
+      DbBrokers.refresh()
     end)
     |> Task.await(:infinity)
 
@@ -42,5 +44,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
     Chat.Db.InternalDb
     |> Switching.set_default()
+
+    DbBrokers.refresh()
   end
 end
