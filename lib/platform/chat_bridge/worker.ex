@@ -36,6 +36,8 @@ defmodule Platform.ChatBridge.Worker do
       {:set_wifi, ssid, password} -> Logic.set_wifi_settings(ssid, password)
       :get_device_log -> Logic.get_device_log()
       :unmount_main -> Logic.unmount_main()
+      :get_gpio24_impedance_status -> Logic.get_gpio24_impedance_status()
+      :toggle_gpio24_impendance -> Logic.toggle_gpio24_impendance()
     end
     |> respond()
 

@@ -86,7 +86,8 @@ defmodule Platform.MixProject do
       # {:chat, path: "../chat", env: Mix.env()},
       {:excoveralls, "~> 0.14", only: [:test]},
       {:graceful_genserver, "~> 0.1.0"},
-      {:circuits_uart, "~> 1.3"}
+      {:circuits_uart, "~> 1.3"},
+      {:circuits_gpio, "~> 1.0"}
     ]
   end
 
