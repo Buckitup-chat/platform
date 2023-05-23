@@ -38,6 +38,21 @@ defmodule Platform.ChatBridge.Logic do
     |> mark(:unmounted_main)
   end
 
+  def get_gpio24_impedance_status do
+    {:ok, gpio} = Circuits.GPIO.open(24, :output)
+
+    Circuits.GPIO.read(gpio)
+    |> mark(:gpio24_impedance_status)
+  end
+
+  def toggle_gpio24_impendance do
+    {:ok, gpio} = Circuits.GPIO.open(24, :output)
+    new_value = if Circuits.GPIO.read(gpio) == 1, do: 0, else: 1
+
+    :ok = Circuits.GPIO.write(gpio, new_value)
+    {:gpio24_impedance_status, new_value}
+  end
+
   defp wlan_config do
     VintageNet.get_configuration(@iface)
   end
