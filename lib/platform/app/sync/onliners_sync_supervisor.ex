@@ -30,7 +30,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
 
     [
       {Task.Supervisor, name: tasks},
-      {MountedHealer, [device, full_path, tasks]},
+      # {MountedHealer, [device, full_path, tasks]},
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]},
       {Bouncer, db: target_db, type: type},

@@ -31,7 +31,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
     [
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
-      {MountedHealer, [device, full_path, tasks]},
+      # {MountedHealer, [device, full_path, tasks]},
       {Chat.Db.MediaDbSupervisor, [db, full_path]},
       {Bouncer, db: db, type: type},
       {Copier, continuous?: continuous?, tasks_name: tasks}

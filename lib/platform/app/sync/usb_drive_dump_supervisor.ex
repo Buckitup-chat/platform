@@ -23,7 +23,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
 
     [
       {Task.Supervisor, name: tasks},
-      {MountedHealer, [device, full_path, tasks]},
+      # {MountedHealer, [device, full_path, tasks]},
       {Starter, flag: :usb_drive_dump},
       {Logic, [full_path, tasks]}
     ]

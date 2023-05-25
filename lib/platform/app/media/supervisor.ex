@@ -20,6 +20,7 @@ defmodule Platform.App.Media.Supervisor do
 
     [
       {Task.Supervisor, name: task_supervisor},
+      healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),
       {DynamicSupervisor, name: FunctionalityDynamicSupervisor, strategy: :one_for_one},
       {Decider, [device, @mount_path]}
@@ -33,6 +34,12 @@ defmodule Platform.App.Media.Supervisor do
   defp mounter_unless_test(device, task_supervisor) do
     if Application.get_env(:platform, :env) != :test do
       {Mounter, [device, @mount_path, task_supervisor]}
+    end
+  end
+
+  defp healer_unless_test(device, task_supervisor) do
+    if Application.get_env(:platform, :env) != :test do
+      {Platform.Storage.Healer, [device, task_supervisor]}
     end
   end
 end
