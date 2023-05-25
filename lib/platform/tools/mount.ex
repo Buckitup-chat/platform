@@ -1,7 +1,10 @@
 defmodule Platform.Tools.Mount do
   @moduledoc "mount wrapper"
 
+  require Logger
+
   def mount_at_path(device, path) do
+    log_mounting(device, path)
     mount(["/dev/" <> device, path])
   end
 
@@ -45,5 +48,9 @@ defmodule Platform.Tools.Mount do
 
   defp mount(params \\ []) do
     System.cmd("mount", Enum.concat(["-o", "sync"], params))
+  end
+
+  defp log_mounting(device, path) do
+    Logger.info("[platform] Mounting /dev/#{device} at #{path}")
   end
 end
