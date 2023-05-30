@@ -16,10 +16,16 @@ defmodule Platform.Storage.Backup.Copier do
 
   @impl true
   def on_init(opts) do
-    "[backup] Syncing " |> Logger.info()
-
     tasks_name = Keyword.get(opts, :tasks_name)
     continuous? = Keyword.get(opts, :continuous?)
+
+    Process.send_after(self(), :start, 10)
+    {tasks_name, continuous?}
+  end
+
+  @impl true
+  def on_msg(:start, {tasks_name, continuous?} = state) do
+    "[backup] Syncing " |> Logger.info()
 
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
@@ -52,6 +58,8 @@ defmodule Platform.Storage.Backup.Copier do
     end
 
     "[backup] Synced " |> Logger.info()
+
+    {:noreply, state}
   end
 
   @impl true
@@ -59,6 +67,7 @@ defmodule Platform.Storage.Backup.Copier do
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
 
+    set_db_flag(backup: false)
     Leds.blink_done()
     Switching.mirror(main, internal)
     Ordering.reset()
