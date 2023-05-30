@@ -10,7 +10,6 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   alias Chat.AdminRoom
   alias Platform.Storage.Backup.Copier
   alias Platform.Storage.Bouncer
-  alias Platform.Storage.MountedHealer
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
@@ -19,7 +18,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   end
 
   @impl true
-  def init([device]) do
+  def init([_device]) do
     "Backup DB Supervisor start" |> Logger.info()
 
     type = "backup_db"
@@ -31,7 +30,6 @@ defmodule Platform.App.Db.BackupDbSupervisor do
     [
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
-      # {MountedHealer, [device, full_path, tasks]},
       {Chat.Db.MediaDbSupervisor, [db, full_path]},
       {Bouncer, db: db, type: type},
       {Copier, continuous?: continuous?, tasks_name: tasks}
