@@ -58,6 +58,8 @@ defmodule Platform.Storage.Backup.Copier do
     end
 
     "[backup] Synced " |> Logger.info()
+
+    {:noreply, state}
   end
 
   @impl true
