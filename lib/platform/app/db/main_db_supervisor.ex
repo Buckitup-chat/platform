@@ -29,19 +29,22 @@ defmodule Platform.App.Db.MainDbSupervisor do
     "Main Db Supervisor start" |> Logger.debug()
 
     full_path = [@mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
-    tasks = Platform.App.Db.MainDbSupervisor.Tasks
+    task_supervisor = Platform.App.Db.MainDbSupervisor.Tasks
+    next_supervisor = Platform.App.Db.MainDbSupervisor.Next
 
     [
-      {Task.Supervisor, name: tasks},
+      {Task.Supervisor, name: task_supervisor},
       dir_creator(full_path),
-      healer_unless_test(device, tasks),
-      mounter_unless_test(device, tasks),
+      healer_unless_test(device, task_supervisor),
+      mounter_unless_test(device, task_supervisor),
       {Chat.Db.MainDbSupervisor, full_path},
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       Starter,
-      {Copier, tasks},
-      MainReplicator,
-      Switcher
+      {DynamicSupervisor, strategy: :one_for_one, name: next_supervisor},
+      {Copier,
+       run_in: task_supervisor,
+       next_run_in: next_supervisor,
+       next_run_spec: fn -> {Supervisor, [MainReplicator, Switcher], strategy: :rest_for_one} end}
     ]
     |> Enum.reject(&is_nil/1)
     |> Supervisor.init(strategy: :rest_for_one)
