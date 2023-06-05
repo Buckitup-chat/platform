@@ -40,11 +40,13 @@ defmodule Platform.App.Db.MainDbSupervisor do
       {Chat.Db.MainDbSupervisor, full_path},
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       Starter,
-      {DynamicSupervisor, strategy: :one_for_one, name: next_supervisor},
+      {DynamicSupervisor, strategy: :one_for_one, name: next_supervisor, max_restarts: 0, max_seconds: 5},
       {Copier,
-       run_in: task_supervisor,
-       next_run_in: next_supervisor,
-       next_run_spec: fn -> {Supervisor, [MainReplicator, Switcher], strategy: :rest_for_one} end}
+       task_in: task_supervisor,
+       next: [
+         run: [MainReplicator, Switcher]
+         under: next_supervisor
+       ]}
     ]
     |> Enum.reject(&is_nil/1)
     |> Supervisor.init(strategy: :rest_for_one)
