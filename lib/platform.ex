@@ -12,4 +12,12 @@ defmodule Platform do
     }
     |> then(&DynamicSupervisor.start_child(dynamic_supervisor, &1))
   end
+
+  def use_next_stage(name) do
+    {DynamicSupervisor, name: name, strategy: :one_for_one, max_restarts: 0, max_seconds: 5}
+  end
+
+  def use_task(name) do
+    {Task.Supervisor, name: name}
+  end
 end

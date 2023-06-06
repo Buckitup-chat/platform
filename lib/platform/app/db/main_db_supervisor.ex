@@ -5,6 +5,8 @@ defmodule Platform.App.Db.MainDbSupervisor do
   use Supervisor
   require Logger
 
+  import Platform
+
   alias Platform.Storage.{
     Bouncer,
     Healer,
@@ -33,18 +35,18 @@ defmodule Platform.App.Db.MainDbSupervisor do
     next_supervisor = Platform.App.Db.MainDbSupervisor.Next
 
     [
-      {Task.Supervisor, name: task_supervisor},
+      use_task(task_supervisor),
       dir_creator(full_path),
       healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),
       {Chat.Db.MainDbSupervisor, full_path},
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       Starter,
-      {DynamicSupervisor, strategy: :one_for_one, name: next_supervisor, max_restarts: 0, max_seconds: 5},
+      use_next_stage(next_supervisor),
       {Copier,
        task_in: task_supervisor,
        next: [
-         run: [MainReplicator, Switcher]
+         run: [MainReplicator, Switcher],
          under: next_supervisor
        ]}
     ]

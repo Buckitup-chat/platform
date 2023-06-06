@@ -16,8 +16,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
   def on_init(opts) do
     task_supervisor = opts |> Keyword.fetch!(:task_in)
     next_opts = opts |> Keyword.fetch!(:next)
-    next_supervisor = opts |> Keyword.fetch!(:under)
-    next_specs = opts |> Keyword.fetch!(:run)
+    next_supervisor = next_opts |> Keyword.fetch!(:under)
+    next_specs = next_opts |> Keyword.fetch!(:run)
 
     Process.send_after(self(), :start, 10)
 
