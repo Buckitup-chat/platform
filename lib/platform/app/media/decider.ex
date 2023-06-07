@@ -20,10 +20,14 @@ defmodule Platform.App.Media.Decider do
   end
 
   @impl GenServer
-  def init([device, mount_path]) do
+  def init([device, opts]) do
+    mount_path = Keyword.fetch!(opts, :mounted)
+    next_opts = Keyword.fetch!(opts, :next)
+    next_supervisor = Keyword.fetch!(next_opts, :under)
+
     "Platform.App.Media.Decider start" |> Logger.info()
 
-    supervisor =
+    scenario_supervisor =
       cond do
         UsbDriveDumpRoom.get() ->
           UsbDriveDumpSupervisor
@@ -42,11 +46,11 @@ defmodule Platform.App.Media.Decider do
           Map.get(@supervisor_map, media_settings.functionality)
       end
 
-    "Platform.App.Media.Decider starting #{supervisor}" |> Logger.info()
+    "Platform.App.Media.Decider starting #{scenario_supervisor}" |> Logger.info()
 
     {:ok, _pid} =
-      Platform.App.Media.FunctionalityDynamicSupervisor
-      |> DynamicSupervisor.start_child({supervisor, [device]})
+      next_supervisor
+      |> DynamicSupervisor.start_child({scenario_supervisor, [device]})
 
     {:ok, nil}
   end

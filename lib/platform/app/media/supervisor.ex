@@ -1,6 +1,8 @@
 defmodule Platform.App.Media.Supervisor do
   use Supervisor
 
+  import Platform
+
   require Logger
 
   alias Platform.App.Media.{Decider, FunctionalityDynamicSupervisor, TaskSupervisor}
@@ -17,13 +19,14 @@ defmodule Platform.App.Media.Supervisor do
     "Platform.App.Media.Supervisor start" |> Logger.info()
 
     task_supervisor = TaskSupervisor
+    next_supervisor = FunctionalityDynamicSupervisor
 
     [
-      {Task.Supervisor, name: task_supervisor},
+      use_task(task_supervisor),
       healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),
-      {DynamicSupervisor, name: FunctionalityDynamicSupervisor, strategy: :one_for_one},
-      {Decider, [device, @mount_path]}
+      use_next_stage(next_supervisor),
+      {Decider, [device, [mounted: @mount_path, next: [under: next_supervisor]]]}
     ]
     |> Supervisor.init(strategy: :rest_for_one)
     |> tap(fn res ->

@@ -4,14 +4,17 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   """
   use Supervisor
 
+  import Platform
+
   require Logger
 
   alias Chat.Db.MediaDbSupervisor
-  alias Platform.App.Sync.Onliners.{Logic, OnlinersDynamicSupervisor}
+  alias Platform.App.Sync.Onliners.ScopeProvider
   alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
-  alias Platform.Storage.MountedHealer
+  alias Platform.Storage.Copier
+  alias Platform.Storage.Stopper
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
@@ -20,27 +23,40 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   end
 
   @impl true
-  def init([device]) do
+  def init([_device]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
 
     type = "onliners_db"
     full_path = [@mount_path, type, Chat.Db.version_path()] |> Path.join()
     tasks = Tasks
     target_db = Chat.Db.OnlinersDb
+    scope_ready_stage = Platform.App.Sync.OnlinersScopeReadyStage
+    after_copying_stage = Platform.App.Sync.OnlinersAfterCopyingStage
 
     [
-      {Task.Supervisor, name: tasks},
-      # {MountedHealer, [device, full_path, tasks]},
+      use_task(tasks),
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]},
       {Bouncer, db: target_db, type: type},
       Starter,
-      {DynamicSupervisor, name: OnlinersDynamicSupervisor, strategy: :one_for_one},
-      {Logic, [target_db, tasks]}
+      use_next_stage(scope_ready_stage),
+      {ScopeProvider,
+       target: target_db,
+       next: [
+         under: scope_ready_stage,
+         run: [
+           use_next_stage(after_copying_stage),
+           {Copier,
+            target: target_db,
+            task_in: tasks,
+            get_db_keys_from: ScopeProvider,
+            next: [
+              under: after_copying_stage,
+              run: [Stopper]
+            ]}
+         ]
+       ]}
     ]
     |> Supervisor.init(strategy: :rest_for_one)
-    |> tap(fn res ->
-      "OnlinersSyncSupervisor init result #{inspect(res)}" |> Logger.debug()
-    end)
   end
 end
