@@ -1,6 +1,8 @@
 defmodule Platform.ChatBridge.Logic do
   @moduledoc "Logic for Chat Admin panel"
 
+  alias Platform.Sensor.CargoSensor
+
   @iface "wlan0"
 
   def get_wifi_settings do
@@ -51,6 +53,15 @@ defmodule Platform.ChatBridge.Logic do
 
     :ok = Circuits.GPIO.write(gpio, new_value)
     {:gpio24_impedance_status, new_value}
+  end
+
+  def connect_to_weight_sensor(name, opts) do
+    case CargoSensor.open_port(name, opts) do
+      {:ok, _} -> :ok
+      {:error, :eagain} -> :ok
+      _ -> :error
+    end
+    |> mark(:weight_sensor_connection)
   end
 
   defp wlan_config do

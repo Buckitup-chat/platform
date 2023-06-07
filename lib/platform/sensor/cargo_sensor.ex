@@ -1,18 +1,10 @@
 defmodule Platform.Sensor.CargoSensor do
-  @port_name "/dev/ttyACM0"
-  @port_opts [
-    active: false,
-    speed: 115_200,
-    data_bits: 8,
-    stop_bits: 1,
-    parity: :none,
-    flow_control: :none,
-    framing: {Circuits.UART.Framing.Line, separator: "\r"}
-  ]
+  @framing {Circuits.UART.Framing.Line, separator: "\r"}
 
   @spec open_port(String.t(), String.t()) :: {:ok, pid()} | {:error, atom()}
-  def open_port(port_name \\ @port_name, port_opts \\ @port_opts) do
+  def open_port(port_name, port_opts) do
     {:ok, pid} = Circuits.UART.start_link()
+    port_opts = Keyword.put(port_opts, :framing, @framing)
 
     case Circuits.UART.open(pid, port_name, port_opts) do
       :ok -> {:ok, pid}
