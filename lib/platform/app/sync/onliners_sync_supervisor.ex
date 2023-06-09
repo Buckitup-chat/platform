@@ -57,6 +57,6 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
          ]
        ]}
     ]
-    |> Supervisor.init(strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 end

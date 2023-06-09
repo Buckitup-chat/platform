@@ -58,7 +58,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
        ]}
     ]
 
-    Supervisor.init(children, strategy: :rest_for_one)
+    Supervisor.init(children, strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "CargoSyncSupervisor init result #{inspect(res)}" |> Logger.debug()
     end)
