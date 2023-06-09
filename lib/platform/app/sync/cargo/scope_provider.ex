@@ -1,7 +1,7 @@
 defmodule Platform.App.Sync.Cargo.ScopeProvider do
   @moduledoc "Gets scope for cargo sync"
 
-  use GracefulGenServer
+  use GracefulGenServer, name: __MODULE__
 
   alias Chat.Admin.CargoSettings
   alias Chat.AdminRoom

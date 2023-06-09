@@ -1,7 +1,7 @@
 defmodule Platform.App.Sync.Onliners.ScopeProvider do
   @moduledoc "Gets scope for online sync"
 
-  use GracefulGenServer
+  use GracefulGenServer, name: __MODULE__
 
   alias Phoenix.PubSub
   alias Chat.Db.Scope.KeyScope
