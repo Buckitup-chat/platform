@@ -34,7 +34,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
       {Bouncer, db: db, type: type},
       {Copier, continuous?: continuous?, tasks_name: tasks}
     ]
-    |> Supervisor.init(strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "BackupDbSupervisor init result #{inspect(res)}" |> Logger.debug()
     end)

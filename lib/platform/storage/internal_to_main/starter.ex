@@ -1,10 +1,8 @@
 defmodule Platform.Storage.InternalToMain.Starter do
   @moduledoc """
-  Transition to main starter
+  Indicates transition to main on start. Indicates switch to internal on exit
   """
   use GracefulGenServer
-
-  require Logger
 
   alias Chat.Db.Common
 
@@ -15,8 +13,7 @@ defmodule Platform.Storage.InternalToMain.Starter do
   end
 
   @impl true
-  def on_exit(reason, _state) do
-    "starter cleanup #{inspect(reason)}" |> Logger.warn()
+  def on_exit(_reason, _state) do
     set_db_mode(:internal)
   end
 
