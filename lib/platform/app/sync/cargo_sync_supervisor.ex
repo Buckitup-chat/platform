@@ -15,6 +15,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   alias Platform.App.Sync.CargoSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
+  alias Platform.Storage.Copier
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
