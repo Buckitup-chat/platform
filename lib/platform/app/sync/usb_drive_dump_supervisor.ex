@@ -37,7 +37,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
          ]
        ]}
     ]
-    |> Supervisor.init(strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "UsbDriveDumpSupervisor init result #{inspect(res)}" |> Logger.debug()
     end)

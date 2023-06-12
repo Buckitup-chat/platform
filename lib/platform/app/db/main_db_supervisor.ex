@@ -46,12 +46,15 @@ defmodule Platform.App.Db.MainDbSupervisor do
       {Copier,
        task_in: task_supervisor,
        next: [
-         run: [MainReplicator, Switcher],
+         run: [
+           MainReplicator,
+           Switcher
+         ],
          under: next_supervisor
        ]}
     ]
     |> Enum.reject(&is_nil/1)
-    |> Supervisor.init(strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 
   defp dir_creator(path), do: {Task, fn -> File.mkdir_p!(path) end}

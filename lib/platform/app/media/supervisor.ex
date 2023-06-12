@@ -28,7 +28,7 @@ defmodule Platform.App.Media.Supervisor do
       use_next_stage(next_supervisor),
       {Decider, [device, [mounted: @mount_path, next: [under: next_supervisor]]]}
     ]
-    |> Supervisor.init(strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "Platform.App.Media.Supervisor init result #{inspect(res)}" |> Logger.debug()
     end)

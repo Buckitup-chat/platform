@@ -39,8 +39,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
       Switching.set_default(main)
       Process.sleep(1_000)
       Switching.mirror(main, internal)
-      Process.sleep(3_000)
       DbBrokers.refresh()
+      Process.sleep(3_000)
     end)
     |> Task.await(:infinity)
 

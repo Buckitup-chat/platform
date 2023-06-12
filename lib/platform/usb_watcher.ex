@@ -90,7 +90,7 @@ defmodule Platform.UsbWatcher do
     |> Enum.map(fn {root, devices} ->
       devices
       |> first_partition_of(root)
-      |> tap(&Logger.info("[usb warcher] Block device removed: #{&1}"))
+      |> tap(&Logger.info("[usb watcher] Block device removed: #{&1}"))
     end)
     |> Logic.on_remove(
       Enum.map(unchanged_devices, fn {root, partitions} ->
