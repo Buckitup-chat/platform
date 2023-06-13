@@ -11,7 +11,7 @@ defmodule Platform.App.Media.Supervisor do
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
   def start_link(args) do
-    Supervisor.start_link(__MODULE__, args, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, args, name: __MODULE__, max_restarts: 0, max_seconds: 15)
   end
 
   @impl Supervisor

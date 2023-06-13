@@ -15,11 +15,12 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   alias Platform.App.Sync.CargoSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
+  alias Platform.Storage.Copier
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
   def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 0, max_seconds: 15)
   end
 
   @impl Supervisor
