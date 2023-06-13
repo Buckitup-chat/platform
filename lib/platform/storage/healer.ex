@@ -11,7 +11,7 @@ defmodule Platform.Storage.Healer do
     Task.Supervisor.async_nolink(task_supervisor, fn ->
       Device.heal(device)
     end)
-    |> Task.await()
+    |> Task.await(:timer.minutes(2))
 
     device
   end
