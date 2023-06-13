@@ -154,6 +154,7 @@ defmodule Platform.Storage.Logic do
   defp start_media_supervisor([device]) do
     Platform.App.Media.DynamicSupervisor
     |> DynamicSupervisor.start_child({Platform.App.Media.Supervisor, [device]})
+    |> tap(fn x -> Logger.debug("media supervisor start result: #{inspect(x)}") end)
   end
 
   # Device support functions

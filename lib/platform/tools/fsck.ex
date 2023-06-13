@@ -1,6 +1,8 @@
 defmodule Platform.Tools.Fsck do
   @moduledoc "Fsck wrapper"
 
+  alias Platform.Log
+
   def all(device) do
     cond do
       successful?(exfat(device)) -> :ok
@@ -17,6 +19,14 @@ defmodule Platform.Tools.Fsck do
     System.cmd("fsck.vfat", ["-y", "/dev/" <> device])
   end
 
-  defp successful?({_, 0}), do: true
-  defp successful?(_), do: false
+  defp successful?({msg, exit_code}) do
+    case exit_code do
+      0 ->
+        true
+
+      x ->
+        Log.fsck_warn(x, msg)
+        false
+    end
+  end
 end
