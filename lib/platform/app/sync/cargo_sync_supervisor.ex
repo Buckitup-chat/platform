@@ -8,7 +8,9 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   alias Chat.Db.MediaDbSupervisor
 
   alias Platform.App.Sync.Cargo.{
+    CameraSensorsDataCollector,
     InitialCopyCompleter,
+    InviteAcceptor,
     ScopeProvider
   }
 
@@ -32,6 +34,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     target_db = Chat.Db.CargoDb
     scope_ready_stage = Platform.App.Sync.CargoScopeReadyStage
     after_copying_stage = Platform.App.Sync.CargoAfterCopyingStage
+    invite_accept_stage = Platform.App.Sync.CargoInviteAcceptStage
+    read_cam_sensors_stage = Platform.App.Sync.CargoReadCameraSensorsStage
 
     children = [
       use_task(tasks),
@@ -52,7 +56,21 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
             get_db_keys_from: ScopeProvider,
             next: [
               under: after_copying_stage,
-              run: [InitialCopyCompleter]
+              run: [
+                use_next_stage(invite_accept_stage),
+                {InitialCopyCompleter,
+                 next: [
+                   under: invite_accept_stage,
+                   run: [
+                     use_next_stage(read_cam_sensors_stage),
+                     {InviteAcceptor,
+                      next: [
+                        under: read_cam_sensors_stage,
+                        run: [{CameraSensorsDataCollector, get_keys_from: InviteAcceptor}]
+                      ]}
+                   ]
+                 ]}
+              ]
             ]}
          ]
        ]}
