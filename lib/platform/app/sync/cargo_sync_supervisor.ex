@@ -11,7 +11,9 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     CameraSensorsDataCollector,
     InitialCopyCompleter,
     InviteAcceptor,
-    ScopeProvider
+    RepeatedCopyCompleter,
+    ScopeProvider,
+    ScopeProviderDuplicate
   }
 
   alias Platform.App.Sync.CargoSyncSupervisor.Tasks
@@ -36,6 +38,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     after_copying_stage = Platform.App.Sync.CargoAfterCopyingStage
     invite_accept_stage = Platform.App.Sync.CargoInviteAcceptStage
     read_cam_sensors_stage = Platform.App.Sync.CargoReadCameraSensorsStage
+    repeated_copying_stage = Platform.App.Sync.CargoRepeatedCopyingStage
+    after_repeated_copying_stage = Platform.App.Sync.CargoAfterRepeatedCopyingStage
 
     children = [
       use_task(tasks),
@@ -66,7 +70,25 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
                      {InviteAcceptor,
                       next: [
                         under: read_cam_sensors_stage,
-                        run: [{CameraSensorsDataCollector, get_keys_from: InviteAcceptor}]
+                        run: [
+                          use_next_stage(repeated_copying_stage),
+                          {CameraSensorsDataCollector,
+                           get_keys_from: InviteAcceptor,
+                           next: [
+                             under: repeated_copying_stage,
+                             run: [
+                               use_next_stage(after_repeated_copying_stage),
+                               {Copier,
+                                target: target_db,
+                                task_in: tasks,
+                                get_db_keys_from: ScopeProviderDuplicate,
+                                next: [
+                                  under: after_repeated_copying_stage,
+                                  run: [RepeatedCopyCompleter]
+                                ]}
+                             ]
+                           ]}
+                        ]
                       ]}
                    ]
                  ]}

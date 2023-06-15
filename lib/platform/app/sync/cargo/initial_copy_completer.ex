@@ -18,10 +18,10 @@ defmodule Platform.App.Sync.Cargo.InitialCopyCompleter do
   end
 
   @impl true
-  def on_msg({:next_stage, supervisor, spec}, keys) do
+  def on_msg({:next_stage, supervisor, spec}, state) do
     Platform.start_next_stage(supervisor, spec)
 
-    {:noreply, keys}
+    {:noreply, state}
   end
 
   @impl true

@@ -1,5 +1,5 @@
 defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
-  @moduledoc "Gets the room private key"
+  @moduledoc "Collects camera sensors data"
 
   use GracefulGenServer
 
@@ -7,8 +7,8 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
   alias Chat.Sync.CargoRoom
 
   @impl true
-  def on_init(args) do
-    keys_holder = Keyword.fetch!(args, :get_keys_from)
+  def on_init(opts) do
+    keys_holder = Keyword.fetch!(opts, :get_keys_from)
     %{me: cargo_user, rooms: [_room_identity]} = GenServer.call(keys_holder, :keys)
     %{camera_sensors: sensors} = AdminRoom.get_cargo_settings()
 
@@ -22,6 +22,19 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
           headers |> Map.new() |> Map.put("Name-Prefix", "cargo_shot_")
         )
     end)
+
+    next = Keyword.fetch!(opts, :next)
+    next_under = Keyword.fetch!(next, :under)
+    next_spec = Keyword.fetch!(next, :run)
+
+    Process.send_after(self(), {:next_stage, next_under, next_spec}, 10)
+  end
+
+  @impl true
+  def on_msg({:next_stage, supervisor, spec}, keys) do
+    Platform.start_next_stage(supervisor, spec)
+
+    {:noreply, keys}
   end
 
   @impl true
