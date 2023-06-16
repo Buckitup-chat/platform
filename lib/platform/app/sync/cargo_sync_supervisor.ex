@@ -11,7 +11,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     CameraSensorsDataCollector,
     InitialCopyCompleter,
     InviteAcceptor,
-    RepeatedCopyCompleter,
+    FinalCopyCompleter,
     ScopeProvider,
     ScopeProviderDuplicate
   }
@@ -72,22 +72,24 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
                         under: read_cam_sensors_stage,
                         run: [
                           use_next_stage(repeated_copying_stage),
-                          {CameraSensorsDataCollector,
-                           get_keys_from: InviteAcceptor,
-                           next: [
-                             under: repeated_copying_stage,
-                             run: [
-                               use_next_stage(after_repeated_copying_stage),
-                               {Copier,
-                                target: target_db,
-                                task_in: tasks,
-                                get_db_keys_from: ScopeProviderDuplicate,
-                                next: [
-                                  under: after_repeated_copying_stage,
-                                  run: [RepeatedCopyCompleter]
-                                ]}
-                             ]
-                           ]}
+                          {
+                            CameraSensorsDataCollector,
+                            get_keys_from: InviteAcceptor
+                            # next: [
+                            #  under: repeated_copying_stage,
+                            #  run: [
+                            #    use_next_stage(after_repeated_copying_stage),
+                            #    {Copier,
+                            #     target: target_db,
+                            #     task_in: tasks,
+                            #     get_db_keys_from: ScopeProviderDuplicate,
+                            #     next: [
+                            #       under: after_repeated_copying_stage,
+                            #       run: [FinalCopyCompleter]
+                            #     ]}
+                            #  ]
+                            # ]
+                          }
                         ]
                       ]}
                    ]
