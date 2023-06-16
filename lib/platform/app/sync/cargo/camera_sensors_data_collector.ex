@@ -8,7 +8,14 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
 
   @impl true
   def on_init(opts) do
-    keys_holder = Keyword.fetch!(opts, :get_keys_from)
+    Process.send_after(self(), :perform, 10)
+
+    opts
+  end
+
+  @impl true
+  def on_msg(:perform, state) do
+    keys_holder = Keyword.fetch!(state, :get_keys_from)
     %{me: cargo_user, rooms: [_room_identity]} = GenServer.call(keys_holder, :keys)
     %{camera_sensors: sensors} = AdminRoom.get_cargo_settings()
 
@@ -23,18 +30,13 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
         )
     end)
 
-    next = Keyword.fetch!(opts, :next)
+    next = Keyword.fetch!(state, :next)
     next_under = Keyword.fetch!(next, :under)
     next_spec = Keyword.fetch!(next, :run)
 
-    Process.send_after(self(), {:next_stage, next_under, next_spec}, 10)
-  end
+    Platform.start_next_stage(next_under, next_spec)
 
-  @impl true
-  def on_msg({:next_stage, supervisor, spec}, keys) do
-    Platform.start_next_stage(supervisor, spec)
-
-    {:noreply, keys}
+    {:noreply, state}
   end
 
   @impl true

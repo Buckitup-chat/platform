@@ -4,4 +4,6 @@ defmodule Platform.App.Sync.Cargo.Indication do
   def drive_accepted, do: :ok
 
   def drive_refused, do: :ok
+
+  def drive_complete, do: :ok
 end

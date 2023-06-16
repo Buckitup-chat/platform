@@ -1,18 +1,16 @@
-defmodule Platform.App.Sync.Cargo.RepeatedCopyCompleter do
+defmodule Platform.App.Sync.Cargo.FinalCopyCompleter do
   @moduledoc "Finishes repeated room copying"
 
   use GracefulGenServer
 
-  alias Chat.Sync.CargoRoom
+  alias Platform.App.Sync.Cargo.Indication
 
   @impl true
   def on_init(_opts) do
-    CargoRoom.mark_successful()
-    CargoRoom.complete()
+    Indication.drive_complete()
   end
 
   @impl true
   def on_exit(_reason, _state) do
-    CargoRoom.complete()
   end
 end
