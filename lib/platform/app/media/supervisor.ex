@@ -11,7 +11,7 @@ defmodule Platform.App.Media.Supervisor do
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
   def start_link(args) do
-    Supervisor.start_link(__MODULE__, args, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, args, name: __MODULE__, max_restarts: 0, max_seconds: 15)
   end
 
   @impl Supervisor
@@ -28,7 +28,7 @@ defmodule Platform.App.Media.Supervisor do
       use_next_stage(next_supervisor),
       {Decider, [device, [mounted: @mount_path, next: [under: next_supervisor]]]}
     ]
-    |> Supervisor.init(strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "Platform.App.Media.Supervisor init result #{inspect(res)}" |> Logger.debug()
     end)

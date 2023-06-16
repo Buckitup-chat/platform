@@ -1,7 +1,7 @@
 defmodule Platform.App.Sync.Cargo.ScopeProvider do
   @moduledoc "Gets scope for cargo sync"
 
-  use GracefulGenServer
+  use GracefulGenServer, name: __MODULE__
 
   alias Chat.Admin.CargoSettings
   alias Chat.AdminRoom
@@ -39,7 +39,8 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
     {:noreply, state}
   end
 
-  def on_msg(:db_keys, _from, state) do
+  @impl true
+  def handle_call(:db_keys, _from, state) do
     {:reply, state.db_keys, state}
   end
 

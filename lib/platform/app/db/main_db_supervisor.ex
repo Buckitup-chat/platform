@@ -23,7 +23,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
   @mount_path Application.compile_env(:platform, :mount_path_storage)
 
   def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 0, max_seconds: 15)
   end
 
   @impl true
@@ -32,7 +32,6 @@ defmodule Platform.App.Db.MainDbSupervisor do
 
     full_path = [@mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
     task_supervisor = Platform.App.Db.MainDbSupervisor.Tasks
-    next_supervisor = Platform.App.Db.MainDbSupervisor.Next
 
     [
       use_task(task_supervisor),
@@ -42,16 +41,12 @@ defmodule Platform.App.Db.MainDbSupervisor do
       {Chat.Db.MainDbSupervisor, full_path},
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       Starter,
-      use_next_stage(next_supervisor),
-      {Copier,
-       task_in: task_supervisor,
-       next: [
-         run: [MainReplicator, Switcher],
-         under: next_supervisor
-       ]}
+      {:stage, Copying, {Copier, task_in: task_supervisor}},
+      MainReplicator,
+      Switcher
     ]
-    |> Enum.reject(&is_nil/1)
-    |> Supervisor.init(strategy: :rest_for_one)
+    |> prepare_stages(Platform.App.MainStages)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 
   defp dir_creator(path), do: {Task, fn -> File.mkdir_p!(path) end}

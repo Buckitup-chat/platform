@@ -14,7 +14,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
   def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 0, max_seconds: 15)
   end
 
   @impl true
@@ -34,7 +34,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
       {Bouncer, db: db, type: type},
       {Copier, continuous?: continuous?, tasks_name: tasks}
     ]
-    |> Supervisor.init(strategy: :rest_for_one)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "BackupDbSupervisor init result #{inspect(res)}" |> Logger.debug()
     end)
