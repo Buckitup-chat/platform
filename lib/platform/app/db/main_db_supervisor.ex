@@ -53,13 +53,13 @@ defmodule Platform.App.Db.MainDbSupervisor do
 
   defp healer_unless_test(device, tasks) do
     if not_test_env?() do
-      {Healer, [device, tasks]}
+      {:stage, Healing, {Healer, device: device, task_in: tasks}}
     end
   end
 
   defp mounter_unless_test(device, tasks) do
     if not_test_env?() do
-      {Mounter, [device, @mount_path, tasks]}
+      {:stage, Mounting, {Mounter, device: device, at: @mount_path, task_in: tasks}}
     end
   end
 

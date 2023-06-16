@@ -28,6 +28,7 @@ defmodule Platform.App.Media.Supervisor do
       use_next_stage(next_supervisor),
       {Decider, [device, [mounted: @mount_path, next: [under: next_supervisor]]]}
     ]
+    |> prepare_stages(Platform.App.MediaStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "Platform.App.Media.Supervisor init result #{inspect(res)}" |> Logger.debug()
@@ -36,13 +37,13 @@ defmodule Platform.App.Media.Supervisor do
 
   defp mounter_unless_test(device, task_supervisor) do
     if Application.get_env(:platform, :env) != :test do
-      {Mounter, [device, @mount_path, task_supervisor]}
+      {:stage, Mounting, {Mounter, device: device, at: @mount_path, task_in: task_supervisor}}
     end
   end
 
   defp healer_unless_test(device, task_supervisor) do
     if Application.get_env(:platform, :env) != :test do
-      {Platform.Storage.Healer, [device, task_supervisor]}
+      {:stage, Healing, {Healer, device: device, task_in: task_supervisor}}
     end
   end
 end
