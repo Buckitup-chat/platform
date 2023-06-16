@@ -32,7 +32,6 @@ defmodule Platform.App.Db.MainDbSupervisor do
 
     full_path = [@mount_path, "main_db", Chat.Db.version_path()] |> Path.join()
     task_supervisor = Platform.App.Db.MainDbSupervisor.Tasks
-    next_supervisor = Platform.App.Db.MainDbSupervisor.Next
 
     [
       use_task(task_supervisor),
@@ -42,18 +41,11 @@ defmodule Platform.App.Db.MainDbSupervisor do
       {Chat.Db.MainDbSupervisor, full_path},
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       Starter,
-      use_next_stage(next_supervisor),
-      {Copier,
-       task_in: task_supervisor,
-       next: [
-         run: [
-           MainReplicator,
-           Switcher
-         ],
-         under: next_supervisor
-       ]}
+      {:stage, Copying, {Copier, task_in: task_supervisor}},
+      MainReplicator,
+      Switcher
     ]
-    |> Enum.reject(&is_nil/1)
+    |> prepare_stages(Platform.App.MainStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 
