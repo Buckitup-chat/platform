@@ -6,6 +6,7 @@ defmodule Platform.App.Media.Supervisor do
   require Logger
 
   alias Platform.App.Media.{Decider, FunctionalityDynamicSupervisor, TaskSupervisor}
+  alias Platform.Storage.Healer
   alias Platform.Storage.Mounter
 
   @mount_path Application.compile_env(:platform, :mount_path_media)

@@ -20,7 +20,7 @@ defmodule Platform.Storage.Mounter do
       next_specs: next |> Keyword.fetch!(:run),
       next_supervisor: next |> Keyword.fetch!(:under)
     }
-    |> tap(fn _ -> Process.send(self(), :start) end)
+    |> tap(fn _ -> send(self(), :start) end)
   end
 
   @impl true
