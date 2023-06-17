@@ -4,10 +4,16 @@ defmodule Platform.App.DeviceSupervisor do
   """
   use Supervisor
 
+  import Platform
+
   require Logger
 
   def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
+    Supervisor.start_link(__MODULE__, init_arg,
+      name: __MODULE__,
+      max_restarts: 30,
+      max_seconds: 15
+    )
   end
 
   @impl true
@@ -15,8 +21,10 @@ defmodule Platform.App.DeviceSupervisor do
     "Device Supervisor start" |> Logger.debug()
 
     children = [
-      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one},
-      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one},
+      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
+      |> exit_takes(150_000),
+      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
+      |> exit_takes(150_000),
       Platform.UsbWatcher
     ]
 

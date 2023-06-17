@@ -26,7 +26,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
     [
       use_task(tasks),
       {Starter, flag: :usb_drive_dump},
-      {:stage, Dump, {Dumper, mounted: full_path, task_in: tasks}},
+      {:stage, Dump, {Dumper, mounted: full_path, task_in: tasks} |> exit_takes(10_000)},
       Completer
     ]
     |> prepare_stages(Platform.App.Sync.UsbDriveDumpStages)

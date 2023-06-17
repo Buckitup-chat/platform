@@ -37,7 +37,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     children = [
       use_task(tasks),
       {Task, fn -> File.mkdir_p!(full_path) end},
-      {MediaDbSupervisor, [target_db, full_path]},
+      {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
       {Bouncer, db: target_db, type: type},
       {Starter, flag: :cargo},
       use_next_stage(scope_ready_stage),

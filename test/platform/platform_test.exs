@@ -12,7 +12,7 @@ defmodule PlatformTest do
         C
       ] => [
         O,
-        Platform.use_next_stage(Test.First),
+        Platform.use_next_stage(Test.First, 10_000),
         {A,
          b: 1,
          next: [
@@ -29,7 +29,7 @@ defmodule PlatformTest do
       ],
       [O, {:stage, First, {A, b: 1}}, B, C, {:stage, Second, {D, some: :arg}}, E, F] => [
         O,
-        Platform.use_next_stage(Test.First),
+        Platform.use_next_stage(Test.First, 25_000),
         {A,
          b: 1,
          next: [
@@ -37,7 +37,7 @@ defmodule PlatformTest do
            run: [
              B,
              C,
-             Platform.use_next_stage(Test.Second),
+             Platform.use_next_stage(Test.Second, 10_000),
              {D, some: :arg, next: [under: Test.Second, run: [E, F]]}
            ]
          ]}

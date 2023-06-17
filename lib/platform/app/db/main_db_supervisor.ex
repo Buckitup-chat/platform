@@ -38,14 +38,19 @@ defmodule Platform.App.Db.MainDbSupervisor do
       dir_creator(full_path),
       healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),
-      {Chat.Db.MainDbSupervisor, full_path},
+      {Chat.Db.MainDbSupervisor, full_path} |> exit_takes(20_000),
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
-      Starter,
-      {:stage, Copying, {Copier, task_in: task_supervisor}},
+      Starter |> exit_takes(1000),
+      {:stage, Copying, {Copier, task_in: task_supervisor} |> exit_takes(25_000)},
       MainReplicator,
-      Switcher
+      Switcher |> exit_takes(1000)
     ]
     |> prepare_stages(Platform.App.MainStages)
+    |> tap(fn specs ->
+      specs
+      |> calc_exit_time()
+      |> then(&Logger.debug("MainDbSupervisor exit time #{inspect(&1)}"))
+    end)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 
@@ -59,7 +64,8 @@ defmodule Platform.App.Db.MainDbSupervisor do
 
   defp mounter_unless_test(device, tasks) do
     if not_test_env?() do
-      {:stage, Mounting, {Mounter, device: device, at: @mount_path, task_in: tasks}}
+      {:stage, Mounting,
+       {Mounter, device: device, at: @mount_path, task_in: tasks} |> exit_takes(15_000)}
     end
   end
 

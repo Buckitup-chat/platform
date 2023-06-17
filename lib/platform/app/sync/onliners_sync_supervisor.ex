@@ -34,15 +34,16 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
     [
       use_task(tasks),
       {Task, fn -> File.mkdir_p!(full_path) end},
-      {MediaDbSupervisor, [target_db, full_path]},
+      {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
       {Bouncer, db: target_db, type: type},
       Starter,
       {:stage, Ready, {ScopeProvider, target: target_db}},
       {:stage, Copying,
-       {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}},
+       {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}}
+      |> exit_takes(10_000),
       Stopper
     ]
     |> prepare_stages(Platform.App.Sync.OnlinersStages)
-    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 50)
   end
 end

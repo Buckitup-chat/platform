@@ -51,6 +51,6 @@ defmodule Platform.Storage.Mounter do
     Task.Supervisor.async_nolink(task_supervisor, fn ->
       Mount.unmount(path)
     end)
-    |> Task.await()
+    |> Task.await(:timer.seconds(15))
   end
 end
