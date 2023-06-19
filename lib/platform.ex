@@ -47,14 +47,17 @@ defmodule Platform do
       [] ->
         prepared
 
-      [{:stage, _name, {module, args}}] ->
-        prepared ++ [{module, args}]
+      [{:stage, _name, x}] ->
+        prepared ++ [x]
 
       [{:stage, name, module} | rest] when is_atom(module) ->
-        prepared ++ build_next_stage(prefix, name, module, [], rest)
+        prepared ++ build_next_stage(prefix, name, {module, []}, rest)
 
       [{:stage, name, {module, args}} | rest] ->
-        prepared ++ build_next_stage(prefix, name, module, args, rest)
+        prepared ++ build_next_stage(prefix, name, {module, args}, rest)
+
+      [{:stage, name, %{start: _} = spec} | rest] ->
+        prepared ++ build_next_stage(prefix, name, spec, rest)
 
       [spec] ->
         prepared ++ [spec]
@@ -64,16 +67,27 @@ defmodule Platform do
     end
   end
 
-  defp build_next_stage(prefix, name, module, args, rest) do
+  defp build_next_stage(prefix, name, spec, rest) do
     next_tree = build_tree(rest, prefix)
     next_exit_time = calc_exit_time(next_tree)
 
     stage_name = make_stage_name(prefix, name)
 
-    [use_next_stage(stage_name, next_exit_time)] ++
-      [
+    [use_next_stage(stage_name, next_exit_time), inject_next_stage(spec, stage_name, next_tree)]
+  end
+
+  defp inject_next_stage(spec, stage_name, next_tree) do
+    case spec do
+      %{start: {module, func, [args]}} ->
+        Map.put(
+          spec,
+          :start,
+          {module, func, [args |> Keyword.merge(next: [under: stage_name, run: next_tree])]}
+        )
+
+      {module, args} ->
         {module, args |> Keyword.merge(next: [under: stage_name, run: next_tree])}
-      ]
+    end
   end
 
   defp make_stage_name(prefix, name) when is_atom(prefix),
