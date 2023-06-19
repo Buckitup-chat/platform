@@ -19,7 +19,8 @@ defmodule Platform.App.Sync.UsbDriveDump.Dumper do
       path: Keyword.fetch!(opts, :mounted),
       task_supervisor: Keyword.fetch!(opts, :task_in),
       next_specs: Keyword.fetch!(next_opts, :run),
-      next_supervisor: Keyword.fetch!(next_opts, :under)
+      next_supervisor: Keyword.fetch!(next_opts, :under),
+      task_ref: nil
     }
   end
 
@@ -28,46 +29,59 @@ defmodule Platform.App.Sync.UsbDriveDump.Dumper do
         :start,
         %{
           path: path,
-          task_supervisor: tasks_name,
-          next_specs: next_specs,
-          next_supervisor: next_supervisor
+          task_supervisor: tasks_name
         } = state
       ) do
     "Platform.App.Sync.UsbDriveDump.Logic dumping started" |> Logger.info()
 
     UsbDriveDumpRoom.dump()
 
-    Task.Supervisor.async_nolink(tasks_name, fn ->
-      Leds.blink_read()
+    %{ref: ref} =
+      Task.Supervisor.async_nolink(tasks_name, fn ->
+        Leds.blink_read()
 
-      %UsbDriveDumpRoom{} = dump_room = UsbDriveDumpRoom.get()
+        %UsbDriveDumpRoom{} = dump_room = UsbDriveDumpRoom.get()
 
-      {files, total_size} = gather_files(path)
+        {files, total_size} = gather_files(path)
 
-      UsbDriveDumpRoom.set_total(length(files), total_size)
+        UsbDriveDumpRoom.set_total(length(files), total_size)
 
-      files
-      |> Enum.sort_by(& &1.datetime, NaiveDateTime)
-      |> Enum.with_index(1)
-      |> Enum.each(fn {file, file_number} ->
-        UsbDriveFileDumper.dump(
-          file,
-          file_number,
-          dump_room.pub_key,
-          dump_room.identity,
-          dump_room.monotonic_offset
-        )
+        files
+        |> Enum.sort_by(& &1.datetime, NaiveDateTime)
+        |> Enum.with_index(1)
+        |> Enum.each(fn {file, file_number} ->
+          UsbDriveFileDumper.dump(
+            file,
+            file_number,
+            dump_room.pub_key,
+            dump_room.identity,
+            dump_room.monotonic_offset
+          )
+        end)
+
+        UsbDriveDumpRoom.mark_successful()
+
+        "Platform.App.Sync.UsbDriveDump.Logic dumping finished" |> Logger.info()
+        Leds.blink_done()
       end)
 
-      UsbDriveDumpRoom.mark_successful()
+    {:noreply, %{state | task_ref: ref}}
+  end
 
-      "Platform.App.Sync.UsbDriveDump.Logic dumping finished" |> Logger.info()
-      Leds.blink_done()
-    end)
-    |> Task.await(:infinity)
+  def on_msg({ref, _}, %{task_ref: ref} = state) do
+    Process.demonitor(ref, [:flush])
+    send(self(), :dumped)
+    {:noreply, state}
+  end
 
+  def on_msg(
+        :dumped,
+        %{
+          next_specs: next_specs,
+          next_supervisor: next_supervisor
+        } = state
+      ) do
     Platform.start_next_stage(next_supervisor, next_specs)
-
     {:noreply, state}
   end
 

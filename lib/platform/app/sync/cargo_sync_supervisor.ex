@@ -24,7 +24,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
   def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 0, max_seconds: 15)
+    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
   end
 
   @impl Supervisor
@@ -39,7 +39,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     children = [
       use_task(tasks),
       {Task, fn -> File.mkdir_p!(full_path) end},
-      {MediaDbSupervisor, [target_db, full_path]},
+      {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
       {Bouncer, db: target_db, type: type},
       {Starter, flag: :cargo},
       {:stage, Ready, {ScopeProvider, target: target_db}},

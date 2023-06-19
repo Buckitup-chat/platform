@@ -23,7 +23,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
   @mount_path Application.compile_env(:platform, :mount_path_storage)
 
   def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 0, max_seconds: 15)
+    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
   end
 
   @impl true
@@ -38,14 +38,19 @@ defmodule Platform.App.Db.MainDbSupervisor do
       dir_creator(full_path),
       healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),
-      {Chat.Db.MainDbSupervisor, full_path},
+      {Chat.Db.MainDbSupervisor, full_path} |> exit_takes(20_000),
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
-      Starter,
-      {:stage, Copying, {Copier, task_in: task_supervisor}},
+      Starter |> exit_takes(1000),
+      {:stage, Copying, {Copier, task_in: task_supervisor} |> exit_takes(25_000)},
       MainReplicator,
-      Switcher
+      Switcher |> exit_takes(1000)
     ]
     |> prepare_stages(Platform.App.MainStages)
+    |> tap(fn specs ->
+      specs
+      |> calc_exit_time()
+      |> then(&Logger.debug("MainDbSupervisor exit time #{inspect(&1)}"))
+    end)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 
@@ -53,13 +58,14 @@ defmodule Platform.App.Db.MainDbSupervisor do
 
   defp healer_unless_test(device, tasks) do
     if not_test_env?() do
-      {Healer, [device, tasks]}
+      {:stage, Healing, {Healer, device: device, task_in: tasks}}
     end
   end
 
   defp mounter_unless_test(device, tasks) do
     if not_test_env?() do
-      {Mounter, [device, @mount_path, tasks]}
+      {:stage, Mounting,
+       {Mounter, device: device, at: @mount_path, task_in: tasks} |> exit_takes(15_000)}
     end
   end
 

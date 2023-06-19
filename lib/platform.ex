@@ -8,13 +8,15 @@ defmodule Platform do
       id: make_ref(),
       start:
         {Supervisor, :start_link,
-         [specs, [strategy: :rest_for_one, max_restarts: 1, max_seconds: 5]]}
+         [specs, [strategy: :rest_for_one, max_restarts: 1, max_seconds: 50]]},
+      shutdown: calc_exit_time(specs)
     }
     |> then(&DynamicSupervisor.start_child(dynamic_supervisor, &1))
   end
 
-  def use_next_stage(name) do
-    {DynamicSupervisor, name: name, strategy: :one_for_one, max_restarts: 0, max_seconds: 5}
+  def use_next_stage(name, exit_time \\ 5000) do
+    {DynamicSupervisor, name: name, strategy: :one_for_one, max_restarts: 0}
+    |> exit_takes(exit_time)
   end
 
   def use_task(name) do
@@ -27,29 +29,64 @@ defmodule Platform do
     |> build_tree(prefix)
   end
 
+  def calc_exit_time(specs) do
+    specs
+    |> Enum.map(fn
+      %{shutdown: exit_time} -> exit_time
+      _ -> 5000
+    end)
+    |> Enum.sum()
+  end
+
+  def exit_takes(x, milliseconds) do
+    Supervisor.child_spec(x, shutdown: milliseconds)
+  end
+
   defp build_tree(specs, prefix, prepared \\ []) do
     case specs do
       [] ->
         prepared
 
-      [{:stage, name, {module, args}}] ->
-        prepared ++ [{module, args}]
+      [{:stage, _name, x}] ->
+        prepared ++ [x]
+
+      [{:stage, name, module} | rest] when is_atom(module) ->
+        prepared ++ build_next_stage(prefix, name, {module, []}, rest)
 
       [{:stage, name, {module, args}} | rest] ->
-        stage_name = make_stage_name(prefix, name)
+        prepared ++ build_next_stage(prefix, name, {module, args}, rest)
 
-        prepared ++
-          [use_next_stage(stage_name)] ++
-          [
-            {module,
-             args |> Keyword.merge(next: [under: stage_name, run: build_tree(rest, prefix)])}
-          ]
+      [{:stage, name, %{start: _} = spec} | rest] ->
+        prepared ++ build_next_stage(prefix, name, spec, rest)
 
       [spec] ->
         prepared ++ [spec]
 
       [spec | rest] ->
         build_tree(rest, prefix, prepared ++ [spec])
+    end
+  end
+
+  defp build_next_stage(prefix, name, spec, rest) do
+    next_tree = build_tree(rest, prefix)
+    next_exit_time = calc_exit_time(next_tree)
+
+    stage_name = make_stage_name(prefix, name)
+
+    [use_next_stage(stage_name, next_exit_time), inject_next_stage(spec, stage_name, next_tree)]
+  end
+
+  defp inject_next_stage(spec, stage_name, next_tree) do
+    case spec do
+      %{start: {module, func, [args]}} ->
+        Map.put(
+          spec,
+          :start,
+          {module, func, [args |> Keyword.merge(next: [under: stage_name, run: next_tree])]}
+        )
+
+      {module, args} ->
+        {module, args |> Keyword.merge(next: [under: stage_name, run: next_tree])}
     end
   end
 

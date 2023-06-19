@@ -19,13 +19,13 @@ defmodule Platform.Storage.InternalToMain.Copier do
     next_supervisor = next_opts |> Keyword.fetch!(:under)
     next_specs = next_opts |> Keyword.fetch!(:run)
 
-    Process.send_after(self(), :start, 10)
+    send(self(), :start)
 
-    {task_supervisor, next_specs, next_supervisor}
+    %{task_in: task_supervisor, task: nil, next: {next_specs, next_supervisor}}
   end
 
   @impl true
-  def on_msg(:start, {task_supervisor, next_specs, next_supervisor} = state) do
+  def on_msg(:start, %{task_in: task_supervisor} = state) do
     "copying internal to main" |> Logger.warn()
 
     internal = Chat.Db.InternalDb
@@ -33,17 +33,28 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
     Leds.blink_write()
 
-    Task.Supervisor.async_nolink(task_supervisor, fn ->
-      Switching.mirror(internal, main)
-      Copying.await_copied(internal, main)
-      Switching.set_default(main)
-      Process.sleep(1_000)
-      Switching.mirror(main, internal)
-      DbBrokers.refresh()
-      Process.sleep(3_000)
-    end)
-    |> Task.await(:infinity)
+    task =
+      Task.Supervisor.async_nolink(task_supervisor, fn ->
+        Switching.mirror(internal, main)
+        Copying.await_copied(internal, main)
+        Switching.set_default(main)
+        Process.sleep(1_000)
+        Switching.mirror(main, internal)
+        DbBrokers.refresh()
+        Process.sleep(3_000)
+      end)
 
+    {:noreply, %{state | task: task}}
+  end
+
+  def on_msg({ref, _}, %{task: %Task{ref: ref}} = state) do
+    Process.demonitor(ref, [:flush])
+
+    send(self(), :copied)
+    {:noreply, state}
+  end
+
+  def on_msg(:copied, %{next: {next_specs, next_supervisor}} = state) do
     Logger.info("[internal -> main copier] Data moved to external storage")
     Leds.blink_done()
 

@@ -30,7 +30,8 @@ defmodule Platform.Storage.Copier do
       task_in: Keyword.fetch!(opts, :task_in),
       db_keys_provider: Keyword.fetch!(opts, :get_db_keys_from),
       next_run: Keyword.fetch!(next, :run),
-      next_under: Keyword.fetch!(next, :under)
+      next_under: Keyword.fetch!(next, :under),
+      task_ref: nil
     }
   end
 
@@ -40,25 +41,33 @@ defmodule Platform.Storage.Copier do
         %{
           target_db: target_db,
           task_in: task_supervisor,
-          db_keys_provider: db_keys_provider,
-          next_run: next_spec,
-          next_under: next_supervisor
+          db_keys_provider: db_keys_provider
         } = state
       ) do
     "[media] Syncing " |> Logger.info()
 
     {backup_keys, restoration_keys} = GenServer.call(db_keys_provider, :db_keys)
 
-    Task.Supervisor.async_nolink(task_supervisor, fn ->
-      Leds.blink_read()
-      Copying.await_copied(target_db, Db.db(), restoration_keys)
-      Ordering.reset()
-      Leds.blink_write()
-      Copying.await_copied(Db.db(), target_db, backup_keys)
-      Leds.blink_done()
-    end)
-    |> Task.await(:infinity)
+    %{ref: ref} =
+      Task.Supervisor.async_nolink(task_supervisor, fn ->
+        Leds.blink_read()
+        Copying.await_copied(target_db, Db.db(), restoration_keys)
+        Ordering.reset()
+        Leds.blink_write()
+        Copying.await_copied(Db.db(), target_db, backup_keys)
+        Leds.blink_done()
+      end)
 
+    {:noreply, %{state | task_ref: ref}}
+  end
+
+  def on_msg({ref, _}, %{task_ref: ref} = state) do
+    Process.demonitor(ref, [:flush])
+    send(self(), :copied)
+    {:noreply, state}
+  end
+
+  def on_msg(:copied, %{next_run: next_spec, next_under: next_supervisor} = state) do
     "[media] Synced " |> Logger.info()
 
     Platform.start_next_stage(next_supervisor, next_spec)
