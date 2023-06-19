@@ -8,7 +8,11 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   alias Chat.Db.MediaDbSupervisor
 
   alias Platform.App.Sync.Cargo.{
+    CameraSensorsDataCollector,
+    FinalCopyCompleter,
+    FinalScopeProvider,
     InitialCopyCompleter,
+    InviteAcceptor,
     ScopeProvider
   }
 
@@ -31,8 +35,6 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     full_path = [@mount_path, type, Chat.Db.version_path()] |> Path.join()
     tasks = Tasks
     target_db = Chat.Db.CargoDb
-    scope_ready_stage = Platform.App.Sync.CargoScopeReadyStage
-    after_copying_stage = Platform.App.Sync.CargoAfterCopyingStage
 
     children = [
       use_task(tasks),
@@ -40,26 +42,22 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
       {MediaDbSupervisor, [target_db, full_path]},
       {Bouncer, db: target_db, type: type},
       {Starter, flag: :cargo},
-      use_next_stage(scope_ready_stage),
-      {ScopeProvider,
-       target: target_db,
-       next: [
-         under: scope_ready_stage,
-         run: [
-           use_next_stage(after_copying_stage),
-           {Copier,
-            target: target_db,
-            task_in: tasks,
-            get_db_keys_from: ScopeProvider,
-            next: [
-              under: after_copying_stage,
-              run: [InitialCopyCompleter]
-            ]}
-         ]
-       ]}
+      {:stage, Ready, {ScopeProvider, target: target_db}},
+      {:stage, Copying,
+       {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}},
+      {:stage, AfterCopying, {InitialCopyCompleter, []}},
+      {:stage, InviteAccept, {InviteAcceptor, []}},
+      {:stage, CollectCameraSensorsData,
+       {CameraSensorsDataCollector, get_keys_from: InviteAcceptor}},
+      {:stage, PreFinal, {FinalScopeProvider, target: target_db}},
+      {:stage, FinalCopying,
+       {Copier, target: target_db, task_in: tasks, get_db_keys_from: FinalScopeProvider}},
+      {:stage, AfterFinalCopying, {FinalCopyCompleter, []}}
     ]
 
-    Supervisor.init(children, strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
+    children
+    |> prepare_stages(Platform.App.Sync.CargoScenarioStages)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "CargoSyncSupervisor init result #{inspect(res)}" |> Logger.debug()
     end)
