@@ -18,7 +18,8 @@ defmodule Platform.Storage.Mounter do
       path: opts |> Keyword.fetch!(:at),
       task_supervisor: opts |> Keyword.fetch!(:task_in),
       next_specs: next |> Keyword.fetch!(:run),
-      next_supervisor: next |> Keyword.fetch!(:under)
+      next_supervisor: next |> Keyword.fetch!(:under),
+      task_ref: nil
     }
     |> tap(fn _ -> send(self(), :start) end)
   end
@@ -29,17 +30,24 @@ defmodule Platform.Storage.Mounter do
         %{
           device: device,
           path: path,
-          task_supervisor: task_supervisor,
-          next_specs: next_specs,
-          next_supervisor: next_supervisor
+          task_supervisor: task_supervisor
         } = state
       ) do
-    Task.Supervisor.async_nolink(task_supervisor, fn ->
-      device
-      |> Device.mount_on(path)
-    end)
-    |> Task.await()
+    %{ref: ref} =
+      Task.Supervisor.async_nolink(task_supervisor, fn ->
+        Device.mount_on(device, path)
+      end)
 
+    {:noreply, %{state | task_ref: ref}}
+  end
+
+  def on_msg({ref, _}, %{task_ref: ref} = state) do
+    Process.demonitor(ref, [:flush])
+    send(self(), :mounted)
+    {:noreply, state}
+  end
+
+  def on_msg(:mounted, %{next_spec: {next_specs, next_supervisor}} = state) do
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
   end

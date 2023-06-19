@@ -16,15 +16,16 @@ defmodule Platform.Storage.Backup.Copier do
 
   @impl true
   def on_init(opts) do
-    tasks_name = Keyword.get(opts, :tasks_name)
-    continuous? = Keyword.get(opts, :continuous?)
-
-    Process.send_after(self(), :start, 10)
-    {tasks_name, continuous?}
+    %{
+      task_in: opts |> Keyword.fetch!(:task_name),
+      continuous?: opts |> Keyword.fetch!(:continuous?),
+      task_ref: nil
+    }
+    |> tap(fn _ -> send(self(), :start) end)
   end
 
   @impl true
-  def on_msg(:start, {tasks_name, continuous?} = state) do
+  def on_msg(:start, %{task_in: tasks_name, continuous?: continuous?} = state) do
     "[backup] Syncing " |> Logger.info()
 
     internal = Chat.Db.InternalDb
@@ -33,24 +34,35 @@ defmodule Platform.Storage.Backup.Copier do
 
     set_db_flag(backup: true)
 
-    Task.Supervisor.async_nolink(tasks_name, fn ->
-      Leds.blink_read()
-      Copying.await_copied(Chat.Db.BackupDb, Db.db())
-      Ordering.reset()
-      Leds.blink_write()
-      Copying.await_copied(Db.db(), Chat.Db.BackupDb)
+    %{ref: ref} =
+      tasks_name
+      |> Task.Supervisor.async_nolink(fn ->
+        Leds.blink_read()
+        Copying.await_copied(Chat.Db.BackupDb, Db.db())
+        Ordering.reset()
+        Leds.blink_write()
+        Copying.await_copied(Db.db(), Chat.Db.BackupDb)
 
-      if continuous? do
-        Process.sleep(1_000)
-        Switching.mirror(main, [internal, backup])
-        Process.sleep(3_000)
-      end
+        if continuous? do
+          Process.sleep(1_000)
+          Switching.mirror(main, [internal, backup])
+          Process.sleep(3_000)
+        end
 
-      DbBrokers.refresh()
-      Leds.blink_done()
-    end)
-    |> Task.await(:infinity)
+        DbBrokers.refresh()
+        Leds.blink_done()
+      end)
 
+    {:noreply, %{state | task_ref: ref}}
+  end
+
+  def on_msg({ref, _}, %{task_ref: ref} = state) do
+    Process.demonitor(ref, [:flush])
+    send(self(), :copied)
+    {:noreply, state}
+  end
+
+  def on_msg(:copied, %{continuous?: continuous?} = state) do
     set_db_flag(backup: false)
 
     unless continuous? do
@@ -58,7 +70,6 @@ defmodule Platform.Storage.Backup.Copier do
     end
 
     "[backup] Synced " |> Logger.info()
-
     {:noreply, state}
   end
 
