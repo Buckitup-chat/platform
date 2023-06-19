@@ -28,7 +28,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
     else
       _ ->
         Indication.drive_refused()
-        Process.exit(self(), :normal)
+        # Let it live, but don't start the next stage
     end
   end
 

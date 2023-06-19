@@ -47,7 +47,7 @@ defmodule Platform.Storage.Mounter do
     {:noreply, state}
   end
 
-  def on_msg(:mounted, %{next_spec: {next_specs, next_supervisor}} = state) do
+  def on_msg(:mounted, %{next_specs: next_specs, next_supervisor: next_supervisor} = state) do
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
   end
