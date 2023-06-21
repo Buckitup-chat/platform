@@ -42,6 +42,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
       {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
       {Bouncer, db: target_db, type: type},
       {Starter, flag: :cargo},
+      Indication,
       {:stage, Ready, {ScopeProvider, target: target_db}},
       {:stage, Copying,
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}},
