@@ -17,8 +17,6 @@ defmodule Platform.App.Sync.Cargo.FinalScopeProvider do
 
     false = cargo_room_key |> is_nil()
 
-    CargoRoom.sync(cargo_room_key)
-
     %CargoSettings{checkpoints: checkpoints} = AdminRoom.get_cargo_settings()
     backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, checkpoints)
     restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, checkpoints)
