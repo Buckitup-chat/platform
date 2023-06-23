@@ -17,7 +17,7 @@ defmodule Platform.Storage.Backup.Copier do
   @impl true
   def on_init(opts) do
     %{
-      task_in: opts |> Keyword.fetch!(:task_name),
+      task_in: opts |> Keyword.fetch!(:tasks_name),
       continuous?: opts |> Keyword.fetch!(:continuous?),
       task_ref: nil
     }
