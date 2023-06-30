@@ -39,8 +39,8 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
       Starter,
       {:stage, Ready, {ScopeProvider, target: target_db}},
       {:stage, Copying,
-       {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}}
-      |> exit_takes(10_000),
+       {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}
+       |> exit_takes(10_000)},
       Stopper
     ]
     |> prepare_stages(Platform.App.Sync.OnlinersStages)

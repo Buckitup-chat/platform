@@ -31,14 +31,17 @@ image*.zip
 
 # Elixir LS
 .elixir_ls/
+.elixir-tools/
 
 ctags
 
 # Database
 /priv/db
 /priv/admin_db
+/priv/admin_db_v2
 /priv/test_db
 /priv/test_admin_db
+/priv/test_admin_db_v2
 /priv/test_media
 !/priv/test_media/
 /priv/test_media/*
