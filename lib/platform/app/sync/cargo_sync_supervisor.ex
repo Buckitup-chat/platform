@@ -11,6 +11,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     CameraSensorsDataCollector,
     FinalCopyCompleter,
     FinalScopeProvider,
+    Indication,
     InitialCopyCompleter,
     InviteAcceptor,
     ScopeProvider
@@ -40,20 +41,22 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
       use_task(tasks),
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
-      {Bouncer, db: target_db, type: type},
-      {Starter, flag: :cargo},
-      Indication,
-      {:stage, Ready, {ScopeProvider, target: target_db}},
+      {Bouncer, db: target_db, type: type} |> exit_takes(1000),
+      {Starter, flag: :cargo} |> exit_takes(500),
+      Indication |> exit_takes(1000),
+      {:stage, Ready, {ScopeProvider, target: target_db} |> exit_takes(1000)},
       {:stage, Copying,
-       {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}},
-      {:stage, AfterCopying, {InitialCopyCompleter, []}},
-      {:stage, InviteAccept, {InviteAcceptor, []}},
+       {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}
+       |> exit_takes(35_000)},
+      InitialCopyCompleter |> exit_takes(1000),
+      {:stage, InviteAccept, {InviteAcceptor, []} |> exit_takes(1000)},
       {:stage, CollectCameraSensorsData,
-       {CameraSensorsDataCollector, get_keys_from: InviteAcceptor}},
-      {:stage, PreFinal, {FinalScopeProvider, target: target_db}},
+       {CameraSensorsDataCollector, get_keys_from: InviteAcceptor} |> exit_takes(1000)},
+      {:stage, PreFinal, {FinalScopeProvider, target: target_db} |> exit_takes(1000)},
       {:stage, FinalCopying,
-       {Copier, target: target_db, task_in: tasks, get_db_keys_from: FinalScopeProvider}},
-      {:stage, AfterFinalCopying, {FinalCopyCompleter, []}}
+       {Copier, target: target_db, task_in: tasks, get_db_keys_from: FinalScopeProvider}
+       |> exit_takes(35_000)},
+      FinalCopyCompleter |> exit_takes(500)
     ]
 
     children
