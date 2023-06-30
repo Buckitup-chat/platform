@@ -27,7 +27,11 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
       CargoRoom.write_file(
         cargo_user,
         content,
-        %{"Content-Type" => type, "Name-Prefix" => "cargo_shot_"}
+        %{
+          "Content-Type" => type,
+          "Content-Length" => byte_size(content) |> to_string(),
+          "Name-Prefix" => "cargo_shot_"
+        }
       )
     end)
 

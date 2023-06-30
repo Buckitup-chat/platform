@@ -48,9 +48,21 @@ defmodule Platform.App.Media.Decider do
 
     "Platform.App.Media.Decider starting #{scenario_supervisor}" |> Logger.info()
 
-    {:ok, _pid} =
+    :ok =
       next_supervisor
       |> DynamicSupervisor.start_child({scenario_supervisor, [device]})
+      |> case do
+        {:ok, _} ->
+          :ok
+
+        error ->
+          Logger.error([
+            "[media] [decider] Error staring scenario #{scenario_supervisor}\n",
+            inspect(error, pretty: true)
+          ])
+
+          error
+      end
 
     {:ok, nil}
   end

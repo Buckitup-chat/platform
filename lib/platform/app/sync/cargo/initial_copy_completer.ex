@@ -9,19 +9,6 @@ defmodule Platform.App.Sync.Cargo.InitialCopyCompleter do
   def on_init(opts) do
     CargoRoom.mark_successful()
     CargoRoom.complete()
-
-    next = Keyword.fetch!(opts, :next)
-    next_under = Keyword.fetch!(next, :under)
-    next_spec = Keyword.fetch!(next, :run)
-
-    Process.send_after(self(), {:next_stage, next_under, next_spec}, 10)
-  end
-
-  @impl true
-  def on_msg({:next_stage, supervisor, spec}, state) do
-    Platform.start_next_stage(supervisor, spec)
-
-    {:noreply, state}
   end
 
   @impl true
