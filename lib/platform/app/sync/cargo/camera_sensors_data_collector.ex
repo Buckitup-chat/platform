@@ -5,6 +5,7 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
 
   alias Chat.AdminRoom
   alias Chat.Sync.CargoRoom
+  alias Chat.Sync.Camera.Sensor
 
   @impl true
   def on_init(opts) do
@@ -20,14 +21,14 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
     %{camera_sensors: sensors} = AdminRoom.get_cargo_settings()
 
     sensors
-    |> Enum.map(fn url -> HTTPoison.get(url) end)
-    |> Enum.each(fn {:ok, %{body: content, headers: headers}} ->
-      :ok =
-        CargoRoom.write_file(
-          cargo_user,
-          content,
-          headers |> Map.new() |> Map.put("Name-Prefix", "cargo_shot_")
-        )
+    |> Stream.map(&Sensor.get_image/1)
+    |> Stream.filter(&match?({:ok, _}, &1))
+    |> Enum.each(fn {:ok, {type, content}} ->
+      CargoRoom.write_file(
+        cargo_user,
+        content,
+        %{"Content-Type" => type, "Name-Prefix" => "cargo_shot_"}
+      )
     end)
 
     next = Keyword.fetch!(state, :next)
