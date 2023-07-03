@@ -1,4 +1,5 @@
 defmodule Platform.Sensor.CargoSensor do
+  @moduledoc "Weight sensor for balena D700"
   @framing {Circuits.UART.Framing.Line, separator: "\r"}
 
   @spec open_port(String.t(), String.t()) :: {:ok, pid()} | {:error, atom()}

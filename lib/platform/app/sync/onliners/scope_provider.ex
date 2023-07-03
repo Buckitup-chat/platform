@@ -3,8 +3,9 @@ defmodule Platform.App.Sync.Onliners.ScopeProvider do
 
   use GracefulGenServer, name: __MODULE__
 
-  alias Phoenix.PubSub
   alias Chat.Db.Scope.KeyScope
+
+  alias Phoenix.PubSub
 
   @incoming_topic "chat_onliners->platform_onliners"
   @outgoing_topic "platform_onliners->chat_onliners"

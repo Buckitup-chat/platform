@@ -6,7 +6,7 @@ defmodule Platform.App.Sync.Cargo.InitialCopyCompleter do
   alias Chat.Sync.CargoRoom
 
   @impl true
-  def on_init(opts) do
+  def on_init(_opts) do
     CargoRoom.mark_successful()
     CargoRoom.complete()
   end

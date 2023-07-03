@@ -1,4 +1,5 @@
 defmodule Platform.App.Sync.CargoSyncSupervisor do
+  @moduledoc "Cargo scenario"
   use Supervisor
 
   import Platform

@@ -1,4 +1,5 @@
 defmodule Platform.App.Media.Supervisor do
+  @moduledoc "Supervisor for Media drive"
   use Supervisor
 
   import Platform

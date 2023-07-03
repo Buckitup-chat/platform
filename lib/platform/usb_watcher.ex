@@ -44,24 +44,7 @@ defmodule Platform.UsbWatcher do
   def handle_info({:system_registry, :global, devices}, connected_devices) do
     devices
     |> filter_state()
-    |> tap(fn updated_devices ->
-      {new_devices, removed_devices, unchanged_devices} =
-        updated_devices
-        |> Map.merge(connected_devices)
-        |> Enum.reduce({%{}, %{}, %{}}, fn {k, v}, {new, removed, connected} ->
-          in_updated = Map.has_key?(updated_devices, k)
-          in_connected = Map.has_key?(connected_devices, k)
-
-          cond do
-            in_updated and not in_connected -> {new |> Map.put(k, v), removed, connected}
-            not in_updated and in_connected -> {new, removed |> Map.put(k, v), connected}
-            true -> {new, removed, connected |> Map.put(k, v)}
-          end
-        end)
-
-      send(self(), {:new, new_devices})
-      send(self(), {:removed, removed_devices, unchanged_devices})
-    end)
+    |> tap(&trigger_device_handling(&1, connected_devices))
     |> noreply()
   end
 
@@ -111,6 +94,25 @@ defmodule Platform.UsbWatcher do
       [] -> root_key
       list -> list |> Enum.sort() |> List.first()
     end
+  end
+
+  defp trigger_device_handling(updated_devices, connected_devices) do
+    {new_devices, removed_devices, unchanged_devices} =
+      updated_devices
+      |> Map.merge(connected_devices)
+      |> Enum.reduce({%{}, %{}, %{}}, fn {k, v}, {new, removed, connected} ->
+        in_updated = Map.has_key?(updated_devices, k)
+        in_connected = Map.has_key?(connected_devices, k)
+
+        cond do
+          in_updated and not in_connected -> {new |> Map.put(k, v), removed, connected}
+          not in_updated and in_connected -> {new, removed |> Map.put(k, v), connected}
+          true -> {new, removed, connected |> Map.put(k, v)}
+        end
+      end)
+
+    send(self(), {:new, new_devices})
+    send(self(), {:removed, removed_devices, unchanged_devices})
   end
 
   defp ok(x), do: {:ok, x}

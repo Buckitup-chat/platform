@@ -5,8 +5,8 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
 
   alias Chat.Actor
   alias Chat.AdminRoom
-  alias Chat.Sync.CargoRoom
   alias Chat.Dialogs
+  alias Chat.Sync.CargoRoom
 
   alias Platform.App.Sync.Cargo.Indication
 

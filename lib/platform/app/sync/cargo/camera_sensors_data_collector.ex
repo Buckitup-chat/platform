@@ -4,8 +4,8 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
   use GracefulGenServer
 
   alias Chat.AdminRoom
-  alias Chat.Sync.CargoRoom
   alias Chat.Sync.Camera.Sensor
+  alias Chat.Sync.CargoRoom
 
   @impl true
   def on_init(opts) do
