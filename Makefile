@@ -55,21 +55,8 @@ zip:
 card:
 	fwup _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw
 
-stream_camera:
-	ffmpeg   -f avfoundation \
-	  	-pix_fmt yuyv422 \
-	  	-video_size 1280x720 \
-	  	-framerate 30 \
-	  	-i "0:0" \
-	  	-ac 2  \
-	  	-vf format=yuyv422 \
-	  	-vcodec libx264 \
-	  	-maxrate 2000k \
-	  	-bufsize 2000k \
-	  	-acodec aac\
-	  	-ar 44100 \
-	  	-b:a 128k \
-	  	-f rtp_mpegts udp://127.0.0.1:9988
+add_ip_alias:
+	sudo ifconfig en0 192.168.24.200 netmask 255.255.255.0 alias
 
-play_stream:
-	ffplay udp://@0.0.0.0:9988
+del_ip_alias:
+	sudo ifconfig en0 -alias 192.168.24.200
