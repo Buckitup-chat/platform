@@ -66,7 +66,6 @@ config :vintage_net,
   additional_name_servers: [{{192, 168, 24, 1}}],
   config:
     [
-      prev config
       {"eth0",
        %{
          type: VintageNetEthernet,
@@ -113,7 +112,7 @@ config :vintage_net,
              {"buckitup.app", {192, 168, 25, 1}}
              # {"*", {192, 168, 25, 1}}
            ]
-         ,
+         },
          ipv4: %{
            address: {192, 168, 25, 1},
            method: :static,
