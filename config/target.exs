@@ -92,8 +92,7 @@ config :vintage_net,
            method: :static,
            prefix_length: 24,
            name_servers: [{192, 168, 24, 1}]
-         },
-         ipv4: %{method: :dhcp}
+         }
        }},
       {"wlan0",
        %{
