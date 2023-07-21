@@ -72,13 +72,13 @@ defmodule Platform.MixProject do
       {:nerves_system_bbb, "~> 2.12", runtime: false, targets: :bbb},
       {:nerves_system_osd32mp1, "~> 0.8", runtime: false, targets: :osd32mp1},
       {:nerves_system_x86_64, "~> 1.21", runtime: false, targets: :x86_64},
-      {:bktp_rpi4,
-       github: "Buckitup-chat/bktp_rpi4",
-       runtime: false,
-       targets: :bktp_rpi4,
-       nerves: [compile: false]},
       # {:bktp_rpi4,
-      #  path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
+      #  github: "Buckitup-chat/bktp_rpi4",
+      #  runtime: false,
+      #  targets: :bktp_rpi4,
+      #  nerves: [compile: false]},
+      {:bktp_rpi4,
+       path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
       {:chat,
        path: "../chat",
        targets: [:host | @all_targets],
@@ -88,7 +88,6 @@ defmodule Platform.MixProject do
       {:graceful_genserver, "~> 0.1.0"},
       {:circuits_uart, "~> 1.3"},
       {:circuits_gpio, "~> 1.0"}
-      # {:vintage_net_bridge, github: "mnishiguchi/vintage_net_bridge"}
     ]
   end
 
