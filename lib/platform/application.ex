@@ -38,7 +38,16 @@ defmodule Platform.Application do
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
       Platform.App.DeviceSupervisor,
-      Platform.ChatBridge.Worker
+      Platform.ChatBridge.Worker,
+      {Task,
+       fn ->
+         [
+           "vm.dirty_expire_centisecs=300",
+           "vm.dirty_writeback_centisecs=50",
+           "vm.dirtytime_expire_seconds=500"
+         ]
+         |> Enum.each(&System.cmd("sysctl", ["-w", &1]))
+       end}
     ]
   end
 
