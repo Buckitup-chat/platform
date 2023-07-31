@@ -1,9 +1,12 @@
 defmodule Platform.ChatBridge.Logic do
   @moduledoc "Logic for Chat Admin panel"
 
+  require Logger
+
   alias Platform.Sensor.CargoSensor
 
   @iface "wlan0"
+  @firmware_source_path "/data/platform.fw"
 
   def get_wifi_settings do
     wlan_config()
@@ -62,6 +65,33 @@ defmodule Platform.ChatBridge.Logic do
       _ -> :error
     end
     |> mark(:weight_sensor_connection)
+  end
+
+  def upgrade_firmware(binary) do
+    File.write!(@firmware_source_path, binary)
+
+    case System.cmd("sh", [
+           "-c",
+           "fwup -i #{@firmware_source_path} --apply --task upgrade " <>
+             "--no-unmount -d #{Nerves.Runtime.KV.get("nerves_fw_devpath")}"
+         ]) do
+      {_, 0} ->
+        Logger.debug("Firmware upgrade successful.")
+        File.rm!(@firmware_source_path)
+
+        spawn(fn ->
+          :timer.sleep(1000)
+          Nerves.Runtime.reboot()
+        end)
+
+        :firmware_upgraded
+
+      {output, status} ->
+        Logger.debug("Firmware upgrade failed with status #{status}. Error output: #{output}")
+        File.rm!(@firmware_source_path)
+
+        error(:firmware_upgrade_failed)
+    end
   end
 
   defp wlan_config do

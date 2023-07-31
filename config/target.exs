@@ -146,7 +146,8 @@ config :mdns_lite,
   ]
 
 config :mime, :types, %{
-  "text/plain" => ["social_part"]
+  "text/plain" => ["social_part"],
+  "application/zip" => ["fw"]
 }
 
 maybe_nerves_local =
