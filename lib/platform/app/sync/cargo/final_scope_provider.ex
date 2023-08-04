@@ -17,24 +17,34 @@ defmodule Platform.App.Sync.Cargo.FinalScopeProvider do
 
     false = cargo_room_key |> is_nil()
 
-    %CargoSettings{checkpoints: checkpoints} = AdminRoom.get_cargo_settings()
-    backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, checkpoints)
-    restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, checkpoints)
-
-    Process.send_after(self(), :next_stage, 10)
+    send(self(), :next_stage)
 
     %{
+      target_db: target_db,
+      cargo_room_key: cargo_room_key,
+      db_keys: {[], []},
       next_spec: Keyword.fetch!(next, :run),
-      next_under: Keyword.fetch!(next, :under),
-      db_keys: {backup_keys, restoration_keys}
+      next_under: Keyword.fetch!(next, :under)
     }
   end
 
   @impl true
-  def on_msg(:next_stage, %{next_spec: spec, next_under: supervisor} = state) do
+  def on_msg(
+        :next_stage,
+        %{
+          next_spec: spec,
+          next_under: supervisor,
+          cargo_room_key: cargo_room_key,
+          target_db: target_db
+        } = state
+      ) do
+    %CargoSettings{checkpoints: checkpoints} = AdminRoom.get_cargo_settings()
+    backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, checkpoints)
+    restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, checkpoints)
+
     Platform.start_next_stage(supervisor, spec)
 
-    {:noreply, state}
+    {:noreply, state |> Map.put(:db_keys, {backup_keys, restoration_keys})}
   end
 
   @impl true
