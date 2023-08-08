@@ -61,8 +61,8 @@ maybe_usb =
 config :vintage_net,
   regulatory_domain: "00",
   # Uncomment following to disable config change persistance
-  # persistence: VintageNet.Persistence.Null,
-  internet_host_list: [{{192, 168, 24, 1}, 53}],
+  persistence: VintageNet.Persistence.Null,
+  internet_host_list: [{192, 168, 24, 1}],
   additional_name_servers: [{{192, 168, 24, 1}}],
   config:
     [
@@ -73,18 +73,12 @@ config :vintage_net,
            start: {192, 168, 24, 10},
            end: {192, 168, 24, 250},
            options: %{
-             dns: [{192, 168, 24, 1}],
+             dns: [{192, 168, 25, 1}],
              subnet: {255, 255, 255, 0},
              router: [{192, 168, 24, 1}],
              domain: "buckitup.app",
              search: ["buckitup.app"]
            }
-         },
-         dnsd: %{
-           records: [
-             {"buckitup.app", {192, 168, 24, 1}}
-             # {"*", {192, 168, 24, 1}}
-           ]
          },
          ipv4: %{
            address: {192, 168, 24, 1},
@@ -111,7 +105,8 @@ config :vintage_net,
            records: [
              {"buckitup.app", {192, 168, 25, 1}}
              # {"*", {192, 168, 25, 1}}
-           ]
+           ],
+           ttl: 10
          },
          ipv4: %{
            address: {192, 168, 25, 1},
@@ -146,7 +141,7 @@ config :mdns_lite,
   ttl: 120,
 
   # Forbidding advertising services over wifi
-  excluded_ifnames: ["wlan0", "lo"],
+  excluded_ifnames: ["eth0", "wlan0", "lo"],
 
   # Advertise the following services over mDNS.
   services: [
@@ -166,10 +161,6 @@ config :mdns_lite,
     #   port: 4369
     # }
   ]
-
-config :mime, :types, %{
-  "text/plain" => ["social_part"]
-}
 
 maybe_nerves_local =
   if config_env() == :dev do
