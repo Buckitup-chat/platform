@@ -80,12 +80,6 @@ config :vintage_net,
              search: ["buckitup.app"]
            }
          },
-         #         dnsd: %{
-         #           records: [
-         #             {"buckitup.app", {192, 168, 24, 1}}
-         #             # {"*", {192, 168, 24, 1}}
-         #           ]
-         #         },
          ipv4: %{
            address: {192, 168, 24, 1},
            method: :static,
