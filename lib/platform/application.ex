@@ -44,7 +44,8 @@ defmodule Platform.Application do
          [
            "vm.dirty_expire_centisecs=300",
            "vm.dirty_writeback_centisecs=50",
-           "vm.dirtytime_expire_seconds=500"
+           "vm.dirtytime_expire_seconds=500",
+           "net.ipv4.forwarding=1"
          ]
          |> Enum.each(&System.cmd("sysctl", ["-w", &1]))
        end}
