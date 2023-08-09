@@ -82,7 +82,6 @@ defmodule Platform.Storage.Backup.Copier do
 
     set_db_flag(backup: false)
     Leds.blink_done()
-    DriveIndication.drive_refused()
     Switching.mirror(main, internal)
     Ordering.reset()
     DbBrokers.refresh()

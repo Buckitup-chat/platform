@@ -8,7 +8,6 @@ defmodule Platform.App.Sync.UsbDriveDump.Dumper do
   require Logger
 
   alias Chat.Sync.{UsbDriveDumpFile, UsbDriveDumpRoom, UsbDriveFileDumper}
-  alias Platform.App.Sync.DriveIndication
   alias Platform.Leds
 
   @impl true
@@ -90,7 +89,6 @@ defmodule Platform.App.Sync.UsbDriveDump.Dumper do
   def on_exit(_reason, _state) do
     Leds.blink_done()
     UsbDriveDumpRoom.remove()
-    DriveIndication.drive_refused()
   end
 
   defp gather_files(path) do
