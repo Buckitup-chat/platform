@@ -16,6 +16,7 @@ defmodule Platform.Storage.Copier do
   alias Chat.Db.Copying
   alias Chat.Ordering
 
+  alias Platform.App.Sync.DriveIndication
   alias Platform.Leds
 
   @impl true
@@ -78,6 +79,7 @@ defmodule Platform.Storage.Copier do
   @impl true
   def on_exit(_reason, _state) do
     Leds.blink_done()
+    DriveIndication.drive_refused()
     Ordering.reset()
   end
 end
