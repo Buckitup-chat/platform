@@ -70,7 +70,7 @@ defmodule Platform.Storage.Copier do
 
   def on_msg(:copied, %{next_run: next_spec, next_under: next_supervisor} = state) do
     "[media] Synced " |> Logger.info()
-
+    DriveIndication.drive_complete()
     Platform.start_next_stage(next_supervisor, next_spec)
 
     {:noreply, state}
