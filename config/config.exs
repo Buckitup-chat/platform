@@ -39,6 +39,10 @@ config :mime, :types, %{
   "text/plain" => ["social_part", "data"]
 }
 
+# Uncomment the following line to enable db writing logging
+config :chat, :copying_logging, true
+
+
 if Mix.target() == :host or Mix.target() == :"" do
   import_config "host.exs"
 else

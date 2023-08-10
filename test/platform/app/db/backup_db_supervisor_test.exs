@@ -6,7 +6,18 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
   alias Chat.{AdminRoom, ChunkedFiles, FileIndex, Messages, Rooms, User}
   alias Chat.Admin.{BackupSettings, MediaSettings}
   alias Chat.Content.Files
-  alias Chat.Db.{BackupDb, ChangeTracker, Common, InternalDb, MainDb, MainDbSupervisor, MediaDbSupervisor, Switching}
+
+  alias Chat.Db.{
+    BackupDb,
+    ChangeTracker,
+    Common,
+    InternalDb,
+    MainDb,
+    MainDbSupervisor,
+    MediaDbSupervisor,
+    Switching
+  }
+
   alias Chat.Utils.StorageId
   alias Platform.App.Db.{BackupDbSupervisor, MainDbSupervisor}
   alias Support.FakeData
