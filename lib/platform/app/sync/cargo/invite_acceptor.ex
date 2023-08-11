@@ -8,7 +8,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
   alias Chat.Dialogs
   alias Chat.Sync.CargoRoom
 
-  alias Platform.App.Sync.Cargo.Indication
+  alias Platform.App.Sync.DriveIndication
 
   @impl true
   def on_init(opts) do
@@ -17,7 +17,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
          invite when not is_nil(invite) <-
            Dialogs.room_invite_for_user_to_room(cargo_user, room_key),
          room_identity <- Dialogs.extract_invite_room_identity(invite) do
-      Indication.drive_accepted()
+      DriveIndication.drive_accepted()
 
       next = Keyword.fetch!(opts, :next)
       next_under = Keyword.fetch!(next, :under)
@@ -27,7 +27,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
       Actor.new(cargo_user, [room_identity], [])
     else
       _ ->
-        Indication.drive_refused()
+        DriveIndication.drive_refused()
         # Let it live, but don't start the next stage
     end
   end

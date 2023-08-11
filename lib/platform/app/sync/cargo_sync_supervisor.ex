@@ -12,7 +12,6 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     CameraSensorsDataCollector,
     FinalCopyCompleter,
     FinalScopeProvider,
-    Indication,
     InitialCopyCompleter,
     InviteAcceptor,
     ScopeProvider
@@ -44,7 +43,6 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
       {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
       {Bouncer, db: target_db, type: type} |> exit_takes(1000),
       {Starter, flag: :cargo} |> exit_takes(500),
-      Indication |> exit_takes(1000),
       {:stage, Ready, {ScopeProvider, target: target_db} |> exit_takes(1000)},
       {:stage, Copying,
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}

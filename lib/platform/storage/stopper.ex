@@ -5,6 +5,7 @@ defmodule Platform.Storage.Stopper do
 
   require Logger
 
+  alias Platform.App.Sync.DriveIndication
   alias Platform.Leds
 
   @default_wait if(Application.compile_env(:platform, :target) == :host, do: 100, else: 5000)
@@ -16,6 +17,7 @@ defmodule Platform.Storage.Stopper do
 
     Task.Supervisor.async_nolink(Platform.TaskSupervisor, fn ->
       Leds.blink_dump()
+      DriveIndication.drive_complete()
       Logger.info("backup finished. Stopping supervisor")
 
       Process.sleep(wait)
