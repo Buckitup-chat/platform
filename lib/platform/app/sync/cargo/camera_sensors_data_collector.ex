@@ -20,24 +20,29 @@ defmodule Platform.App.Sync.Cargo.CameraSensorsDataCollector do
     %{me: cargo_user, rooms: [_room_identity]} = GenServer.call(keys_holder, :keys)
     %{camera_sensors: sensors} = AdminRoom.get_cargo_settings()
 
-    sensors
-    |> Stream.map(&Sensor.get_image/1)
-    |> Stream.filter(&match?({:ok, _}, &1))
-    |> Enum.each(fn {:ok, {type, content}} ->
-      CargoRoom.write_file(
-        cargo_user,
-        content,
-        %{
-          "Content-Type" => type,
-          "Content-Length" => byte_size(content) |> to_string(),
-          "Name-Prefix" => "cargo_shot_"
-        }
-      )
-    end)
+    keys_set =
+      sensors
+      |> Stream.map(&Sensor.get_image/1)
+      |> Stream.filter(&match?({:ok, _}, &1))
+      |> Stream.map(fn {:ok, {type, content}} ->
+        {:ok, keys_set} =
+          CargoRoom.write_file(
+            cargo_user,
+            content,
+            %{
+              "Content-Type" => type,
+              "Content-Length" => byte_size(content) |> to_string(),
+              "Name-Prefix" => "cargo_shot_"
+            }
+          )
+
+        keys_set
+      end)
+      |> Enum.reduce(MapSet.new(), fn set, acc_set -> MapSet.union(acc_set, set) end)
 
     next = Keyword.fetch!(state, :next)
     next_under = Keyword.fetch!(next, :under)
-    next_spec = Keyword.fetch!(next, :run)
+    next_spec = Keyword.fetch!(next, :run) |> Keyword.put(:keys_set, keys_set)
 
     Platform.start_next_stage(next_under, next_spec)
 
