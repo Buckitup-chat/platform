@@ -7,6 +7,7 @@ defmodule Platform.App.Media.Supervisor do
   require Logger
 
   alias Platform.App.Media.{Decider, FunctionalityDynamicSupervisor, TaskSupervisor}
+  alias Platform.App.Sync.DriveIndication
   alias Platform.Storage.Healer
   alias Platform.Storage.Mounter
 
@@ -25,6 +26,8 @@ defmodule Platform.App.Media.Supervisor do
 
     [
       use_task(task_supervisor),
+      DriveIndication |> exit_takes(1000),
+      {Task, fn -> DriveIndication.drive_accepted() end},
       healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),
       use_next_stage(next_supervisor) |> exit_takes(90_000),
