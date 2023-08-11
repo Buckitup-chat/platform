@@ -35,11 +35,15 @@ defmodule Platform.App.Sync.Cargo.FinalScopeProvider do
           next_spec: spec,
           next_under: supervisor,
           cargo_room_key: cargo_room_key,
-          target_db: target_db
+          target_db: target_db,
+          keys_set: keys_set
         } = state
       ) do
     %CargoSettings{checkpoints: checkpoints} = AdminRoom.get_cargo_settings()
-    backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, checkpoints)
+
+    backup_keys =
+      KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, checkpoints) |> MapSet.union(keys_set)
+
     restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, checkpoints)
 
     Platform.start_next_stage(supervisor, spec)
