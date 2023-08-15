@@ -9,9 +9,8 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   alias Chat.Db.MediaDbSupervisor
 
   alias Platform.App.Sync.Cargo.{
-    CameraSensorsDataCollector,
+    SensorsDataCollector,
     FinalCopyCompleter,
-    FinalScopeProvider,
     InitialCopyCompleter,
     InviteAcceptor,
     ScopeProvider
@@ -49,11 +48,11 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
        |> exit_takes(35_000)},
       InitialCopyCompleter |> exit_takes(1000),
       {:stage, InviteAccept, {InviteAcceptor, []} |> exit_takes(1000)},
-      {:stage, CollectCameraSensorsData,
-       {CameraSensorsDataCollector, get_keys_from: InviteAcceptor} |> exit_takes(1000)},
-      {:stage, PreFinal, {FinalScopeProvider, target: target_db} |> exit_takes(1000)},
+      {:stage, CollectSensorsData,
+       {SensorsDataCollector, get_keys_from: InviteAcceptor}
+       |> exit_takes(1000)},
       {:stage, FinalCopying,
-       {Copier, target: target_db, task_in: tasks, get_db_keys_from: FinalScopeProvider}
+       {Copier, target: target_db, task_in: tasks, get_db_keys_from: SensorsDataCollector}
        |> exit_takes(35_000)},
       FinalCopyCompleter |> exit_takes(500)
     ]
@@ -61,8 +60,5 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     children
     |> prepare_stages(Platform.App.Sync.CargoScenarioStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
-    |> tap(fn res ->
-      "CargoSyncSupervisor init result #{inspect(res)}" |> Logger.debug()
-    end)
   end
 end
