@@ -1,4 +1,6 @@
 defmodule ProcessHelper do
+  @moduledoc "Process helper"
+
   def process_not_running(
         process,
         timeout \\ 10_000,

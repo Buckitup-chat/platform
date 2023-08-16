@@ -1,4 +1,5 @@
 defmodule Platform.App.Media.Decider do
+  @moduledoc "Decide which scenarion to run for a media drive"
   use GenServer
 
   require Logger

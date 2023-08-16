@@ -1,4 +1,5 @@
 defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
+  @moduledoc "Usb drive dump scenario"
   use Supervisor
   import Platform
 
@@ -21,7 +22,6 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
 
     full_path = [@mount_path, "DCIM"] |> Path.join()
     tasks = Tasks
-    files_dumped_stage = Platform.App.Sync.UsbDriveDump.FilesDumpedStage
 
     [
       use_task(tasks),

@@ -1,7 +1,8 @@
-defmodule Platform.App.Sync.Cargo.Indication do
-  @moduledoc "Control  of GPIO leds"
+defmodule Platform.App.Sync.DriveIndication do
+  @moduledoc "Control of GPIO leds"
 
   use GracefulGenServer, name: __MODULE__
+  require Logger
 
   alias Circuits.GPIO
 
@@ -32,6 +33,7 @@ defmodule Platform.App.Sync.Cargo.Indication do
       red_pin_mode: :off,
       green_pin_mode: :off
     }
+    |> tap(fn _ -> Logger.debug("[DriveIndication] started.") end)
   end
 
   @impl true
@@ -40,6 +42,7 @@ defmodule Platform.App.Sync.Cargo.Indication do
     GPIO.write(green_pin, 0)
 
     {:noreply, %{state | red_pin_mode: :on, green_pin_mode: :off}}
+    |> tap(fn _ -> Logger.debug("[DriveIndication] drive accepted.") end)
   end
 
   @impl true
@@ -48,6 +51,7 @@ defmodule Platform.App.Sync.Cargo.Indication do
     GPIO.write(green_pin, 1)
 
     {:noreply, %{state | red_pin_mode: :off, green_pin_mode: :on}}
+    |> tap(fn _ -> Logger.debug("[DriveIndication] drive complete.") end)
   end
 
   @impl true
@@ -58,6 +62,7 @@ defmodule Platform.App.Sync.Cargo.Indication do
     Process.send_after(self(), :blink_red, @blink_interval)
 
     {:noreply, %{state | red_pin_mode: :blink, green_pin_mode: :off}}
+    |> tap(fn _ -> Logger.debug("[DriveIndication] drive refused.") end)
   end
 
   @impl true
@@ -66,6 +71,7 @@ defmodule Platform.App.Sync.Cargo.Indication do
     GPIO.write(green_pin, 0)
 
     {:noreply, %{state | red_pin_mode: :off, green_pin_mode: :off}}
+    |> tap(fn _ -> Logger.debug("[DriveIndication] drive reset.") end)
   end
 
   @impl true
@@ -87,5 +93,6 @@ defmodule Platform.App.Sync.Cargo.Indication do
   def on_exit(_reason, %{red_pin_ref: red_pin, green_pin_ref: green_pin}) do
     GPIO.write(red_pin, 0)
     GPIO.write(green_pin, 0)
+    Logger.debug("[DriveIndication] drive reset.")
   end
 end

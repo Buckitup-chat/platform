@@ -6,7 +6,18 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
   alias Chat.{AdminRoom, ChunkedFiles, FileIndex, Messages, Rooms, User}
   alias Chat.Admin.{BackupSettings, MediaSettings}
   alias Chat.Content.Files
-  alias Chat.Db.{BackupDb, Common, ChangeTracker, InternalDb, MainDb, Switching}
+
+  alias Chat.Db.{
+    BackupDb,
+    ChangeTracker,
+    Common,
+    InternalDb,
+    MainDb,
+    MainDbSupervisor,
+    MediaDbSupervisor,
+    Switching
+  }
+
   alias Chat.Utils.StorageId
   alias Platform.App.Db.{BackupDbSupervisor, MainDbSupervisor}
   alias Support.FakeData
@@ -85,7 +96,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
       assert ProcessHelper.process_not_running(BackupDbSupervisor)
 
       path = [@media_mount_path, "backup_db", Chat.Db.version_path()] |> Path.join()
-      Chat.Db.MediaDbSupervisor.start_link([BackupDb, path])
+      MediaDbSupervisor.start_link([BackupDb, path])
 
       Switching.set_default(BackupDb)
 
@@ -176,7 +187,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
 
       [@storage_mount_path, "main_db", Chat.Db.version_path()]
       |> Path.join()
-      |> Chat.Db.MainDbSupervisor.start_link()
+      |> MainDbSupervisor.start_link()
 
       Switching.set_default(MainDb)
 
@@ -193,7 +204,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
                "some part of info another part"
 
       path = [@media_mount_path, "backup_db", Chat.Db.version_path()] |> Path.join()
-      Chat.Db.MediaDbSupervisor.start_link([BackupDb, path])
+      MediaDbSupervisor.start_link([BackupDb, path])
 
       Switching.set_default(BackupDb)
 

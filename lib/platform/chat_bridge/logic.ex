@@ -2,6 +2,7 @@ defmodule Platform.ChatBridge.Logic do
   @moduledoc "Logic for Chat Admin panel"
 
   alias Platform.Sensor.CargoSensor
+  alias Platform.Storage.Logic
   alias Platform.Tools.Fwup
 
   @iface "wlan0"
@@ -37,7 +38,7 @@ defmodule Platform.ChatBridge.Logic do
   end
 
   def unmount_main do
-    Platform.Storage.Logic.unmount_main()
+    Logic.unmount_main()
     |> mark(:unmounted_main)
   end
 

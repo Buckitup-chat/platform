@@ -38,11 +38,21 @@ defmodule Platform.Application do
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
       Platform.App.DeviceSupervisor,
-      Platform.ChatBridge.Worker
+      Platform.ChatBridge.Worker,
+      {Task,
+       fn ->
+         [
+           "vm.dirty_expire_centisecs=300",
+           "vm.dirty_writeback_centisecs=50",
+           "vm.dirtytime_expire_seconds=500",
+           "net.ipv4.forwarding=1"
+         ]
+         |> Enum.each(&System.cmd("sysctl", ["-w", &1]))
+       end}
     ]
   end
 
-  def target() do
+  def target do
     Application.get_env(:platform, :target)
   end
 end

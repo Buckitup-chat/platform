@@ -88,6 +88,7 @@ defmodule Platform.MixProject do
       {:graceful_genserver, "~> 0.1.0"},
       {:circuits_uart, "~> 1.3"},
       {:circuits_gpio, "~> 1.0"}
+      # {:vintage_net_bridge, github: "mnishiguchi/vintage_net_bridge"}
     ]
   end
 

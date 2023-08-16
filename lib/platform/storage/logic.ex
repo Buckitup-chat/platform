@@ -144,7 +144,8 @@ defmodule Platform.Storage.Logic do
         Logger.warn("setting mirrors: #{inspect([internal, backup])}")
         Switching.mirror(main, [internal, backup])
         Copying.await_copied(main, internal)
-        Copying.await_copied(main, backup)
+        # TODO: continious backup need a way for new changes
+        # Copying.await_copied(main, backup)
     end
 
     "[platform] [storage] Replicated to internal" |> Logger.info()

@@ -3,11 +3,11 @@ defmodule Platform.App.Sync.Cargo.FinalCopyCompleter do
 
   use GracefulGenServer
 
-  alias Platform.App.Sync.Cargo.Indication
+  alias Platform.App.Sync.DriveIndication
 
   @impl true
   def on_init(_opts) do
-    Indication.drive_complete()
+    DriveIndication.drive_complete()
   end
 
   @impl true

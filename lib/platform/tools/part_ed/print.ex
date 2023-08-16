@@ -1,4 +1,5 @@
 defmodule Platform.Tools.PartEd.Print do
+  @moduledoc "Parted print format parsing"
   defstruct [:name, :size, :sector_size, partitions: []]
 
   def parse(output) do
