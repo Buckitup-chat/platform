@@ -39,6 +39,7 @@ defmodule Platform.ChatBridge.Worker do
       :get_gpio24_impedance_status -> Logic.get_gpio24_impedance_status()
       :toggle_gpio24_impendance -> Logic.toggle_gpio24_impendance()
       {:connect_to_weight_sensor, name, opts} -> Logic.connect_to_weight_sensor(name, opts)
+      {:upgrade_firmware, binary} -> Logic.upgrade_firmware(binary)
     end
     |> respond()
 

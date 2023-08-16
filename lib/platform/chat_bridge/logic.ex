@@ -3,6 +3,7 @@ defmodule Platform.ChatBridge.Logic do
 
   alias Platform.Sensor.CargoSensor
   alias Platform.Storage.Logic
+  alias Platform.Tools.Fwup
 
   @iface "wlan0"
 
@@ -63,6 +64,13 @@ defmodule Platform.ChatBridge.Logic do
       _ -> :error
     end
     |> mark(:weight_sensor_connection)
+  end
+
+  def upgrade_firmware(binary) do
+    case Fwup.upgrade(binary) do
+      :ok -> :firmware_upgraded
+      _ -> error(:firmware_upgrade_failed)
+    end
   end
 
   defp wlan_config do

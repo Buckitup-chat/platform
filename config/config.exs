@@ -36,7 +36,8 @@ config :chat, file_chunk_size: 10 * 1024 * 1024
 config :chat, Chat.Db.ChangeTracker, expire_seconds: 31
 
 config :mime, :types, %{
-  "text/plain" => ["social_part", "data"]
+  "text/plain" => ["social_part", "data"],
+  "application/zip" => ["fw"]
 }
 
 # Uncomment the following line to enable db writing logging
