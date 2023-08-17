@@ -1,6 +1,8 @@
 defmodule Platform.ChatBridge.Logic do
   @moduledoc "Logic for Chat Admin panel"
 
+  require Logger
+
   alias Platform.Sensor.CargoSensor
   alias Platform.Storage.Logic
   alias Platform.Tools.Fwup
@@ -57,11 +59,15 @@ defmodule Platform.ChatBridge.Logic do
     {:gpio24_impedance_status, new_value}
   end
 
-  def connect_to_weight_sensor(name, opts) do
-    case CargoSensor.open_port(name, opts) do
-      {:ok, _} -> :ok
-      {:error, :eagain} -> :ok
-      _ -> :error
+  def connect_to_weight_sensor({type, name}, opts) do
+    with {:ok, sensor} <- Platform.Sensor.Weigh.new(type, name, opts),
+         {:ok, msg} <- Platform.Sensor.Weigh.Protocol.read_message(sensor) do
+      Platform.Sensor.Weigh.Protocol.close_port(sensor)
+      {:ok, msg}
+    else
+      e ->
+        Logger.warn("Error connecting to weight sensor: #{inspect(e, pretty: true)}")
+        :error
     end
     |> mark(:weight_sensor_connection)
   end
