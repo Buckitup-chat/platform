@@ -8,7 +8,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
   alias Chat.Dialogs
   alias Chat.Sync.CargoRoom
 
-  alias Platform.App.Sync.DriveIndication
+  alias Platform.Storage.DriveIndication
 
   @impl true
   def on_init(opts) do

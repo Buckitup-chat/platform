@@ -5,7 +5,7 @@ defmodule Platform.Storage.Stopper do
 
   require Logger
 
-  alias Platform.App.Sync.DriveIndication
+  alias Platform.Storage.DriveIndication
   alias Platform.Leds
 
   @default_wait if(Application.compile_env(:platform, :target) == :host, do: 100, else: 5000)

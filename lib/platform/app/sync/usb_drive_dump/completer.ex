@@ -4,7 +4,7 @@ defmodule Platform.App.Sync.UsbDriveDump.Completer do
   use GracefulGenServer
 
   alias Chat.Sync.UsbDriveDumpRoom
-  alias Platform.App.Sync.DriveIndication
+  alias Platform.Storage.DriveIndication
 
   @impl true
   def on_init(_args) do

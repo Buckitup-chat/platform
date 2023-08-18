@@ -60,8 +60,8 @@ maybe_usb =
 # See https://github.com/nerves-networking/vintage_net for more information
 config :vintage_net,
   regulatory_domain: "00",
-  # Uncomment following to disable config change persistance
-  persistence: VintageNet.Persistence.Null,
+  # Uncomment following to disable config change persistance. It need to be commented to allow wifi modification
+  #persistence: VintageNet.Persistence.Null,
   internet_host_list: [{192, 168, 24, 1}],
   additional_name_servers: [{{192, 168, 24, 1}}],
   config:
