@@ -7,7 +7,7 @@ defmodule Platform.App.Media.Supervisor do
   require Logger
 
   alias Platform.App.Media.{Decider, FunctionalityDynamicSupervisor, TaskSupervisor}
-  alias Platform.App.Sync.DriveIndication
+  alias Platform.Storage.DriveIndication
   alias Platform.Storage.Healer
   alias Platform.Storage.Mounter
 
