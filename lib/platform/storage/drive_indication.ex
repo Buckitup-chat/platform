@@ -1,4 +1,4 @@
-defmodule Platform.App.Sync.DriveIndication do
+defmodule Platform.Storage.DriveIndication do
   @moduledoc "Control of GPIO leds"
 
   use GracefulGenServer, name: __MODULE__

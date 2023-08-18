@@ -11,7 +11,7 @@ defmodule Platform.Storage.Backup.Copier do
   alias Chat.Ordering
   alias Chat.Sync.DbBrokers
 
-  alias Platform.App.Sync.DriveIndication
+  alias Platform.Storage.DriveIndication
   alias Platform.Leds
   alias Platform.Storage.Stopper
 

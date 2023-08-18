@@ -1,7 +1,7 @@
 defmodule Platform.App.Sync.DriveIndicationTest do
   use ExUnit.Case
   alias Circuits.GPIO
-  alias Platform.App.Sync.DriveIndication
+  alias Platform.Storage.DriveIndication
 
   setup do
     {:ok, _pid} = GenServer.start_link(DriveIndication, [], name: DriveIndication)
