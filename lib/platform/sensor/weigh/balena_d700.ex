@@ -29,9 +29,11 @@ defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.BalenaD700 do
 
   @impl true
   def read(%BalenaD700{pid: pid}) do
-    status = Common.read_value(pid, "XS") |> String.trim()
-    weight = Common.read_value(pid, "XN") |> String.trim()
+    status = Common.read_value!(pid, "XS") |> String.trim()
+    weight = Common.read_value!(pid, "XN") |> String.trim()
     {:ok, weight, %{raw: status}}
+  rescue
+    _ -> {:error, :unable_to_read_port}
   end
 
   @impl true

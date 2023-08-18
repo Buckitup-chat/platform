@@ -3,7 +3,6 @@ defmodule Platform.ChatBridge.Logic do
 
   require Logger
 
-  alias Platform.Sensor.CargoSensor
   alias Platform.Storage.Logic
   alias Platform.Tools.Fwup
 
@@ -60,6 +59,10 @@ defmodule Platform.ChatBridge.Logic do
   end
 
   def connect_to_weight_sensor({type, name}, opts) do
+    {{type, name}, opts}
+    |> inspect()
+    |> Logger.warn()
+
     with {:ok, sensor} <- Platform.Sensor.Weigh.new(type, name, opts),
          {:ok, msg} <- Platform.Sensor.Weigh.Protocol.read_message(sensor) do
       Platform.Sensor.Weigh.Protocol.close_port(sensor)

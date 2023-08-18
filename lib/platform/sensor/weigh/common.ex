@@ -21,7 +21,7 @@ defmodule Platform.Sensor.Weigh.Common do
 
   def close_port(pid), do: UART.stop(pid)
 
-  def read_value(pid, command) do
+  def read_value!(pid, command) do
     :ok = UART.write(pid, command)
     :ok = UART.drain(pid)
     {:ok, value} = UART.read(pid, @read_timeout)

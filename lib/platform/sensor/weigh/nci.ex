@@ -25,11 +25,13 @@ defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.NCI do
 
   @impl true
   def read(%NCI{pid: pid}) do
-    with raw <- Common.read_value(pid, "W\r"),
+    with raw <- Common.read_value!(pid, "W\r"),
          {_, {:ok, weight, status_binary}} <- parse_response(raw),
          {_, status} <- parse_status(status_binary) do
       {:ok, weight, status}
     end
+  rescue
+    _ -> {:error, :unable_to_read_port}
   end
 
   @impl true
