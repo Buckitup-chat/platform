@@ -31,7 +31,7 @@ defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.NCI do
       {:ok, weight, status}
     end
   rescue
-    _ -> {:error, :unable_to_read_port}
+    e -> {:error, {:unable_to_read_port, e}}
   end
 
   @impl true

@@ -8,7 +8,7 @@ defmodule Platform.Sensor.Weigh.Common do
   def open_port(path, opts) do
     {:ok, pid} = UART.start_link()
 
-    case UART.open(pid, path, opts) do
+    case UART.open(pid, path, Keyword.merge([active: false], opts)) do
       :ok ->
         {:ok, pid}
 
@@ -25,6 +25,15 @@ defmodule Platform.Sensor.Weigh.Common do
     :ok = UART.write(pid, command)
     :ok = UART.drain(pid)
     {:ok, value} = UART.read(pid, @read_timeout)
-    value
+
+    [value]
+    |> read_out(pid)
+  end
+
+  defp read_out(acc, pid) do
+    case UART.read(pid, 1) do
+      {:ok, ""} -> Enum.reverse(acc) |> Enum.join()
+      {:ok, value} -> read_out([value | acc], pid)
+    end
   end
 end
