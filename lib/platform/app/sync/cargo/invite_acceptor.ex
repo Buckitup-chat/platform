@@ -8,6 +8,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
   alias Chat.Dialogs
   alias Chat.Sync.CargoRoom
 
+  alias Platform.App.Media.Helpers
   alias Platform.Storage.DriveIndication
 
   @impl true
@@ -28,7 +29,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
     else
       _ ->
         DriveIndication.drive_refused()
-        # Let it live, but don't start the next stage
+        Helpers.terminate_stages()
     end
   end
 
