@@ -46,7 +46,6 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
 
   @impl true
   def on_exit(_reason, _state) do
-    CargoRoom.remove()
   end
 
   defp get_room_key(target_db) do

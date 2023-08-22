@@ -8,7 +8,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
   alias Chat.Dialogs
   alias Chat.Sync.CargoRoom
 
-  alias Platform.App.Media.Helpers
+  alias Platform.App.Media.Supervisor, as: MediaSupervisor
   alias Platform.Storage.DriveIndication
 
   @impl true
@@ -29,7 +29,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
     else
       _ ->
         DriveIndication.drive_refused()
-        Helpers.terminate_stages()
+        MediaSupervisor.terminate_all_stages()
     end
   end
 
@@ -47,6 +47,5 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
 
   @impl true
   def on_exit(_reason, _state) do
-    CargoRoom.remove()
   end
 end

@@ -3,13 +3,13 @@ defmodule Platform.App.Sync.Cargo.FinalCopyCompleter do
 
   use GracefulGenServer
 
-  alias Platform.App.Media.Helpers
+  alias Platform.App.Media.Supervisor, as: MediaSupervisor
   alias Platform.Storage.DriveIndication
 
   @impl true
   def on_init(_opts) do
     DriveIndication.drive_complete()
-    Helpers.terminate_stages()
+    MediaSupervisor.terminate_all_stages()
   end
 
   @impl true
