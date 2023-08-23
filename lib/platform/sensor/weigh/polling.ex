@@ -7,8 +7,6 @@ defmodule Platform.Sensor.Weigh.Polling do
   defstruct [:pid, :msg, :error]
 
   def poll(sensor, name, opts) do
-    log_polling_params(sensor, name, opts)
-
     %__MODULE__{}
     |> open_weight_sensor(sensor, name, opts)
     |> read_values()
@@ -47,12 +45,6 @@ defmodule Platform.Sensor.Weigh.Polling do
     else
       {:ok, context.msg}
     end
-  end
-
-  defp log_polling_params(type, name, opts) do
-    {{type, name}, opts}
-    |> inspect()
-    |> Logger.debug()
   end
 
   defp log_error(error) do
