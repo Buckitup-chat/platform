@@ -66,7 +66,6 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
 
   @impl true
   def on_exit(_reason, _state) do
-    CargoRoom.remove()
   end
 
   defp gather_sensor_message_db_keys(sensor, cargo_user) do

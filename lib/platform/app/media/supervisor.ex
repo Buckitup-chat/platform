@@ -12,6 +12,7 @@ defmodule Platform.App.Media.Supervisor do
   alias Platform.Storage.Mounter
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
+  @stages_namespace Platform.App.MediaStages
 
   def start_link(args) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__, max_restarts: 1, max_seconds: 15)
@@ -33,10 +34,26 @@ defmodule Platform.App.Media.Supervisor do
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider, [device, [mounted: @mount_path, next: [under: next_supervisor]]]}
     ]
-    |> prepare_stages(Platform.App.MediaStages)
+    |> prepare_stages(@stages_namespace)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "Platform.App.Media.Supervisor init result #{inspect(res)}" |> Logger.debug()
+    end)
+  end
+
+  def terminate_all_stages do
+    namespace_path = Module.split(@stages_namespace)
+    namespace_length = length(namespace_path)
+
+    __MODULE__
+    |> Supervisor.which_children()
+    |> Enum.each(fn {id, _, _, _} ->
+      if Module.split(id) |> Enum.take(namespace_length) == namespace_path do
+        :ok = Supervisor.terminate_child(__MODULE__, id)
+      end
+    end)
+    |> tap(fn _ ->
+      "Platform.App.Media.Supervisor terminates all stages" |> Logger.debug()
     end)
   end
 
