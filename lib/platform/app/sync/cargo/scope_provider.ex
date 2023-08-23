@@ -20,6 +20,17 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
     CargoRoom.sync(cargo_room_key)
 
     %CargoSettings{checkpoints: checkpoints} = AdminRoom.get_cargo_settings()
+    cargo_user_identity = AdminRoom.get_cargo_user()
+
+    checkpoints =
+      if cargo_user_identity do
+        cargo_user_identity
+        |> Chat.Identity.pub_key()
+        |> then(&[&1 | checkpoints])
+      else
+        checkpoints
+      end
+
     backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, checkpoints)
     restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, checkpoints)
 
@@ -46,7 +57,6 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
 
   @impl true
   def on_exit(_reason, _state) do
-    CargoRoom.remove()
   end
 
   defp get_room_key(target_db) do
