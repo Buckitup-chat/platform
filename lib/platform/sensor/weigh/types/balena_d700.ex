@@ -1,12 +1,12 @@
-defmodule Platform.Sensor.Weigh.BalenaD700 do
+defmodule Platform.Sensor.Weigh.Types.BalenaD700 do
   @moduledoc "Weight sensor for Balena D700"
 
   defstruct pid: :no_d700_pid
 end
 
-defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.BalenaD700 do
+defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.Types.BalenaD700 do
   alias Platform.Sensor.Weigh.Common
-  alias Platform.Sensor.Weigh.BalenaD700
+  alias Platform.Sensor.Weigh.Types.BalenaD700
 
   @framing {Circuits.UART.Framing.Line, separator: "\r"}
 

@@ -1,12 +1,12 @@
-defmodule Platform.Sensor.Weigh.NCI do
+defmodule Platform.Sensor.Weigh.Types.NCI do
   @moduledoc "UART wrapping for NCI protocol of weight sensor"
 
   defstruct pid: :no_nci_pid
 end
 
-defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.NCI do
+defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.Types.NCI do
   alias Platform.Sensor.Weigh.Common
-  alias Platform.Sensor.Weigh.NCI
+  alias Platform.Sensor.Weigh.Types.NCI
 
   @impl true
   def open_port(%NCI{}, path, opts) do
@@ -26,7 +26,7 @@ defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.NCI do
   @impl true
   def read(%NCI{pid: pid}) do
     with raw <- Common.read_value!(pid, "W\r"),
-         {_, {:ok, weight, status_binary}} <- parse_response(raw),
+         {_, {:ok, {weight, status_binary}}} <- parse_response(raw),
          {_, status} <- parse_status(status_binary) do
       {:ok, weight, status}
     end
