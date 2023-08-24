@@ -1,8 +1,6 @@
 defmodule Platform.ChatBridge.Logic do
   @moduledoc "Logic for Chat Admin panel"
 
-  require Logger
-
   alias Platform.Storage.Logic
   alias Platform.Tools.Fwup
 

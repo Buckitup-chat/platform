@@ -24,7 +24,6 @@ defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.Types.BalenaD
   @impl true
   def close_port(%BalenaD700{pid: pid}) do
     Common.close_port(pid)
-    :ok
   end
 
   @impl true
