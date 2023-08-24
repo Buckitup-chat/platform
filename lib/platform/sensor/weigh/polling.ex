@@ -4,7 +4,7 @@ defmodule Platform.Sensor.Weigh.Polling do
   require Logger
   alias Platform.Sensor.Weigh.Protocol
 
-  defstruct [:pid, :msg, :error]
+  defstruct [:proto, :msg, :error]
 
   def poll(sensor, name, opts) do
     %__MODULE__{}
@@ -16,13 +16,13 @@ defmodule Platform.Sensor.Weigh.Polling do
 
   defp open_weight_sensor(context, sensor, name, opts) do
     case Protocol.open_port(sensor, name, opts) do
-      {:ok, pid} -> %{context | pid: pid}
+      {:ok, proto} -> %{context | proto: proto}
       x -> %{context | error: x}
     end
   end
 
-  defp read_values(%{error: nil, pid: pid} = context) do
-    case Protocol.read_message(pid) do
+  defp read_values(%{error: nil, proto: proto} = context) do
+    case Protocol.read_message(proto) do
       {:ok, msg} -> %{context | msg: msg}
       x -> %{context | error: x}
     end
@@ -30,13 +30,12 @@ defmodule Platform.Sensor.Weigh.Polling do
 
   defp read_values(x), do: x
 
-  defp close_sensor(%{pid: pid} = context) do
-    if is_pid(pid) do
-      Protocol.close_port(pid)
-    end
-
-    context
+  defp close_sensor(%{proto: %{} = proto} = context) do
+    :ok = Protocol.close_port(proto)
+    %{context | proto: nil}
   end
+
+  defp close_sensor(context), do: context
 
   defp yield_error_or_message(context) do
     if is_nil(context.msg) do

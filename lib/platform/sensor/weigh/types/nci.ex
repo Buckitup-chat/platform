@@ -20,7 +20,6 @@ defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.Types.NCI do
   @impl true
   def close_port(%NCI{pid: pid}) do
     Common.close_port(pid)
-    :ok
   end
 
   @impl true

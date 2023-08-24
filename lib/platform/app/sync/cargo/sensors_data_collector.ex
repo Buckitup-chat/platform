@@ -23,11 +23,18 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
     keys_holder = Keyword.fetch!(state, :get_keys_from)
 
     %{me: cargo_user, rooms: [_room_identity]} = GenServer.call(keys_holder, :keys)
-    %{camera_sensors: sensors} = AdminRoom.get_cargo_settings()
+    %{camera_sensors: sensors, weight_sensor: weight_sensor} = AdminRoom.get_cargo_settings()
 
     db_keys =
       sensors
-      |> Task.async_stream(&gather_sensor_message_db_keys(&1, cargo_user),
+      |> Enum.map(fn url ->
+        fn -> image_sensor_message_db_keys(url, cargo_user) end
+      end)
+      |> then(fn funcs ->
+        fn -> weight_sensor_message_db_keys(weight_sensor, cargo_user) end
+        |> then(&[&1 | funcs])
+      end)
+      |> Task.async_stream(& &1.(),
         timeout: 10_000,
         max_concurrency: 20
       )
@@ -68,7 +75,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   def on_exit(_reason, _state) do
   end
 
-  defp gather_sensor_message_db_keys(sensor, cargo_user) do
+  defp image_sensor_message_db_keys(sensor, cargo_user) do
     with {:ok, {type, content}} <- Sensor.get_image(sensor),
          size_string <- byte_size(content) |> to_string(),
          headers <- %{"Content-Type" => type, "Content-Length" => size_string},
@@ -76,6 +83,31 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
       keys_set
     else
       _ -> MapSet.new()
+    end
+  end
+
+  defp weight_sensor_message_db_keys(weight_sensor, cargo_user) do
+    with true <- weight_sensor !== %{},
+         type <- weight_sensor[:type],
+         true <- is_binary(type) and byte_size(type) > 0,
+         name <- weight_sensor[:name],
+         true <- is_binary(name) and byte_size(name) > 0,
+         opts <- Map.drop(weight_sensor, [:name, :type]) |> Map.to_list(),
+         {:ok, content} <- Platform.Sensor.Weigh.poll(type, name, opts |> fix_parity()),
+         {:ok, keys_set} <- CargoRoom.write_text(cargo_user, content) do
+      keys_set
+    else
+      _ -> MapSet.new()
+    end
+  end
+
+  defp fix_parity(opts) do
+    if is_binary(opts[:parity]) do
+      opts
+      |> Keyword.delete(:parity)
+      |> Keyword.put(:parity, opts[:parity] |> String.to_existing_atom())
+    else
+      opts
     end
   end
 
