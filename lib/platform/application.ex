@@ -48,6 +48,8 @@ defmodule Platform.Application do
            "net.ipv4.forwarding=1"
          ]
          |> Enum.each(&System.cmd("sysctl", ["-w", &1]))
+
+         Logger.put_module_level(Tesla.Middleware.Logger, :error)
        end}
     ]
   end
