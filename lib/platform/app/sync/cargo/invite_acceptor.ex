@@ -32,7 +32,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
         DriveIndication.drive_accepted()
 
       _ ->
-        DriveIndication.drive_refused()
+        DriveIndication.drive_complete()
         MediaSupervisor.terminate_all_stages()
     end
   end
