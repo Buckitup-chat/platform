@@ -31,15 +31,32 @@ defmodule Platform.ChatBridge.Worker do
 
   def handle_info(message, state) do
     case message do
-      :get_wifi_settings -> Logic.get_wifi_settings()
-      {:set_wifi, ssid} -> Logic.set_wifi_settings(ssid)
-      {:set_wifi, ssid, password} -> Logic.set_wifi_settings(ssid, password)
-      :get_device_log -> Logic.get_device_log()
-      :unmount_main -> Logic.unmount_main()
-      :get_gpio24_impedance_status -> Logic.get_gpio24_impedance_status()
-      :toggle_gpio24_impendance -> Logic.toggle_gpio24_impendance()
-      {:connect_to_weight_sensor, name, opts} -> Logic.connect_to_weight_sensor(name, opts)
-      {:upgrade_firmware, binary} -> Logic.upgrade_firmware(binary)
+      :get_wifi_settings ->
+        Logic.get_wifi_settings()
+
+      {:set_wifi, ssid} ->
+        Logic.set_wifi_settings(ssid)
+
+      {:set_wifi, ssid, password} ->
+        Logic.set_wifi_settings(ssid, password)
+
+      :get_device_log ->
+        Logic.get_device_log()
+
+      :unmount_main ->
+        Logic.unmount_main()
+
+      :get_gpio24_impedance_status ->
+        Logic.get_gpio24_impedance_status()
+
+      :toggle_gpio24_impendance ->
+        Logic.toggle_gpio24_impendance()
+
+      {:connect_to_weight_sensor, {type, name}, opts} ->
+        Logic.connect_to_weight_sensor({type, name}, opts)
+
+      {:upgrade_firmware, binary} ->
+        Logic.upgrade_firmware(binary)
     end
     |> respond()
 
