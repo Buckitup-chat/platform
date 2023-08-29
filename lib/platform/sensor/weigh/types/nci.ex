@@ -36,11 +36,9 @@ defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.Types.NCI do
   @impl true
   def read_message(%NCI{} = sensor) do
     case read(sensor) do
-      {:ok, weight, status_map} ->
+      {:ok, weight, _status_map} ->
         """
         Weight: #{weight}
-
-        Status: #{summary(status_map)}
         """
         |> then(&{:ok, &1})
 
