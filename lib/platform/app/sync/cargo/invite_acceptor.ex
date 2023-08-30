@@ -30,9 +30,10 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
     else
       {:error, :no_cargo_user} ->
         DriveIndication.drive_accepted()
+        MediaSupervisor.terminate_all_stages()
 
       _ ->
-        DriveIndication.drive_complete()
+        DriveIndication.drive_refused()
         MediaSupervisor.terminate_all_stages()
     end
   end

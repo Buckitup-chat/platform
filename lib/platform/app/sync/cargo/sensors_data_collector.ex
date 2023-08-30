@@ -27,9 +27,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
 
     db_keys =
       sensors
-      |> Enum.map(fn url ->
-        fn -> image_sensor_message_db_keys(url, cargo_user) end
-      end)
+      |> Enum.map(&fn -> image_sensor_message_db_keys(&1, cargo_user) end)
       |> then(fn funcs ->
         fn -> weight_sensor_message_db_keys(weight_sensor, cargo_user) end
         |> then(&[&1 | funcs])
@@ -42,6 +40,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
         {:ok, set}, acc_set -> MapSet.union(acc_set, set)
         {:error, _}, acc -> acc
       end)
+      |> MapSet.union(summary_message_db_keys(cargo_user))
       |> MapSet.to_list()
 
     db_keys
@@ -82,6 +81,13 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
          {:ok, keys_set} <- CargoRoom.write_file(cargo_user, content, headers) do
       keys_set
     else
+      _ -> MapSet.new()
+    end
+  end
+
+  defp summary_message_db_keys(cargo_user) do
+    case CargoRoom.write_text(cargo_user, "Cargo synchronized") do
+      {:ok, keys} -> keys
       _ -> MapSet.new()
     end
   end

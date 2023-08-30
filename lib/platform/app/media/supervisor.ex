@@ -44,16 +44,20 @@ defmodule Platform.App.Media.Supervisor do
   def terminate_all_stages do
     namespace_path = Module.split(@stages_namespace)
     namespace_length = length(namespace_path)
+    module = __MODULE__
 
-    __MODULE__
-    |> Supervisor.which_children()
-    |> Enum.each(fn {id, _, _, _} ->
-      if Module.split(id) |> Enum.take(namespace_length) == namespace_path do
-        :ok = Supervisor.terminate_child(__MODULE__, id)
-      end
-    end)
-    |> tap(fn _ ->
-      "Platform.App.Media.Supervisor terminates all stages" |> Logger.debug()
+    Task.Supervisor.start_child(Platform.TaskSupervisor , fn ->
+      module
+      |> Supervisor.which_children()
+      |> Enum.each(fn {id, _, _, _} ->
+        if Module.split(id) |> Enum.take(namespace_length) == namespace_path do
+          Logger.debug("Media Supervisor terminating child #{inspect(id)}")
+          :ok = Supervisor.terminate_child(__MODULE__, id)
+        end
+      end)
+      |> tap(fn _ ->
+        "Platform.App.Media.Supervisor terminates all stages" |> Logger.debug()
+      end)
     end)
   end
 
