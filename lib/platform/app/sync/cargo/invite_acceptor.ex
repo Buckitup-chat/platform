@@ -29,7 +29,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
       Actor.new(cargo_user, [room_identity], [])
     else
       {:error, :no_cargo_user} ->
-        DriveIndication.drive_accepted()
+        DriveIndication.drive_reset()
         MediaSupervisor.terminate_all_stages()
 
       _ ->
