@@ -46,7 +46,15 @@ defmodule Platform.App.Media.Supervisor do
     namespace_length = length(namespace_path)
     module = __MODULE__
 
-    Task.Supervisor.start_child(Platform.TaskSupervisor , fn ->
+    Task.Supervisor.start_child(Platform.TaskSupervisor, fn ->
+      FunctionalityDynamicSupervisor
+      |> DynamicSupervisor.which_children()
+      |> Enum.reverse()
+      |> Enum.each(fn{ _, pid, _, _} ->
+        FunctionalityDynamicSupervisor
+        |> DynamicSupervisor.terminate_child(pid)
+      end)
+
       module
       |> Supervisor.which_children()
       |> Enum.each(fn {id, _, _, _} ->
