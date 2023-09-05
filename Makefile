@@ -36,7 +36,7 @@ burn: zip
 	mix upload
 
 ssh:
-	ssh -i ~/.ssh/buckit.id_rsa nerves.local
+	ssh -i ~/.ssh/buckit.id_rsa -o "StrictHostKeyChecking=no" nerves.local
 
 burn_in: burn await_restart ssh
 

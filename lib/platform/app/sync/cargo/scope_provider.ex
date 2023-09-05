@@ -19,20 +19,24 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
 
     CargoRoom.sync(cargo_room_key)
 
-    %CargoSettings{checkpoints: checkpoints} = AdminRoom.get_cargo_settings()
+    %CargoSettings{checkpoints: checkpoint_cards} = AdminRoom.get_cargo_settings()
     cargo_user_identity = AdminRoom.get_cargo_user()
 
-    checkpoints =
+    checkpoint_pub_keys =
+      checkpoint_cards
+      |> Enum.map(fn %Chat.Card{pub_key: key} -> key end)
+
+    keys_to_invite =
       if cargo_user_identity do
         cargo_user_identity
         |> Chat.Identity.pub_key()
-        |> then(&[&1 | checkpoints])
+        |> then(&[&1 | checkpoint_pub_keys])
       else
-        checkpoints
+        checkpoint_pub_keys
       end
 
-    backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, checkpoints)
-    restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, checkpoints)
+    backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, keys_to_invite)
+    restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, keys_to_invite)
 
     Process.send_after(self(), :next_stage, 10)
 

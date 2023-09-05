@@ -10,6 +10,8 @@ defmodule Platform.Storage.DriveIndication do
   @green_led_pin 25
   @blink_interval 500
 
+  def drive_init, do: GenServer.cast(__MODULE__, :drive_init)
+
   def drive_accepted, do: GenServer.cast(__MODULE__, :drive_accepted)
 
   def drive_complete, do: GenServer.cast(__MODULE__, :drive_complete)
@@ -34,6 +36,15 @@ defmodule Platform.Storage.DriveIndication do
       green_pin_mode: :off
     }
     |> tap(fn _ -> Logger.debug("[DriveIndication] started.") end)
+  end
+
+  @impl true
+  def handle_cast(:drive_init, %{red_pin_ref: red_pin, green_pin_ref: green_pin} = state) do
+    GPIO.write(red_pin, 1)
+    GPIO.write(green_pin, 1)
+
+    {:noreply, %{state | red_pin_mode: :on, green_pin_mode: :on}}
+    |> tap(fn _ -> Logger.debug("[DriveIndication] drive initialized.") end)
   end
 
   @impl true
