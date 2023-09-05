@@ -29,6 +29,16 @@ defmodule Platform.App.Sync.DriveIndicationTest do
     assert 0 = GPIO.read(green_pin)
   end
 
+  test "drive_init" do
+    DriveIndication.drive_init()
+
+    %{green_pin_mode: :on, red_pin_mode: :on, red_pin_ref: red_pin, green_pin_ref: green_pin} =
+      DriveIndication |> :sys.get_state()
+
+    assert 1 = GPIO.read(red_pin)
+    assert 1 = GPIO.read(green_pin)
+  end
+
   test "drive_accepted" do
     DriveIndication.drive_accepted()
 
