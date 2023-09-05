@@ -10,9 +10,9 @@ defmodule Platform.Storage.DriveIndicationStarter do
     next_specs = next |> Keyword.fetch!(:run)
     next_supervisor = next |> Keyword.fetch!(:under)
 
-    Platform.start_next_stage(next_supervisor, next_specs)
     DriveIndication.drive_init()
     Process.send_after(self(), :reset, 250)
+    Platform.start_next_stage(next_supervisor, next_specs)
 
     :ok
   end
