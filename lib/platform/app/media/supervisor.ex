@@ -10,6 +10,7 @@ defmodule Platform.App.Media.Supervisor do
   alias Platform.Storage.DriveIndication
   alias Platform.Storage.Healer
   alias Platform.Storage.Mounter
+  alias Platform.Storage.DriveIndicationStarter
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
   @stages_namespace Platform.App.MediaStages
@@ -28,7 +29,7 @@ defmodule Platform.App.Media.Supervisor do
     [
       use_task(task_supervisor),
       DriveIndication |> exit_takes(1000),
-      {Task, fn -> DriveIndication.drive_accepted() end},
+      {:stage, DriveIndicationStarting, {DriveIndicationStarter, []} |> exit_takes(15_000)},
       healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),
       use_next_stage(next_supervisor) |> exit_takes(90_000),
