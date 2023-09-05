@@ -7,29 +7,28 @@ defmodule Platform.Storage.DriveIndicationStarter do
   @impl true
   def on_init(opts) do
     next = opts |> Keyword.fetch!(:next)
+    next_specs = next |> Keyword.fetch!(:run)
+    next_supervisor = next |> Keyword.fetch!(:under)
 
-    %{
-      next_specs: next |> Keyword.fetch!(:run),
-      next_supervisor: next |> Keyword.fetch!(:under)
-    }
-    |> tap(fn _ -> send(self(), :start) end)
+    Platform.start_next_stage(next_supervisor, next_specs)
+    DriveIndication.drive_init()
+    Process.send_after(self(), :reset, 250)
+
+    :ok
   end
 
   @impl true
-  def on_msg(
-        :start,
-        %{
-          next_specs: next_specs,
-          next_supervisor: next_supervisor
-        } = state
-      ) do
-    DriveIndication.drive_init()
-    :timer.sleep(250)
+  def on_msg(:reset, state) do
     DriveIndication.drive_reset()
-    :timer.sleep(250)
+    Process.send_after(self(), :accept, 250)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def on_msg(:accept, state) do
     DriveIndication.drive_accepted()
 
-    Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
   end
 
