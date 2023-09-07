@@ -52,7 +52,6 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
 
   @impl true
   def on_exit(_reason, _state) do
-
   end
 
   defp get_cargo_user do
