@@ -29,7 +29,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
       Actor.new(cargo_user, [room_identity], [])
     else
       {:error, :no_cargo_user} ->
-        DriveIndication.drive_accepted()
+        DriveIndication.drive_complete()
         MediaSupervisor.terminate_all_stages()
 
       _ ->
@@ -52,7 +52,6 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
 
   @impl true
   def on_exit(_reason, _state) do
-    CargoRoom.remove()
   end
 
   defp get_cargo_user do

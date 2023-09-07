@@ -3,6 +3,8 @@ defmodule Platform.App.Sync.Cargo.Logic do
   Starts the sync process for cargo room messages.
   """
 
+  #TODO: ensure we do not use it, then delete
+
   use GracefulGenServer
 
   require Logger
