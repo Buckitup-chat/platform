@@ -34,6 +34,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
       end)
       |> Task.async_stream(& &1.(),
         timeout: 10_000,
+        on_timeout: :kill_taks,
         max_concurrency: 20
       )
       |> Enum.reduce(MapSet.new(), fn
@@ -83,6 +84,8 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
     else
       _ -> MapSet.new()
     end
+  rescue
+    _ -> MapSet.new()
   end
 
   defp summary_message_db_keys(cargo_user) do
@@ -105,6 +108,8 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
     else
       _ -> MapSet.new()
     end
+  rescue
+    _ -> MapSet.new()
   end
 
   defp fix_parity(opts) do

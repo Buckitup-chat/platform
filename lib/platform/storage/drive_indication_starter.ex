@@ -2,6 +2,7 @@ defmodule Platform.Storage.DriveIndicationStarter do
   @moduledoc false
   use GracefulGenServer
 
+  alias Chat.Sync.CargoRoom
   alias Platform.Storage.DriveIndication
 
   @impl true
@@ -33,5 +34,7 @@ defmodule Platform.Storage.DriveIndicationStarter do
   end
 
   @impl true
-  def on_exit(_reason, _device), do: :nothing
+  def on_exit(_reason, _device) do
+    CargoRoom.remove()
+  end
 end
