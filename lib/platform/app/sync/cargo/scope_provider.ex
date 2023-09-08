@@ -13,44 +13,52 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
 
   @impl true
   def on_init(opts) do
-    next = Keyword.fetch!(opts, :next)
     target_db = Keyword.fetch!(opts, :target)
-
     cargo_room_key = get_room_key(target_db)
 
     if cargo_room_key do
-      CargoRoom.sync(cargo_room_key)
+      Process.send_after(self(), {:start, target_db, cargo_room_key}, 10)
+      opts
+    else
+      DriveIndication.drive_refused()
+      MediaSupervisor.terminate_all_stages()
+    end
+  end
 
-      %CargoSettings{checkpoints: checkpoint_cards} = AdminRoom.get_cargo_settings()
-      cargo_user_identity = AdminRoom.get_cargo_user()
+  @impl true
+  def on_msg({:start, target_db, cargo_room_key}, state) do
+    CargoRoom.sync(cargo_room_key)
 
-      checkpoint_pub_keys =
-        checkpoint_cards
-        |> Enum.map(fn %Chat.Card{pub_key: key} -> key end)
+    %CargoSettings{checkpoints: checkpoint_cards} = AdminRoom.get_cargo_settings()
+    cargo_user_identity = AdminRoom.get_cargo_user()
 
-      keys_to_invite =
-        if cargo_user_identity do
-          cargo_user_identity
-          |> Chat.Identity.pub_key()
-          |> then(&[&1 | checkpoint_pub_keys])
-        else
-          checkpoint_pub_keys
-        end
+    checkpoint_pub_keys =
+      checkpoint_cards
+      |> Enum.map(fn %Chat.Card{pub_key: key} -> key end)
 
-      backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, keys_to_invite)
-      restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, keys_to_invite)
+    keys_to_invite =
+      if cargo_user_identity do
+        cargo_user_identity
+        |> Chat.Identity.pub_key()
+        |> then(&[&1 | checkpoint_pub_keys])
+      else
+        checkpoint_pub_keys
+      end
 
-      Process.send_after(self(), :next_stage, 10)
+    backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, keys_to_invite)
+    restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, keys_to_invite)
+    next = Keyword.fetch!(state, :next)
 
+    Process.send_after(self(), :next_stage, 10)
+
+    {
+      :noreply,
       %{
         next_spec: Keyword.fetch!(next, :run),
         next_under: Keyword.fetch!(next, :under),
         db_keys: {backup_keys, restoration_keys}
       }
-    else
-      DriveIndication.drive_refused()
-      MediaSupervisor.terminate_all_stages()
-    end
+    }
   end
 
   @impl true
