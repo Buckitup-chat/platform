@@ -8,6 +8,9 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
   alias Chat.Db.Scope.KeyScope
   alias Chat.Sync.CargoRoom
 
+  alias Platform.App.Media.Supervisor, as: MediaSupervisor
+  alias Platform.Storage.DriveIndication
+
   @impl true
   def on_init(opts) do
     next = Keyword.fetch!(opts, :next)
@@ -15,36 +18,39 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
 
     cargo_room_key = get_room_key(target_db)
 
-    false = cargo_room_key |> is_nil()
+    if cargo_room_key do
+      CargoRoom.sync(cargo_room_key)
 
-    CargoRoom.sync(cargo_room_key)
+      %CargoSettings{checkpoints: checkpoint_cards} = AdminRoom.get_cargo_settings()
+      cargo_user_identity = AdminRoom.get_cargo_user()
 
-    %CargoSettings{checkpoints: checkpoint_cards} = AdminRoom.get_cargo_settings()
-    cargo_user_identity = AdminRoom.get_cargo_user()
+      checkpoint_pub_keys =
+        checkpoint_cards
+        |> Enum.map(fn %Chat.Card{pub_key: key} -> key end)
 
-    checkpoint_pub_keys =
-      checkpoint_cards
-      |> Enum.map(fn %Chat.Card{pub_key: key} -> key end)
+      keys_to_invite =
+        if cargo_user_identity do
+          cargo_user_identity
+          |> Chat.Identity.pub_key()
+          |> then(&[&1 | checkpoint_pub_keys])
+        else
+          checkpoint_pub_keys
+        end
 
-    keys_to_invite =
-      if cargo_user_identity do
-        cargo_user_identity
-        |> Chat.Identity.pub_key()
-        |> then(&[&1 | checkpoint_pub_keys])
-      else
-        checkpoint_pub_keys
-      end
+      backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, keys_to_invite)
+      restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, keys_to_invite)
 
-    backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, keys_to_invite)
-    restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, keys_to_invite)
+      Process.send_after(self(), :next_stage, 10)
 
-    Process.send_after(self(), :next_stage, 10)
-
-    %{
-      next_spec: Keyword.fetch!(next, :run),
-      next_under: Keyword.fetch!(next, :under),
-      db_keys: {backup_keys, restoration_keys}
-    }
+      %{
+        next_spec: Keyword.fetch!(next, :run),
+        next_under: Keyword.fetch!(next, :under),
+        db_keys: {backup_keys, restoration_keys}
+      }
+    else
+      DriveIndication.drive_refused()
+      MediaSupervisor.terminate_all_stages()
+    end
   end
 
   @impl true
