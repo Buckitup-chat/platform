@@ -50,7 +50,8 @@ defmodule Platform.Application do
          |> Enum.each(&System.cmd("sysctl", ["-w", &1]))
 
          Logger.put_module_level(Tesla.Middleware.Logger, :error)
-       end}
+       end},
+      Platform.DriveDetector
     ]
   end
 
