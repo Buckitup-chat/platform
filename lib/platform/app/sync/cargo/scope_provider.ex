@@ -8,15 +8,25 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
   alias Chat.Db.Scope.KeyScope
   alias Chat.Sync.CargoRoom
 
+  alias Platform.App.Media.Supervisor, as: MediaSupervisor
+  alias Platform.Storage.DriveIndication
+
   @impl true
   def on_init(opts) do
-    next = Keyword.fetch!(opts, :next)
     target_db = Keyword.fetch!(opts, :target)
-
     cargo_room_key = get_room_key(target_db)
 
-    false = cargo_room_key |> is_nil()
+    if cargo_room_key do
+      Process.send_after(self(), {:start, target_db, cargo_room_key}, 10)
+      opts
+    else
+      DriveIndication.drive_refused()
+      MediaSupervisor.terminate_all_stages()
+    end
+  end
 
+  @impl true
+  def on_msg({:start, target_db, cargo_room_key}, state) do
     CargoRoom.sync(cargo_room_key)
 
     %CargoSettings{checkpoints: checkpoint_cards} = AdminRoom.get_cargo_settings()
@@ -37,13 +47,17 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
 
     backup_keys = KeyScope.get_cargo_keys(Chat.Db.db(), cargo_room_key, keys_to_invite)
     restoration_keys = KeyScope.get_cargo_keys(target_db, cargo_room_key, keys_to_invite)
+    next = Keyword.fetch!(state, :next)
 
     Process.send_after(self(), :next_stage, 10)
 
-    %{
-      next_spec: Keyword.fetch!(next, :run),
-      next_under: Keyword.fetch!(next, :under),
-      db_keys: {backup_keys, restoration_keys}
+    {
+      :noreply,
+      %{
+        next_spec: Keyword.fetch!(next, :run),
+        next_under: Keyword.fetch!(next, :under),
+        db_keys: {backup_keys, restoration_keys}
+      }
     }
   end
 
