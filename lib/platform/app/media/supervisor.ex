@@ -28,7 +28,6 @@ defmodule Platform.App.Media.Supervisor do
 
     [
       use_task(task_supervisor),
-      DriveIndication |> exit_takes(1000),
       {:stage, DriveIndicationStarting, {DriveIndicationStarter, []} |> exit_takes(15_000)},
       healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),

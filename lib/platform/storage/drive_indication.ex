@@ -104,6 +104,6 @@ defmodule Platform.Storage.DriveIndication do
   def on_exit(_reason, %{red_pin_ref: red_pin, green_pin_ref: green_pin}) do
     GPIO.write(red_pin, 0)
     GPIO.write(green_pin, 0)
-    Logger.debug("[DriveIndication] drive reset.")
+    Logger.debug("[DriveIndication] drive reset. shutting down")
   end
 end
