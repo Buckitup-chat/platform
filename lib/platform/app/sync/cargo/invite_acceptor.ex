@@ -14,6 +14,12 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
 
   @impl true
   def on_init(opts) do
+    send(self(), :start)
+    opts
+  end
+
+  @impl true
+  def on_msg(:start, opts) do
     with %{pub_key: room_key} <- CargoRoom.get(),
          {:ok, cargo_user} <- get_cargo_user(),
          invite when not is_nil(invite) <-
@@ -25,7 +31,7 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
       next_under = Keyword.fetch!(next, :under)
       next_spec = Keyword.fetch!(next, :run)
 
-      Process.send_after(self(), {:next_stage, next_under, next_spec}, 10)
+      send(self(), {:next_stage, next_under, next_spec})
       Actor.new(cargo_user, [room_identity], [])
     else
       {:error, :no_cargo_user} ->
@@ -36,9 +42,9 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
         DriveIndication.drive_refused()
         MediaSupervisor.terminate_all_stages()
     end
+    |> then(&{:noreply, &1})
   end
 
-  @impl true
   def on_msg({:next_stage, supervisor, spec}, state) do
     Platform.start_next_stage(supervisor, spec)
 
