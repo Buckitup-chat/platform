@@ -5,6 +5,8 @@ defmodule Platform.DriveDetector do
 
   require Logger
 
+  alias Platform.Storage.DriveIndication
+
   @tick 100
 
   def poll_devices do
@@ -61,6 +63,25 @@ defmodule Platform.DriveDetector do
   end
 
   defp process_added(devices) do
+    if main_already_inserted?() do
+      start_initial_indication()
+    end
+    devices |> log_added()
+  end
+
+  defp main_already_inserted? do
+    Chat.Db.Common.get_chat_db_env(:mode) == :main
+  end
+
+  defp start_initial_indication do
+    Task.Supervisor.async_nolink(Platform.TaskSupervisor, fn ->
+      DriveIndication.drive_init()
+      Process.sleep(250)
+      DriveIndication.drive_reset()
+    end)
+  end
+
+  defp log_added(devices) do
     Logger.debug("[drive detector] added: " <> Enum.join(devices, ", "))
   end
 
