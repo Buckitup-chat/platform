@@ -11,19 +11,10 @@ defmodule Platform.Storage.DriveIndicationStarter do
     next_specs = next |> Keyword.fetch!(:run)
     next_supervisor = next |> Keyword.fetch!(:under)
 
-    DriveIndication.drive_init()
-    Process.send_after(self(), :reset, 250)
+    send(self(), :accept)
     Platform.start_next_stage(next_supervisor, next_specs)
 
     :ok
-  end
-
-  @impl true
-  def on_msg(:reset, state) do
-    DriveIndication.drive_reset()
-    Process.send_after(self(), :accept, 250)
-
-    {:noreply, state}
   end
 
   @impl true
@@ -36,5 +27,6 @@ defmodule Platform.Storage.DriveIndicationStarter do
   @impl true
   def on_exit(_reason, _device) do
     CargoRoom.remove()
+    DriveIndication.reset()
   end
 end
