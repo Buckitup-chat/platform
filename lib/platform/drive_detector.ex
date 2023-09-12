@@ -55,6 +55,8 @@ defmodule Platform.DriveDetector do
     {:noreply, {schedule(timer), updated_devices}}
   end
 
+  def handle_info(_task_results, state), do: state
+
   defp compare_with(new, old) do
     added = MapSet.difference(new, old)
     removed = MapSet.difference(old, new)
