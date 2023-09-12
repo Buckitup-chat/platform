@@ -27,6 +27,6 @@ defmodule Platform.Storage.DriveIndicationStarter do
   @impl true
   def on_exit(_reason, _device) do
     CargoRoom.remove()
-    DriveIndication.reset()
+    DriveIndication.drive_reset()
   end
 end
