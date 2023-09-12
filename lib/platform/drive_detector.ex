@@ -55,7 +55,7 @@ defmodule Platform.DriveDetector do
     {:noreply, {schedule(timer), updated_devices}}
   end
 
-  def handle_info(_task_results, state), do: state
+  def handle_info(_task_results, state), do: {:noreply, state}
 
   defp compare_with(new, old) do
     added = MapSet.difference(new, old)
@@ -68,6 +68,7 @@ defmodule Platform.DriveDetector do
     if main_already_inserted?() do
       start_initial_indication()
     end
+
     devices |> log_added()
   end
 
