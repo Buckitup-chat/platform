@@ -11,6 +11,10 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   alias Chat.Sync.Camera.Sensor
   alias Chat.Sync.CargoRoom
 
+  alias Phoenix.PubSub
+
+  @cargo_topic "chat::cargo_room"
+
   @impl true
   def on_init(opts) do
     send(self(), :perform)
@@ -50,6 +54,8 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
       {:stuck, progress} -> log_unwritten_keys(progress)
       _ -> :ok
     end
+
+    :ok = PubSub.broadcast!(Chat.PubSub, @cargo_topic, {:room, :load_new_messages})
 
     send(self(), :run_next)
 
