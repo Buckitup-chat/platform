@@ -25,7 +25,7 @@ defmodule Platform.Storage.Logic do
         start_media_supervisor(devices)
 
       {_, devices} ->
-        "[platform] [storage] Cannot decide devices: #{inspect(devices)}" |> Logger.warn()
+        "[platform] [storage] Cannot decide devices: #{inspect(devices)}" |> Logger.warning()
     end
   end
 
@@ -115,16 +115,16 @@ defmodule Platform.Storage.Logic do
     |> DynamicSupervisor.start_child({Platform.App.Db.MainDbSupervisor, [device]})
   end
 
-  defp switch_backup_to_main(device) do
-    DynamicSupervisor.terminate_child(
-      Platform.App.Media.DynamicSupervisor,
-      Platform.App.Media.Supervisor |> Process.whereis()
-    )
-
-    Process.sleep(5_000)
-
-    switch_internal_to_main(device)
-  end
+  #  defp switch_backup_to_main(device) do
+  #    DynamicSupervisor.terminate_child(
+  #      Platform.App.Media.DynamicSupervisor,
+  #      Platform.App.Media.Supervisor |> Process.whereis()
+  #    )
+  #
+  #    Process.sleep(5_000)
+  #
+  #    switch_internal_to_main(device)
+  #  end
 
   defp do_replicate_to_internal do
     internal = Chat.Db.InternalDb
@@ -136,12 +136,12 @@ defmodule Platform.Storage.Logic do
 
     case Process.whereis(backup) do
       nil ->
-        Logger.warn("setting mirror: #{inspect(internal)}")
+        Logger.warning("setting mirror: #{inspect(internal)}")
         Switching.mirror(main, internal)
         Copying.await_copied(main, internal)
 
       _pid ->
-        Logger.warn("setting mirrors: #{inspect([internal, backup])}")
+        Logger.warning("setting mirrors: #{inspect([internal, backup])}")
         Switching.mirror(main, [internal, backup])
         Copying.await_copied(main, internal)
         # TODO: continious backup need a way for new changes
@@ -168,7 +168,7 @@ defmodule Platform.Storage.Logic do
       db_device == "/dev/#{device}"
     else
       _ ->
-        "[platform] [storage] DB process dead" |> Logger.warn()
+        "[platform] [storage] DB process dead" |> Logger.warning()
         true
     end
   rescue

@@ -30,7 +30,7 @@ defmodule Platform.Storage.Bouncer do
         {:ok, nil}
 
       type ->
-        Logger.warn("[Bouncer] Wrong DB type! Got #{type} from DB, but expected #{expected_type}")
+        Logger.warning("[Bouncer] Wrong DB type! Got #{type} from DB, but expected #{expected_type}")
         {:error, nil}
     end
   end

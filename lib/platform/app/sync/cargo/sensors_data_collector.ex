@@ -131,6 +131,6 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   defp log_unwritten_keys(progress) do
     Copying.Progress.get_unwritten_keys(progress)
     |> inspect(pretty: true)
-    |> then(&Logger.warn(["[cargo] [sensor] unwritten keys: ", &1]))
+    |> then(&Logger.warning(["[cargo] [sensor] unwritten keys: ", &1]))
   end
 end

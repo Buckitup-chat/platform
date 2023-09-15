@@ -54,7 +54,7 @@ defmodule Platform.Storage.Mounter do
 
   @impl true
   def on_exit(reason, %{path: path, task_supervisor: task_supervisor}) do
-    "mount cleanup #{path} #{inspect(reason)}" |> Logger.warn()
+    "mount cleanup #{path} #{inspect(reason)}" |> Logger.warning()
 
     Task.Supervisor.async_nolink(task_supervisor, fn ->
       Mount.unmount(path)

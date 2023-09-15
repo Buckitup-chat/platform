@@ -7,10 +7,9 @@ defmodule Platform.App.Media.Supervisor do
   require Logger
 
   alias Platform.App.Media.{Decider, FunctionalityDynamicSupervisor, TaskSupervisor}
-  alias Platform.Storage.DriveIndication
-  alias Platform.Storage.Healer
-  alias Platform.Storage.Mounter
   alias Platform.Storage.DriveIndicationStarter
+  #  alias Platform.Storage.Healer
+  alias Platform.Storage.Mounter
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
   @stages_namespace Platform.App.MediaStages
@@ -76,9 +75,9 @@ defmodule Platform.App.Media.Supervisor do
     end
   end
 
-  defp healer_unless_test(device, task_supervisor) do
-    if Application.get_env(:platform, :env) != :test do
-      {:stage, Healing, {Healer, device: device, task_in: task_supervisor}}
-    end
-  end
+  #  defp healer_unless_test(device, task_supervisor) do
+  #    if Application.get_env(:platform, :env) != :test do
+  #      {:stage, Healing, {Healer, device: device, task_in: task_supervisor}}
+  #    end
+  #  end
 end
