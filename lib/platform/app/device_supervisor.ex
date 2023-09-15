@@ -24,8 +24,8 @@ defmodule Platform.App.DeviceSupervisor do
       {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
       |> exit_takes(150_000),
       {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
-      |> exit_takes(150_000),
-      Platform.UsbWatcher
+      |> exit_takes(150_000)
+      # Platform.UsbWatcher
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

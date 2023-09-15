@@ -46,39 +46,44 @@ defmodule Platform.MixProject do
       {:observer_cli, "~> 1.7"},
       {:nerves_leds, "~> 0.8.1"},
       {:dns, "~> 2.3"},
+
       # Dependencies for all targets
-      {:nerves, "~> 1.9.1", runtime: false},
-      {:shoehorn, "~> 0.7.0"},
-      {:ring_logger, "~> 0.8.1"},
-      {:toolshed, "~> 0.2.13"},
+      {:nerves, "~> 1.10", runtime: false},
+      {:shoehorn, "~> 0.9.1"},
+      {:ring_logger, "~> 0.10.0"},
+      {:toolshed, "~> 0.3.0"},
+
+      # Allow Nerves.Runtime on host to support development, testing and CI.
+      # See config/host.exs for usage.
+      {:nerves_runtime, "~> 0.13.0"},
 
       # Dependencies for all targets except :host
-      {:nerves_runtime, "~> 0.11.3", targets: @all_targets},
-      {:nerves_pack, "~> 0.6.0", targets: @all_targets},
-      # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
-      # {:dns, "~> 2.3", targets: @all_targets},
+      {:nerves_pack, "~> 0.7.0", targets: @all_targets},
 
       # Dependencies for specific targets
       # NOTE: It's generally low risk and recommended to follow minor version
       # bumps to Nerves systems. Since these include Linux kernel and Erlang
       # version updates, please review their release notes in case
       # changes to your application are needed.
-      {:nerves_system_rpi, "~> 1.21", runtime: false, targets: :rpi},
-      {:nerves_system_rpi0, "~> 1.21", runtime: false, targets: :rpi0},
-      {:nerves_system_rpi2, "~> 1.21", runtime: false, targets: :rpi2},
-      {:nerves_system_rpi3, "~> 1.21", runtime: false, targets: :rpi3},
-      {:nerves_system_rpi3a, "~> 1.21", runtime: false, targets: :rpi3a},
-      {:nerves_system_rpi4, "~> 1.21", runtime: false, targets: :rpi4},
-      {:nerves_system_bbb, "~> 2.12", runtime: false, targets: :bbb},
-      {:nerves_system_osd32mp1, "~> 0.8", runtime: false, targets: :osd32mp1},
-      {:nerves_system_x86_64, "~> 1.21", runtime: false, targets: :x86_64},
-      {:bktp_rpi4,
-       github: "Buckitup-chat/bktp_rpi4",
-       runtime: false,
-       targets: :bktp_rpi4,
-       nerves: [compile: false]},
+      {:nerves_system_rpi, "~> 1.19", runtime: false, targets: :rpi},
+      {:nerves_system_rpi0, "~> 1.19", runtime: false, targets: :rpi0},
+      {:nerves_system_rpi2, "~> 1.19", runtime: false, targets: :rpi2},
+      {:nerves_system_rpi3, "~> 1.19", runtime: false, targets: :rpi3},
+      {:nerves_system_rpi3a, "~> 1.19", runtime: false, targets: :rpi3a},
+      {:nerves_system_rpi4, "~> 1.19", runtime: false, targets: :rpi4},
+      {:nerves_system_bbb, "~> 2.14", runtime: false, targets: :bbb},
+      {:nerves_system_osd32mp1, "~> 0.10", runtime: false, targets: :osd32mp1},
+      {:nerves_system_x86_64, "~> 1.19", runtime: false, targets: :x86_64},
+      {:nerves_system_grisp2, "~> 0.3", runtime: false, targets: :grisp2},
+      {:nerves_system_mangopi_mq_pro, "~> 0.4", runtime: false, targets: :mangopi_mq_pro},
+
       # {:bktp_rpi4,
-      #  path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
+      #  github: "Buckitup-chat/bktp_rpi4",
+      #  runtime: false,
+      #  targets: :bktp_rpi4,
+      #  nerves: [compile: false]},
+      {:bktp_rpi4,
+       path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
       {:chat,
        path: "../chat",
        targets: [:host | @all_targets],

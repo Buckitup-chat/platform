@@ -5,9 +5,18 @@ defmodule Platform.DriveDetector do
 
   require Logger
 
+  defmodule State do
+    defstruct devices: MapSet.new(),
+              timer: nil,
+              connected_devices: MapSet.new()
+  end
+
+  alias Platform.DriveDetector.State
   alias Platform.Storage.DriveIndication
+  alias Platform.Storage.Logic
 
   @tick 100
+  @connect_after 500
 
   def poll_devices do
     Path.wildcard("/dev/sd*")
@@ -40,11 +49,11 @@ defmodule Platform.DriveDetector do
 
   @impl true
   def init(_) do
-    {:ok, {schedule(), MapSet.new()}}
+    {:ok, %State{timer: schedule()}}
   end
 
   @impl true
-  def handle_info(:check, {timer, devices}) do
+  def handle_info(:check, %State{timer: timer, devices: devices} = state) do
     {updated_devices, added, removed} =
       poll_devices()
       |> compare_with(devices)
@@ -52,7 +61,36 @@ defmodule Platform.DriveDetector do
     if 0 < MapSet.size(removed), do: process_removed(removed)
     if 0 < MapSet.size(added), do: process_added(added)
 
-    {:noreply, {schedule(timer), updated_devices}}
+    {:noreply, %{state | timer: schedule(timer), devices: updated_devices}}
+  end
+
+  def handle_info({:remove_connected, device}, %State{connected_devices: connected} = state) do
+    if MapSet.member?(connected, device) do
+      connected
+      |> MapSet.delete(device)
+      |> tap(fn still_connected ->
+        Logic.on_remove([device], still_connected |> MapSet.to_list())
+      end)
+      |> then(&{:noreply, %{state | connected_devices: &1}})
+    else
+      {:noreply, state}
+    end
+  end
+
+  def handle_info(
+        {:add_connected, device},
+        %State{devices: current, connected_devices: connected} = state
+      ) do
+    if MapSet.member?(current, device) do
+      connected
+      |> MapSet.put(device)
+      |> tap(fn _ ->
+        Logic.on_new([device])
+      end)
+      |> then(&{:noreply, %{state | connected_devices: &1}})
+    else
+      {:noreply, state}
+    end
   end
 
   def handle_info(_task_results, state), do: {:noreply, state}
@@ -68,6 +106,9 @@ defmodule Platform.DriveDetector do
     if main_already_inserted?() do
       start_initial_indication()
     end
+
+    devices
+    |> Enum.map(&Process.send_after(self(), {:add_connected, &1}, @connect_after))
 
     devices |> log_added()
   end
@@ -89,6 +130,9 @@ defmodule Platform.DriveDetector do
   end
 
   defp process_removed(devices) do
+    devices
+    |> Enum.map(&send(self(), {:remove_connected, &1}))
+
     Logger.debug("[drive detector] removed: " <> Enum.join(devices, ", "))
   end
 
