@@ -44,6 +44,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
       |> Enum.reduce(MapSet.new(), fn
         {:ok, set}, acc_set -> MapSet.union(acc_set, set)
         {:error, _}, acc -> acc
+        {:exit, :timeout}, acc -> acc
       end)
       |> MapSet.union(summary_message_db_keys(cargo_user))
       |> MapSet.to_list()
