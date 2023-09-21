@@ -29,7 +29,7 @@ defmodule Platform.App.Media.Supervisor do
     [
       use_task(task_supervisor),
       {:stage, DriveIndicationStarting, {DriveIndicationStarter, []} |> exit_takes(15_000)},
-      healer_unless_test(device, task_supervisor),
+      #      healer_unless_test(device, task_supervisor),
       mounter_unless_test(device, task_supervisor),
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider, [device, [mounted: @mount_path, next: [under: next_supervisor]]]}
@@ -50,7 +50,7 @@ defmodule Platform.App.Media.Supervisor do
       FunctionalityDynamicSupervisor
       |> DynamicSupervisor.which_children()
       |> Enum.reverse()
-      |> Enum.each(fn{ _, pid, _, _} ->
+      |> Enum.each(fn {_, pid, _, _} ->
         FunctionalityDynamicSupervisor
         |> DynamicSupervisor.terminate_child(pid)
       end)
