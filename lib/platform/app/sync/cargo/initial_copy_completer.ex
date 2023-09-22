@@ -8,7 +8,6 @@ defmodule Platform.App.Sync.Cargo.InitialCopyCompleter do
   @impl true
   def on_init(_opts) do
     CargoRoom.mark_successful()
-    CargoRoom.complete()
   end
 
   @impl true
