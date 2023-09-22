@@ -84,17 +84,43 @@ defmodule Platform.UsbWatcher do
     noreply(state)
   end
 
-  defp first_partition_of(device_partitions, root_key) do
-    Logger.debug("[usb watcher] Device partitions: #{inspect(device_partitions)}")
+  defp first_partition_of(devices, _) do
+    devices
+    |> Enum.map(&List.last/1)
+    |> Enum.map(fn path ->
+      ~r"^(?<device>sd[a-zA-Z]+)(?<index>\d+)?$"
+      |> Regex.named_captures(path)
+      |> case do
+        %{"device" => device, "index" => ""} -> {device, 1000}
+        %{"device" => device, "index" => index} -> {device, index |> String.to_integer()}
+        _ -> nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+    |> Enum.map(fn {device, index_list} ->
+      index = index_list |> Enum.min()
 
-    device_partitions
-    |> List.flatten()
-    |> Enum.reject(&(&1 == root_key))
-    |> case do
-      [] -> root_key
-      list -> list |> Enum.sort() |> List.first()
-    end
+      if index == 1000 do
+        device
+      else
+        device <> to_string(index)
+      end
+    end)
+    |> List.first()
   end
+
+  #  defp first_partition_of(device_partitions, root_key) do
+  #    Logger.debug("[usb watcher] Device partitions: #{inspect(device_partitions)}")
+  #
+  #    device_partitions
+  #    |> List.flatten()
+  #    |> Enum.reject(&(&1 == root_key))
+  #    |> case do
+  #      [] -> root_key
+  #      list -> list |> Enum.sort() |> List.first()
+  #    end
+  #  end
 
   defp trigger_device_handling(updated_devices, connected_devices) do
     {new_devices, removed_devices, unchanged_devices} =
