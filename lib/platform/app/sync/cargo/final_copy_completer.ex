@@ -8,8 +8,16 @@ defmodule Platform.App.Sync.Cargo.FinalCopyCompleter do
 
   @impl true
   def on_init(_opts) do
+    send(self(), :start)
+  end
+
+  def on_msg(:start, state) do
+    Process.sleep(2000)
+
     DriveIndication.drive_complete()
     MediaSupervisor.terminate_all_stages()
+
+    {:noreply, state}
   end
 
   @impl true
