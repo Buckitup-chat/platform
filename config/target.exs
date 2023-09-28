@@ -61,7 +61,7 @@ maybe_usb =
 config :vintage_net,
   regulatory_domain: "00",
   # Uncomment following to disable config change persistance. It need to be commented to allow wifi modification
-  #persistence: VintageNet.Persistence.Null,
+  # persistence: VintageNet.Persistence.Null,
   internet_host_list: [{192, 168, 24, 1}],
   additional_name_servers: [{{192, 168, 24, 1}}],
   config:
@@ -162,12 +162,6 @@ config :mdns_lite,
     # }
   ]
 
-maybe_nerves_local =
-  if config_env() == :dev do
-    ["http://nerves.local"]
-  else
-    []
-  end
 
 # Chat endpoint config
 config :chat, ChatWeb.Endpoint,
@@ -178,18 +172,18 @@ config :chat, ChatWeb.Endpoint,
   # Possibly not needed, but doesn't hurt
   # http: [port: {:system, "PORT"}],
   #  http: [port: 80],
-  url: [host: "buckitup.app"],
-  # url: [host: System.get_env("APP_NAME") <> ".gigalixirapp.com", port: 443],
+  # url: [host: System.get_env("APP_NAME") <> ".gigalixirapp.com", port: 443]
   secret_key_base: "HEY05EB1dFVSu6KykKHuS4rQPQzSHv4F7mGVB/gnDLrIu75wE/ytBXy2TaL3A6RA",
   # secret_key_base: Map.fetch!(System.get_env(), "SECRET_KEY_BASE"),
-  check_origin:
-    [
-      "//buckitup.app",
-      "http://192.168.0.127",
-      "http://192.168.24.1"
-    ] ++ maybe_nerves_local,
   server: true,
   code_reloader: false
+
+maybe_nerves_local =
+  if config_env() == :dev do
+    ["http://nerves.local"]
+  else
+    []
+  end
 
 ssl_cacertfile = "priv/cert/buckitup_app.ca-bundle"
 ssl_certfile = "priv/cert/buckitup_app.crt"
@@ -202,6 +196,13 @@ cert_present? =
 
 if cert_present? do
   config :chat, ChatWeb.Endpoint,
+    url: [host: "buckitup.app"],
+    check_origin:
+      [
+        "//buckitup.app",
+        "http://192.168.25.1",
+        "http://192.168.24.1"
+      ] ++ maybe_nerves_local,
     https: [
       port: 443,
       cipher_suite: :strong,
@@ -210,6 +211,13 @@ if cert_present? do
       keyfile: ssl_keyfile
     ],
     force_ssl: [rewrite_on: [:x_forwarded_proto]]
+else
+  config :chat, ChatWeb.Endpoint,
+    http: [ip: {0, 0, 0, 0}, port: 80],
+    url: [host: "buckitup.app", scheme: "http"],
+    check_origin: false
+
+  config :chat, :handle_all_traffic, true
 end
 
 config :chat, :cub_db_file, "/root/db"
