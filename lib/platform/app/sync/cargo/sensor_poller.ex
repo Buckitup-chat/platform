@@ -2,6 +2,8 @@ defmodule Platform.App.Sync.Cargo.SensorPoller do
   @moduledoc "Polls cargo sensors"
   use GracefulGenServer, name: __MODULE__
 
+  alias Chat.AdminRoom
+
   def table_ref do
     __MODULE__
     |> GenServer.call(:get_table_ref)
@@ -10,7 +12,7 @@ defmodule Platform.App.Sync.Cargo.SensorPoller do
   def sensor(ref, key) do
     :ets.lookup(ref, key)
     |> case do
-      {key, data, time} -> data
+      {_key, data} -> data
       _ -> nil
     end
   end
@@ -29,6 +31,7 @@ defmodule Platform.App.Sync.Cargo.SensorPoller do
 
     %{
       table_ref: ref,
+      supervisor: task_supervisor,
       pollers: start_pollers(in: task_supervisor, store_in: ref)
     }
     |> then(&{:noreply, &1})
@@ -40,8 +43,11 @@ defmodule Platform.App.Sync.Cargo.SensorPoller do
   end
 
   @impl true
-  def on_exit(reason, %{table_ref: ref}) do
-    delete_table(ref)
+  def on_exit(_reason, %{} = state) do
+    state.pollers
+    |> Enum.each(&Task.Supervisor.terminate_child(state.supervisor, &1))
+
+    delete_table(state.table_ref)
   end
 
   defp create_table, do: :etc.new(nil, [:public])
@@ -50,12 +56,15 @@ defmodule Platform.App.Sync.Cargo.SensorPoller do
   defp start_pollers(in: task_supervisor, store_in: table) do
     make_sensor_map()
     |> Enum.map(fn {key, getter} ->
-      Task.Supervisor.start_child(
-        task_supervisor,
-        fn -> poll(key, getter, table) end,
-        restart: :permanent,
-        shutdown: :brutal_kill
-      )
+      {:ok, pid} =
+        Task.Supervisor.start_child(
+          task_supervisor,
+          fn -> poll(key, getter, table) end,
+          restart: :permanent,
+          shutdown: :brutal_kill
+        )
+
+      pid
     end)
   end
 
@@ -67,26 +76,32 @@ defmodule Platform.App.Sync.Cargo.SensorPoller do
       |> Enum.map(
         &{&1,
          fn sensor ->
-           {:ok, {type, content} = data} <- Sensor.get_image(sensor)
+           {:ok, {_, _} = data} = Sensor.get_image(sensor)
            data
          end}
       )
 
     weight_list =
-      if
-      |> then(&[&1 | {:weight}])
-      |> Enum.map(&fn -> image_sensor_message_db_keys(&1, cargo_user) end)
-      |> then(fn funcs ->
-        fn -> weight_sensor_message_db_keys(weight_sensor, cargo_user) end
-        |> then(&[&1 | funcs])
-      end)
+      case AdminRoom.parse_weight_setting(weight_sensor) do
+        {:ok, {name, type, opts}} ->
+          [
+            {:weight,
+             fn _ ->
+               {:ok, content} = Platform.Sensor.Weigh.poll(type, name, opts)
+               content
+             end}
+          ]
 
-      #todo finish weight list
+        _ ->
+          []
+      end
+
+    Map.new(sensor_list ++ weight_list)
   end
 
   defp poll(key, getter, table) do
     {time, res} = :timer.tc(fn -> getter.(key) end, :millisecond)
-    put_sensor_data(table_ref, key, res)
+    put_sensor_data(table, key, res)
 
     delay = 1000 - time
 
@@ -95,6 +110,8 @@ defmodule Platform.App.Sync.Cargo.SensorPoller do
     end
 
     poll(key, getter, table)
+  rescue
+    _ -> poll(key, getter, table)
   end
 
   defp put_sensor_data(ref, key, data) do

@@ -105,6 +105,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   defp weight_sensor_message_db_keys(weight_sensor, cargo_user) do
     with {:ok, {name, type, opts}} = AdminRoom.parse_weight_setting(weight_sensor),
          {:ok, content} <- Platform.Sensor.Weigh.poll(type, name, opts),
+         true <- is_binary(content),
          {:ok, keys_set} <- CargoRoom.write_text(cargo_user, content) do
       keys_set
     else
