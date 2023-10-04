@@ -7,13 +7,19 @@ defmodule Platform.Storage.Device do
   alias Chat.Db.Maintenance
   alias Platform.Leds
   alias Platform.Tools.Fsck
+  alias Platform.Tools.Lsblk
   alias Platform.Tools.Mount
 
   def heal(device) do
     Leds.blink_read()
-    Fsck.all(device)
+    case Lsblk.fs_type(device) do
+      "vfat" -> Fsck.vfat(device)
+      "f2fs" -> Fsck.f2fs(device)
+      "exfat" -> Fsck.exfat(device)
+      _ -> false
+    end
     Leds.blink_done()
-    Logger.info("[platform-sync] #{device} health checked")
+    Logger.info("[platform] #{device} health checked")
 
     device
   end

@@ -3,21 +3,9 @@ defmodule Platform.Tools.Fsck do
 
   alias Platform.Log
 
-  def all(device) do
-    cond do
-      successful?(exfat(device)) -> :ok
-      successful?(vfat(device)) -> :ok
-      true -> :unsupported_fs
-    end
-  end
-
-  def exfat(device) do
-    System.cmd("fsck.exfat", ["-y", "/dev/" <> device])
-  end
-
-  def vfat(device) do
-    System.cmd("fsck.vfat", ["-y", "/dev/" <> device])
-  end
+  def exfat(device), do: System.cmd("fsck.exfat", ["-y", "/dev/" <> device]) |> successful?()
+  def vfat(device), do: System.cmd("fsck.vfat", ["-y", "/dev/" <> device]) |> successful?()
+  def f2fs(device), do: System.cmd("fsck.f2fs", ["-y", "-a", "/dev/" <> device]) |> successful?()
 
   defp successful?({msg, exit_code}) do
     case exit_code do

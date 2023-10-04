@@ -1,4 +1,4 @@
-defmodule PlatformTest do
+defmodule Platform.PlatformTest do
   use ExUnit.Case
 
   test "preparation" do
