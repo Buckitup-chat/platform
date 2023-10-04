@@ -12,12 +12,14 @@ defmodule Platform.Storage.Device do
 
   def heal(device) do
     Leds.blink_read()
+
     case Lsblk.fs_type(device) do
       "vfat" -> Fsck.vfat(device)
       "f2fs" -> Fsck.f2fs(device)
       "exfat" -> Fsck.exfat(device)
       _ -> false
     end
+
     Leds.blink_done()
     Logger.info("[platform] #{device} health checked")
 

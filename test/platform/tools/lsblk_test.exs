@@ -14,22 +14,25 @@ defmodule Platform.Tools.LsblkTest do
   defmodule SystemMock do
     def cmd("lsblk", ["-o", "FSTYPE", "/dev/sda1"]) do
       {"""
-      FSTYPE
-      exfat
-      """, 0}
+       FSTYPE
+       exfat
+       """, 0}
     end
+
     def cmd("lsblk", ["-o", "FSTYPE", "/dev/mmcblk0p1"]) do
       {"""
-      FSTYPE
-      vfat
-      """, 0}
+       FSTYPE
+       vfat
+       """, 0}
     end
+
     def cmd("lsblk", ["-o", "FSTYPE", "/dev/mmcblk0p3"]) do
       {"""
        FSTYPE
        f2fs
        """, 0}
     end
+
     def cmd("lsblk", _) do
       {"not a block device", 32}
     end

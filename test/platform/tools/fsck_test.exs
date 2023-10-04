@@ -12,7 +12,6 @@ defmodule Platform.Tools.FsckTest do
     assert is_list(Fsck.module_info())
   end
 
-
   defmodule SystemMock do
     def cmd("fsck.exfat", ["-y", "/dev/sda1"]), do: {"", 0}
     def cmd("fsck.vfat", ["-y", "/dev/mmcblk0p1"]), do: {"intentional error", 255}
@@ -32,5 +31,4 @@ defmodule Platform.Tools.FsckTest do
   test "f2fs" do
     assert Fsck.f2fs("mmcblk0p3")
   end
-
 end
