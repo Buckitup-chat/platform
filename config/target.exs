@@ -162,7 +162,6 @@ config :mdns_lite,
     # }
   ]
 
-
 # Chat endpoint config
 config :chat, ChatWeb.Endpoint,
   render_errors: [view: ChatWeb.ErrorView, accepts: ~w(html json), layout: false],
