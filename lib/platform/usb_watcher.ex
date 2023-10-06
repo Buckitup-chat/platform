@@ -1,5 +1,7 @@
 defmodule Platform.UsbWatcher do
   @moduledoc "Filters system events to provide usb drives plug/unplug events"
+  # todo: move time init out
+  # todo: deprecated use Platform.UsbDrives.Detector.Watcher
 
   use GenServer
 

@@ -1,5 +1,6 @@
 defmodule Platform.DriveDetector do
   @moduledoc "Detects drive insert/eject"
+  # todo: deprecated use Platform.UsbDrives.Detector.Watcher
 
   use GenServer
 
