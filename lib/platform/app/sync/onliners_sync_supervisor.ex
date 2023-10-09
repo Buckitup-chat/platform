@@ -16,18 +16,16 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   alias Platform.Storage.Copier
   alias Platform.Storage.Stopper
 
-  @mount_path Application.compile_env(:platform, :mount_path_media)
-
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
   end
 
   @impl true
-  def init([_device]) do
+  def init([_device, path]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
 
     type = "onliners_db"
-    full_path = [@mount_path, type, Chat.Db.version_path()] |> Path.join()
+    full_path = [path, type, Chat.Db.version_path()] |> Path.join()
     tasks = Tasks
     target_db = Chat.Db.OnlinersDb
 

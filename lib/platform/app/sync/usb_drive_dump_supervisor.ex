@@ -10,17 +10,15 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
   alias Platform.App.Sync.UsbDriveDumpSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
 
-  @mount_path Application.compile_env(:platform, :mount_path_media)
-
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
   end
 
   @impl Supervisor
-  def init([_device]) do
+  def init([_device, path]) do
     "UsbDriveDumpSupervisor start" |> Logger.info()
 
-    full_path = [@mount_path, "DCIM"] |> Path.join()
+    full_path = [path, "DCIM"] |> Path.join()
     tasks = Tasks
 
     [
