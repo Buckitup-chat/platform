@@ -26,7 +26,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
   end
 
   @impl Supervisor
-  def init([_device, path]) do
+  def init([device, path]) do
     "CargoSyncSupervisor start" |> Logger.info()
 
     type = "cargo_db"
@@ -45,14 +45,14 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}
        |> exit_takes(35_000)},
       InitialCopyCompleter |> exit_takes(1000),
-      {:stage, InviteAccept, {InviteAcceptor, []} |> exit_takes(1000)},
+      {:stage, InviteAccept, {InviteAcceptor, device: device} |> exit_takes(1000)},
       {:stage, CollectSensorsData,
        {SensorsDataCollector, get_keys_from: InviteAcceptor}
        |> exit_takes(1000)},
       {:stage, FinalCopying,
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: SensorsDataCollector}
        |> exit_takes(35_000)},
-      FinalCopyCompleter |> exit_takes(500)
+      {FinalCopyCompleter, device: device} |> exit_takes(500)
     ]
 
     children

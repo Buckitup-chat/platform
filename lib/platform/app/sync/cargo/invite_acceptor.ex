@@ -9,8 +9,8 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
   alias Chat.Identity
   alias Chat.Sync.CargoRoom
 
-  alias Platform.App.Media.Supervisor, as: MediaSupervisor
   alias Platform.Storage.DriveIndication
+  alias Platform.UsbDrives.Drive
 
   @impl true
   def on_init(opts) do
@@ -36,11 +36,11 @@ defmodule Platform.App.Sync.Cargo.InviteAcceptor do
     else
       {:error, :no_cargo_user} ->
         DriveIndication.drive_complete()
-        MediaSupervisor.terminate_all_stages()
+        Drive.terminate(opts[:device])
 
       _ ->
         DriveIndication.drive_refused()
-        MediaSupervisor.terminate_all_stages()
+        Drive.terminate(opts[:device])
     end
     |> then(&{:noreply, &1})
   end

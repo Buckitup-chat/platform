@@ -10,7 +10,7 @@ defmodule Platform.UsbDrives.Drive do
   end
 
   def terminate(drive) do
-    stage = registry_name(Healing, drive)
+    stage = registry_name(Healed, drive)
 
     stage
     |> DynamicSupervisor.which_children()

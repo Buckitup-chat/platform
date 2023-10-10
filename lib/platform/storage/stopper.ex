@@ -7,6 +7,7 @@ defmodule Platform.Storage.Stopper do
 
   alias Platform.Storage.DriveIndication
   alias Platform.Leds
+  alias Platform.UsbDrives.Drive
 
   @default_wait if(Application.compile_env(:platform, :target) == :host, do: 100, else: 5000)
 
@@ -21,14 +22,7 @@ defmodule Platform.Storage.Stopper do
       Logger.info("backup finished. Stopping supervisor")
 
       Process.sleep(wait)
-
-      case Process.whereis(Platform.App.Media.Supervisor) do
-        nil ->
-          nil
-
-        pid ->
-          DynamicSupervisor.terminate_child(Platform.App.Media.DynamicSupervisor, pid)
-      end
+      Drive.terminate(opts[:device])
 
       Leds.blink_done()
     end)

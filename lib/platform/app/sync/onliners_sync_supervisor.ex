@@ -21,7 +21,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
   end
 
   @impl true
-  def init([_device, path]) do
+  def init([device, path]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
 
     type = "onliners_db"
@@ -39,7 +39,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
       {:stage, Copying,
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}
        |> exit_takes(10_000)},
-      Stopper
+      {Stopper, device: device}
     ]
     |> prepare_stages(Platform.App.Sync.OnlinersStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 50)

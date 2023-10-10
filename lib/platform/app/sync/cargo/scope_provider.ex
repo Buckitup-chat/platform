@@ -8,8 +8,8 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
   alias Chat.Db.Scope.KeyScope
   alias Chat.Sync.CargoRoom
 
-  alias Platform.App.Media.Supervisor, as: MediaSupervisor
   alias Platform.Storage.DriveIndication
+  alias Platform.UsbDrives.Drive
 
   @impl true
   def on_init(opts) do
@@ -21,7 +21,7 @@ defmodule Platform.App.Sync.Cargo.ScopeProvider do
       opts
     else
       DriveIndication.drive_refused()
-      MediaSupervisor.terminate_all_stages()
+      Drive.terminate(opts[:device])
     end
   end
 
