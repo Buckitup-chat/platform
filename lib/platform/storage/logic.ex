@@ -3,12 +3,9 @@ defmodule Platform.Storage.Logic do
 
   require Logger
 
-  alias Chat.Db
   alias Chat.Db.Common
   alias Chat.Db.Copying
-  alias Chat.Db.Maintenance
   alias Chat.Db.Switching
-  alias Platform.Storage.Device
 
   def replicate_main_to_internal do
     case get_db_mode() do

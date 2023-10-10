@@ -23,7 +23,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
   end
 
   @impl true
-  def init([device, path]) do
+  def init([_device, path]) do
     "Main Db Supervisor start" |> Logger.debug()
 
     full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()

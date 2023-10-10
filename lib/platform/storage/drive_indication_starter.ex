@@ -6,7 +6,7 @@ defmodule Platform.Storage.DriveIndicationStarter do
   alias Platform.Storage.DriveIndication
 
   @impl true
-  def on_init(opts) do
+  def on_init(_opts) do
     send(self(), :accept)
 
     :ok
