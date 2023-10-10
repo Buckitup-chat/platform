@@ -1,5 +1,5 @@
 defmodule Platform.Storage.DriveIndicationStarter do
-  @moduledoc false
+  @moduledoc "Light red led on start"
   use GracefulGenServer
 
   alias Chat.Sync.CargoRoom
@@ -7,12 +7,7 @@ defmodule Platform.Storage.DriveIndicationStarter do
 
   @impl true
   def on_init(opts) do
-    next = opts |> Keyword.fetch!(:next)
-    next_specs = next |> Keyword.fetch!(:run)
-    next_supervisor = next |> Keyword.fetch!(:under)
-
     send(self(), :accept)
-    Platform.start_next_stage(next_supervisor, next_specs)
 
     :ok
   end

@@ -44,6 +44,7 @@ defmodule Platform.Storage.Logic do
 
   def unmount_main do
     if get_db_mode() == :main do
+      # todo: find main supervisor started
       DynamicSupervisor.terminate_child(
         Platform.MainDbSupervisor,
         Platform.App.Db.MainDbSupervisor |> Process.whereis()
@@ -115,16 +116,6 @@ defmodule Platform.Storage.Logic do
     |> DynamicSupervisor.start_child({Platform.App.Db.MainDbSupervisor, [device]})
   end
 
-  defp switch_backup_to_main(device) do
-    DynamicSupervisor.terminate_child(
-      Platform.App.Media.DynamicSupervisor,
-      Platform.App.Media.Supervisor |> Process.whereis()
-    )
-
-    Process.sleep(5_000)
-
-    switch_internal_to_main(device)
-  end
 
   defp do_replicate_to_internal do
     internal = Chat.Db.InternalDb

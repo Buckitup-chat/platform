@@ -3,7 +3,9 @@ defmodule Platform.UsbDrives.Detector do
 
   require Logger
 
+  alias Platform.App.Drive.BootSupervisor
   alias Platform.Storage.DriveIndication
+  alias Platform.UsbDrives.Drive
 
   def start_initial_indication do
     Task.Supervisor.async_nolink(Platform.TaskSupervisor, fn ->
@@ -14,11 +16,20 @@ defmodule Platform.UsbDrives.Detector do
   end
 
   def insert(device) do
-    #    Logic.on_new([device])
+    eject(device)
+
+    Platform.Drives
+    |> DynamicSupervisor.start_child(
+      {BootSupervisor, [device, Drive.registry_name(BootSupervisor, device)]}
+    )
   end
 
   def eject(device) do
-    # Logic.on_remove([device], still_connected |> MapSet.to_list())
+    Drive.registry_lookup(BootSupervisor, device)
+    |> case do
+      [{pid, _value}] -> Platform.Drives |> DynamicSupervisor.terminate_child(pid)
+      _ -> :none
+    end
   end
 
   def log_added(devices) do
