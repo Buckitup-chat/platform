@@ -38,9 +38,10 @@ defmodule Platform.Application do
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
       Platform.ChatBridge.Worker,
-      {Task, fn -> Chat.Time.init_time() end},
       {Task,
        fn ->
+         Chat.Time.init_time()
+
          [
            "vm.dirty_expire_centisecs=300",
            "vm.dirty_writeback_centisecs=50",

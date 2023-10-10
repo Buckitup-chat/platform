@@ -9,9 +9,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
 
   alias Platform.Storage.{
     Bouncer,
-    Healer,
-    MainReplicator,
-    Mounter
+    MainReplicator
   }
 
   alias Platform.Storage.InternalToMain.{

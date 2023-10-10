@@ -5,8 +5,12 @@ defmodule Platform.App.Drive.BootSupervisor do
 
   import Platform
 
+  require Logger
+
   alias Platform.Storage.Healer
   alias Platform.Storage.Mounter
+  alias Platform.Storage.DriveIndicationStarter
+  alias Platform.UsbDrives.Decider
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 

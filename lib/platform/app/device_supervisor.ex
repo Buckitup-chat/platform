@@ -28,9 +28,9 @@ defmodule Platform.App.DeviceSupervisor do
     #    ]
 
     children = [
-      {Registry, name: Platform.App.DeviceRegistry, keys: :unique},
       {DynamicSupervisor, name: Platform.Drives, strategy: :one_for_one}
       |> exit_takes(150_000),
+      {Registry, name: Platform.Drives.Registry, keys: :unique},
       Platform.UsbDrives.Detector.Watcher
     ]
 

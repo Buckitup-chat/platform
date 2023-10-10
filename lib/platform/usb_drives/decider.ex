@@ -22,6 +22,7 @@ defmodule Platform.UsbDrives.Decider do
     GenServer.start_link(__MODULE__, args, [])
   end
 
+  @impl true
   def init([device, opts]) do
     mount_path = Keyword.fetch!(opts, :mounted)
     next_opts = Keyword.fetch!(opts, :next)
