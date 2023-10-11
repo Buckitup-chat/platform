@@ -66,7 +66,9 @@ defmodule Platform.UsbDrives.Decider do
   end
 
   defp create_first_main? do
-    on_internal_db?()
+    %MediaSettings{main: create_main?} = AdminRoom.get_media_settings()
+
+    create_main? and on_internal_db?()
   end
 
   defp default_scenario do

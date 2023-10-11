@@ -29,7 +29,6 @@ defmodule Platform.UsbDrives.Detector.WatcherTest do
   rewire(Polling, Path: PathStub, as: PollingMock)
   rewire(Watcher, Polling: PollingMock)
 
-
   test "new devices added" do
     fresh_state()
     |> fs_check_fires()
