@@ -1,4 +1,4 @@
-defmodule Platform.App.Sync.OnlinersSyncSupervisor do
+defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   @moduledoc """
   Starts supervision tree for online sync.
   """
@@ -10,24 +10,22 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
 
   alias Chat.Db.MediaDbSupervisor
   alias Platform.App.Sync.Onliners.ScopeProvider
-  alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
+  alias Platform.App.Drive.OnlinersSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
   alias Platform.Storage.Copier
   alias Platform.Storage.Stopper
-
-  @mount_path Application.compile_env(:platform, :mount_path_media)
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
   end
 
   @impl true
-  def init([_device]) do
+  def init([device, path]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
 
     type = "onliners_db"
-    full_path = [@mount_path, type, Chat.Db.version_path()] |> Path.join()
+    full_path = [path, type, Chat.Db.version_path()] |> Path.join()
     tasks = Tasks
     target_db = Chat.Db.OnlinersDb
 
@@ -41,9 +39,9 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
       {:stage, Copying,
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}
        |> exit_takes(10_000)},
-      Stopper
+      {Stopper, device: device}
     ]
-    |> prepare_stages(Platform.App.Sync.OnlinersStages)
+    |> prepare_stages(Platform.App.Drive.OnlinersStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 50)
   end
 end

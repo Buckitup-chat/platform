@@ -60,5 +60,9 @@ defmodule Platform.Storage.Mounter do
       Mount.unmount(path)
     end)
     |> Task.await(:timer.seconds(15))
+    |> case do
+      {_, 0} -> :ok
+      e -> Logger.warn(inspect(e))
+    end
   end
 end

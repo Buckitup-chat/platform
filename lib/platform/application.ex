@@ -37,10 +37,11 @@ defmodule Platform.Application do
       # Children for all targets except host
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
-      Platform.App.DeviceSupervisor,
       Platform.ChatBridge.Worker,
       {Task,
        fn ->
+         Chat.Time.init_time()
+
          [
            "vm.dirty_expire_centisecs=300",
            "vm.dirty_writeback_centisecs=50",
@@ -52,7 +53,7 @@ defmodule Platform.Application do
          Logger.put_module_level(Tesla.Middleware.Logger, :error)
        end},
       Platform.Storage.DriveIndication,
-      Platform.DriveDetector
+      Platform.App.DeviceSupervisor
     ]
   end
 

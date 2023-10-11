@@ -21,11 +21,10 @@ defmodule Platform.App.DeviceSupervisor do
     "Device Supervisor start" |> Logger.debug()
 
     children = [
-      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
+      {DynamicSupervisor, name: Platform.Drives, strategy: :one_for_one}
       |> exit_takes(150_000),
-      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
-      |> exit_takes(150_000),
-      Platform.UsbWatcher
+      {Registry, name: Platform.Drives.Registry, keys: :unique},
+      Platform.UsbDrives.Detector.Watcher
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

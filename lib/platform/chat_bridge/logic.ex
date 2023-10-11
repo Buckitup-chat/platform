@@ -37,7 +37,21 @@ defmodule Platform.ChatBridge.Logic do
   end
 
   def unmount_main do
-    Logic.unmount_main()
+    if Chat.Db.Common.get_chat_db_env(:mode) == :main do
+      Chat.Db.MainDb
+      |> CubDB.data_dir()
+      |> Chat.Db.Maintenance.path_to_device()
+      |> then(fn
+        "/dev/" <> device -> device
+        "/" <> device -> device
+        device -> device
+      end)
+      |> Platform.UsbDrives.Drive.terminate()
+
+      :unmounted
+    else
+      :ignored
+    end
     |> mark(:unmounted_main)
   end
 

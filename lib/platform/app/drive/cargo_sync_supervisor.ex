@@ -1,4 +1,4 @@
-defmodule Platform.App.Sync.CargoSyncSupervisor do
+defmodule Platform.App.Drive.CargoSyncSupervisor do
   @moduledoc "Cargo scenario"
   use Supervisor
 
@@ -16,23 +16,21 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     ScopeProvider
   }
 
-  alias Platform.App.Sync.CargoSyncSupervisor.Tasks
+  alias Platform.App.Drive.CargoSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
   alias Platform.Storage.Copier
-
-  @mount_path Application.compile_env(:platform, :mount_path_media)
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
   end
 
   @impl Supervisor
-  def init([_device]) do
+  def init([device, path]) do
     "CargoSyncSupervisor start" |> Logger.info()
 
     type = "cargo_db"
-    full_path = [@mount_path, type, Chat.Db.version_path()] |> Path.join()
+    full_path = [path, type, Chat.Db.version_path()] |> Path.join()
     tasks = Tasks
     target_db = Chat.Db.CargoDb
 
@@ -47,18 +45,18 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}
        |> exit_takes(35_000)},
       InitialCopyCompleter |> exit_takes(1000),
-      {:stage, InviteAccept, {InviteAcceptor, []} |> exit_takes(1000)},
+      {:stage, InviteAccept, {InviteAcceptor, device: device} |> exit_takes(1000)},
       {:stage, CollectSensorsData,
        {SensorsDataCollector, get_keys_from: InviteAcceptor}
        |> exit_takes(1000)},
       {:stage, FinalCopying,
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: SensorsDataCollector}
        |> exit_takes(35_000)},
-      FinalCopyCompleter |> exit_takes(500)
+      {FinalCopyCompleter, device: device} |> exit_takes(500)
     ]
 
     children
-    |> prepare_stages(Platform.App.Sync.CargoScenarioStages)
+    |> prepare_stages(Platform.App.Drive.CargoScenarioStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 end

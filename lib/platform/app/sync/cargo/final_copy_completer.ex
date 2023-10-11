@@ -3,21 +3,23 @@ defmodule Platform.App.Sync.Cargo.FinalCopyCompleter do
 
   use GracefulGenServer
 
-  alias Platform.App.Media.Supervisor, as: MediaSupervisor
   alias Platform.Storage.DriveIndication
+  alias Platform.UsbDrives.Drive
 
   @impl true
-  def on_init(_opts) do
+  def on_init(opts) do
     send(self(), :start)
+    opts
   end
 
-  def on_msg(:start, state) do
+  @impl true
+  def on_msg(:start, opts) do
     Process.sleep(2000)
 
     DriveIndication.drive_complete()
-    MediaSupervisor.terminate_all_stages()
+    Drive.terminate(opts[:device])
 
-    {:noreply, state}
+    {:noreply, opts}
   end
 
   @impl true

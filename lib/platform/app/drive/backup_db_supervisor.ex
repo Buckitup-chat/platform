@@ -1,4 +1,4 @@
-defmodule Platform.App.Db.BackupDbSupervisor do
+defmodule Platform.App.Drive.BackupDbSupervisor do
   @moduledoc """
   Main DB device mount
   """
@@ -13,19 +13,17 @@ defmodule Platform.App.Db.BackupDbSupervisor do
   alias Platform.Storage.Backup.Copier
   alias Platform.Storage.Bouncer
 
-  @mount_path Application.compile_env(:platform, :mount_path_media)
-
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
   end
 
   @impl true
-  def init([_device]) do
+  def init([_device, path]) do
     "Backup DB Supervisor start" |> Logger.info()
 
     type = "backup_db"
-    full_path = [@mount_path, type, Chat.Db.version_path()] |> Path.join()
-    tasks = Platform.App.Db.BackupDbSupervisor.Tasks
+    full_path = [path, type, Chat.Db.version_path()] |> Path.join()
+    tasks = Platform.App.Drive.BackupDbSupervisor.Tasks
     db = Chat.Db.BackupDb
     continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
 
