@@ -1,4 +1,4 @@
-defmodule Platform.App.Sync.CargoSyncSupervisor do
+defmodule Platform.App.Drive.CargoSyncSupervisor do
   @moduledoc "Cargo scenario"
   use Supervisor
 
@@ -16,7 +16,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     ScopeProvider
   }
 
-  alias Platform.App.Sync.CargoSyncSupervisor.Tasks
+  alias Platform.App.Drive.CargoSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
   alias Platform.Storage.Copier
@@ -56,7 +56,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisor do
     ]
 
     children
-    |> prepare_stages(Platform.App.Sync.CargoScenarioStages)
+    |> prepare_stages(Platform.App.Drive.CargoScenarioStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 end

@@ -1,4 +1,4 @@
-defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
+defmodule Platform.App.Drive.UsbDriveDumpSupervisor do
   @moduledoc "Usb drive dump scenario"
   use Supervisor
   import Platform
@@ -7,7 +7,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
 
   alias Platform.App.Sync.UsbDriveDump.Completer
   alias Platform.App.Sync.UsbDriveDump.Dumper
-  alias Platform.App.Sync.UsbDriveDumpSupervisor.Tasks
+  alias Platform.App.Drive.UsbDriveDumpSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
 
   def start_link(init_arg) do
@@ -27,7 +27,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisor do
       {:stage, Dump, {Dumper, mounted: full_path, task_in: tasks} |> exit_takes(10_000)},
       Completer
     ]
-    |> prepare_stages(Platform.App.Sync.UsbDriveDumpStages)
+    |> prepare_stages(Platform.App.Drive.UsbDriveDumpStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       "UsbDriveDumpSupervisor init result #{inspect(res)}" |> Logger.debug()

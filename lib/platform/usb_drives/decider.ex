@@ -8,9 +8,11 @@ defmodule Platform.UsbDrives.Decider do
   alias Chat.Admin.MediaSettings
   alias Chat.AdminRoom
   alias Chat.Sync.UsbDriveDumpRoom
-  alias Platform.App.Db.BackupDbSupervisor
-  alias Platform.App.Db.MainDbSupervisor
-  alias Platform.App.Sync.{CargoSyncSupervisor, OnlinersSyncSupervisor, UsbDriveDumpSupervisor}
+  alias Platform.App.Drive.BackupDbSupervisor
+  alias Platform.App.Drive.MainDbSupervisor
+  alias Platform.App.Drive.CargoSyncSupervisor
+  alias Platform.App.Drive.OnlinersSyncSupervisor
+  alias Platform.App.Drive.UsbDriveDumpSupervisor
 
   @supervisor_map %{
     backup: BackupDbSupervisor,

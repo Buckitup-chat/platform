@@ -1,4 +1,4 @@
-defmodule Platform.App.Db.MainDbSupervisor do
+defmodule Platform.App.Drive.MainDbSupervisor do
   @moduledoc """
   Main DB device mount
   """
@@ -27,7 +27,7 @@ defmodule Platform.App.Db.MainDbSupervisor do
     "Main Db Supervisor start" |> Logger.debug()
 
     full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()
-    task_supervisor = Platform.App.Db.MainDbSupervisor.Tasks
+    task_supervisor = Platform.App.Drive.MainDbSupervisor.Tasks
 
     [
       use_task(task_supervisor),

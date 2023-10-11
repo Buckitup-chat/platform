@@ -1,4 +1,4 @@
-defmodule Platform.App.Sync.OnlinersSyncSupervisor do
+defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   @moduledoc """
   Starts supervision tree for online sync.
   """
@@ -10,7 +10,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
 
   alias Chat.Db.MediaDbSupervisor
   alias Platform.App.Sync.Onliners.ScopeProvider
-  alias Platform.App.Sync.OnlinersSyncSupervisor.Tasks
+  alias Platform.App.Drive.OnlinersSyncSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
   alias Platform.Storage.Copier
@@ -41,7 +41,7 @@ defmodule Platform.App.Sync.OnlinersSyncSupervisor do
        |> exit_takes(10_000)},
       {Stopper, device: device}
     ]
-    |> prepare_stages(Platform.App.Sync.OnlinersStages)
+    |> prepare_stages(Platform.App.Drive.OnlinersStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 50)
   end
 end

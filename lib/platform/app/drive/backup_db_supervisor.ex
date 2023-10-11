@@ -1,4 +1,4 @@
-defmodule Platform.App.Db.BackupDbSupervisor do
+defmodule Platform.App.Drive.BackupDbSupervisor do
   @moduledoc """
   Main DB device mount
   """
@@ -23,7 +23,7 @@ defmodule Platform.App.Db.BackupDbSupervisor do
 
     type = "backup_db"
     full_path = [path, type, Chat.Db.version_path()] |> Path.join()
-    tasks = Platform.App.Db.BackupDbSupervisor.Tasks
+    tasks = Platform.App.Drive.BackupDbSupervisor.Tasks
     db = Chat.Db.BackupDb
     continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
 
