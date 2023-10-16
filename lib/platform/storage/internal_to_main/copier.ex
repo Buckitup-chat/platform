@@ -26,7 +26,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
   @impl true
   def on_msg(:start, %{task_in: task_supervisor} = state) do
-    "copying internal to main" |> Logger.warn()
+    "copying internal to main" |> Logger.warning()
 
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
@@ -65,7 +65,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
   @impl true
   def on_exit(reason, _state) do
-    "copier cleanup #{inspect(reason)}" |> Logger.warn()
+    "copier cleanup #{inspect(reason)}" |> Logger.warning()
 
     Leds.blink_done()
 

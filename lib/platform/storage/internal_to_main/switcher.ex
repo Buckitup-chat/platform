@@ -10,14 +10,14 @@ defmodule Platform.Storage.InternalToMain.Switcher do
 
   @impl true
   def on_init(args) do
-    "switcher on start #{inspect(args)}" |> Logger.warn()
+    "switcher on start #{inspect(args)}" |> Logger.warning()
     set_db_mode(:main)
     args
   end
 
   @impl true
   def on_exit(reason, _state) do
-    "switcher cleanup #{inspect(reason)}" |> Logger.warn()
+    "switcher cleanup #{inspect(reason)}" |> Logger.warning()
     set_db_mode(:main_to_internal)
   end
 

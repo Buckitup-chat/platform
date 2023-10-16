@@ -25,7 +25,7 @@ defmodule Platform.Storage.MainReplicator do
     {:noreply, schedule()}
   rescue
     e ->
-      Logger.warn(" [platform] error replicating: #{inspect(e)}")
+      Logger.warning(" [platform] error replicating: #{inspect(e)}")
       {:noreply, schedule()}
   end
 
