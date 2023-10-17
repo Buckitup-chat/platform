@@ -36,12 +36,12 @@ defmodule Platform.Storage.Logic do
 
     case Process.whereis(backup) do
       nil ->
-        Logger.warn("setting mirror: #{inspect(internal)}")
+        Logger.warning("setting mirror: #{inspect(internal)}")
         Switching.mirror(main, internal)
         Copying.await_copied(main, internal)
 
       _pid ->
-        Logger.warn("setting mirrors: #{inspect([internal, backup])}")
+        Logger.warning("setting mirrors: #{inspect([internal, backup])}")
         Switching.mirror(main, [internal, backup])
         Copying.await_copied(main, internal)
         # TODO: continious backup need a way for new changes

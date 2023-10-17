@@ -47,14 +47,14 @@ defmodule Platform.MixProject do
       {:nerves_leds, "~> 0.8.1"},
       {:dns, "~> 2.3"},
       # Dependencies for all targets
-      {:nerves, "~> 1.9.1", runtime: false},
-      {:shoehorn, "~> 0.7.0"},
-      {:ring_logger, "~> 0.8.1"},
-      {:toolshed, "~> 0.2.13"},
+      {:nerves, "~> 1.10.4", runtime: false},
+      {:shoehorn, "~> 0.9.1"},
+      {:ring_logger, "~> 0.10.5"},
+      {:toolshed, "~> 0.3.1"},
 
       # Dependencies for all targets except :host
-      {:nerves_runtime, "~> 0.11.3", targets: @all_targets},
-      {:nerves_pack, "~> 0.6.0", targets: @all_targets},
+      {:nerves_runtime, "~> 0.13.5", targets: @all_targets},
+      {:nerves_pack, "~> 0.7.0", targets: @all_targets},
       # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
       # {:dns, "~> 2.3", targets: @all_targets},
 

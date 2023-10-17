@@ -19,7 +19,11 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   }
 
   def start_link(init_arg) do
-    Supervisor.start_link(__MODULE__, init_arg, name: __MODULE__, max_restarts: 1, max_seconds: 15)
+    Supervisor.start_link(__MODULE__, init_arg,
+      name: __MODULE__,
+      max_restarts: 1,
+      max_seconds: 15
+    )
   end
 
   @impl true
