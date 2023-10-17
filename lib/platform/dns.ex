@@ -5,7 +5,7 @@ defmodule Platform.Dns do
   @behaviour DNS.Server
   use DNS.Server
 
-  @domain 'chat.buckitup.net'
+  @domain ~c"chat.buckitup.net"
   @ip {192, 168, 24, 1}
 
   def handle(record, _cl) do
