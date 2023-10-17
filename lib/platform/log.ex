@@ -4,7 +4,7 @@ defmodule Platform.Log do
   require Logger
 
   def fsck_warn(code, msg) do
-    log(["[fsck] ", "(", inspect(code), ") ", msg], :warn)
+    log(["[fsck] ", "(", inspect(code), ") ", msg], :warning)
   end
 
   defp log(msg, level) do
