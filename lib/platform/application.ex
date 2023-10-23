@@ -29,6 +29,8 @@ defmodule Platform.Application do
       # Children that only run on the host
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
+      Platform.Emulator.Drive.DriveIndication,
+      Platform.App.DeviceSupervisor
     ]
   end
 

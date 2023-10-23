@@ -24,6 +24,8 @@ defmodule Platform.UsbDrives.Detector do
     )
   end
 
+  def eject(nil), do: :none
+
   def eject(device) do
     Drive.registry_lookup(BootSupervisor, device)
     |> case do

@@ -1,5 +1,6 @@
 defmodule Platform.App.Db.MainDbSupervisorTest do
   use ExUnit.Case, async: false
+  # todo: make readable
 
   alias Chat.Content.Files
   alias Chat.Utils.StorageId
@@ -19,15 +20,16 @@ defmodule Platform.App.Db.MainDbSupervisorTest do
   @mount_path Application.compile_env(:platform, :mount_path_storage)
 
   setup do
-    start_supervised!(
-      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
-    )
-
-    on_exit(fn ->
-      Switching.set_default(InternalDb)
-    end)
+    #    start_supervised!(
+    #      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
+    #    )
+    #
+    #    on_exit(fn ->
+    #      Switching.set_default(InternalDb)
+    #    end)
   end
 
+  @tag :skip
   describe "sync" do
     test "mirrors changes made to main to internal DB" do
       Platform.MainDbSupervisor

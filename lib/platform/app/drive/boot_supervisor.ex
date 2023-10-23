@@ -7,10 +7,13 @@ defmodule Platform.App.Drive.BootSupervisor do
 
   require Logger
 
-  alias Platform.Storage.Healer
-  alias Platform.Storage.Mounter
   alias Platform.Storage.DriveIndicationStarter
   alias Platform.UsbDrives.Decider
+
+  @healer (Application.compile_env(:platform, :target) == :host &&
+             Platform.Emulator.Drive.Healer) || Platform.Storage.Healer
+  @mounter (Application.compile_env(:platform, :target) == :host &&
+              Platform.Emulator.Drive.Mounter) || Platform.Storage.Mounter
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
@@ -31,9 +34,9 @@ defmodule Platform.App.Drive.BootSupervisor do
     [
       use_task(task_supervisor),
       {DriveIndicationStarter, []} |> exit_takes(15_000),
-      {:stage, name(Healed, device), {Healer, device: device, task_in: task_supervisor}},
+      {:stage, name(Healed, device), {@healer, device: device, task_in: task_supervisor}},
       {:stage, name(Mounted, device),
-       {Mounter, device: device, at: mount_path, task_in: task_supervisor} |> exit_takes(15_000)},
+       {@mounter, device: device, at: mount_path, task_in: task_supervisor} |> exit_takes(15_000)},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider, [device, [mounted: mount_path, next: [under: next_supervisor]]]}
     ]

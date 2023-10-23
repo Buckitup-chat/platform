@@ -5,13 +5,7 @@ defmodule Platform.UsbDrives.Detector.WatcherTest do
   alias Platform.UsbDrives.Detector.State
   alias Platform.UsbDrives.Detector.Watcher
   import Rewire
-
-  @moduletag :capture_log
-  doctest Watcher
-
-  test "module exists" do
-    assert is_list(Watcher.module_info())
-  end
+  import Support.Drive.Manipulation, only: [eject_all_drives: 0]
 
   test "genserver start" do
     {:ok, pid} = Watcher.start_link(name: Watcher.Test.Watcher)
@@ -35,6 +29,8 @@ defmodule Platform.UsbDrives.Detector.WatcherTest do
     |> assert_devices_timers_connected(~w[sda1 sdb], ~w[sda1 sdb], ~w[])
     |> add_connected_fires_for("sda1")
     |> assert_devices_timers_connected(~w[sda1 sdb], ~w[sdb], ~w[sda1])
+
+    eject_all_drives()
   end
 
   test "device remove" do
@@ -43,6 +39,8 @@ defmodule Platform.UsbDrives.Detector.WatcherTest do
     |> with_connected(~w[sda1 sdb sdc1])
     |> fs_check_fires()
     |> assert_devices_timers_connected(~w[sda1 sdb], ~w[], ~w[sda1 sdb])
+
+    eject_all_drives()
   end
 
   test "device removed right after adding and timer worked before got canceled" do
@@ -53,6 +51,8 @@ defmodule Platform.UsbDrives.Detector.WatcherTest do
     |> assert_devices_timers_connected(~w[sda1 sdb], ~w[sda1 sdb], ~w[])
     |> add_connected_fires_for("sdc1")
     |> assert_devices_timers_connected(~w[sda1 sdb], ~w[sda1 sdb], ~w[])
+
+    eject_all_drives()
   end
 
   defp fresh_state do

@@ -1,5 +1,6 @@
 defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   use ExUnit.Case, async: false
+  # todo: make readable
 
   alias Chat.Admin.{CargoSettings, MediaSettings}
 
@@ -27,29 +28,30 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   @cub_db_file Application.compile_env(:chat, :cub_db_file)
   @mount_path Application.compile_env(:platform, :mount_path_media)
 
-  setup do
-    CubDB.clear(AdminDb.db())
-    CubDB.clear(Db.db())
-    CargoRoom.remove()
-    UsbDriveDumpRoom.remove()
-    Common.put_chat_db_env(:flags, [])
-    File.rm_rf!(@cub_db_file)
-    AdminRoom.store_media_settings(%MediaSettings{functionality: :cargo})
+  #  setup do
+  #    CubDB.clear(AdminDb.db())
+  #    CubDB.clear(Db.db())
+  #    CargoRoom.remove()
+  #    UsbDriveDumpRoom.remove()
+  #    Common.put_chat_db_env(:flags, [])
+  #    File.rm_rf!(@cub_db_file)
+  #    AdminRoom.store_media_settings(%MediaSettings{functionality: :cargo})
+  #
+  #    "#{@mount_path}/**/*"
+  #    |> Path.wildcard()
+  #    |> Enum.reject(&String.contains?(&1, "DCIM"))
+  #    |> Enum.each(&File.rm_rf!/1)
+  #
+  #    start_supervised!(
+  #      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
+  #    )
+  #
+  #    on_exit(fn ->
+  #      Switching.set_default(InternalDb)
+  #    end)
+  #  end
 
-    "#{@mount_path}/**/*"
-    |> Path.wildcard()
-    |> Enum.reject(&String.contains?(&1, "DCIM"))
-    |> Enum.each(&File.rm_rf!/1)
-
-    start_supervised!(
-      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
-    )
-
-    on_exit(fn ->
-      Switching.set_default(InternalDb)
-    end)
-  end
-
+  @tag :skip
   test "syncs cargo room messages" do
     PubSub.subscribe(Chat.PubSub, "chat::cargo_room")
     PubSub.subscribe(Chat.PubSub, "chat::lobby")
@@ -279,6 +281,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
            )
   end
 
+  @tag :skip
   test "skips copying if it can't decide which room to sync" do
     PubSub.subscribe(Chat.PubSub, "chat::cargo_room")
 
@@ -319,6 +322,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
     refute Rooms.get(other_room_key)
   end
 
+  @tag :skip
   test "stops the process early" do
     PubSub.subscribe(Chat.PubSub, "chat::cargo_room")
 

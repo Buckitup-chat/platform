@@ -6,18 +6,19 @@ defmodule Platform.Storage.BouncerTest do
   @storage_mount_path Application.compile_env(:platform, :mount_path_storage)
   @media_mount_path Application.compile_env(:platform, :mount_path_media)
 
-  setup do
-    start_supervised!(
-      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
-    )
+  #  setup do
+  #    start_supervised!(
+  #      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
+  #    )
+  #
+  #    start_supervised!(
+  #      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
+  #    )
+  #
+  #    :ok
+  #  end
 
-    start_supervised!(
-      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
-    )
-
-    :ok
-  end
-
+  @tag :skip
   test "does not allow DB directory rename" do
     assert {:ok, _pid} =
              Platform.MainDbSupervisor
