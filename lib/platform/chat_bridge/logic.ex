@@ -1,7 +1,6 @@
 defmodule Platform.ChatBridge.Logic do
   @moduledoc "Logic for Chat Admin panel"
 
-  alias Platform.Storage.Logic
   alias Platform.Tools.Fwup
 
   @iface "wlan0"

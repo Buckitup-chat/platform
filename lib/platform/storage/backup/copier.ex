@@ -20,7 +20,8 @@ defmodule Platform.Storage.Backup.Copier do
     %{
       task_in: opts |> Keyword.fetch!(:tasks_name),
       continuous?: opts |> Keyword.fetch!(:continuous?),
-      task_ref: nil
+      task_ref: nil,
+      device: opts[:device]
     }
     |> tap(fn _ -> send(self(), :start) end)
   end
@@ -63,12 +64,12 @@ defmodule Platform.Storage.Backup.Copier do
     {:noreply, state}
   end
 
-  def on_msg(:copied, %{continuous?: continuous?} = state) do
+  def on_msg(:copied, %{continuous?: continuous?, device: device} = state) do
     set_db_flag(backup: false)
     DriveIndication.drive_complete()
 
     unless continuous? do
-      Stopper.start_link(wait: 100)
+      Stopper.start_link(wait: 100, device: device)
     end
 
     "[backup] Synced " |> Logger.info()
