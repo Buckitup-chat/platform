@@ -92,12 +92,12 @@ defmodule Support.Drive.Manipulation do
     )
   end
 
-  defp get_registered_drives(stage) do
+  def get_registered_drives(stage) do
     @registry
     |> Registry.select([{{{stage, :"$1"}, :"$2", :_}, [], [{{:"$1", :"$2"}}]}])
   end
 
-  defp get_drive_scenarios do
+  def get_drive_scenarios do
     Scenario
     |> get_registered_drives()
     |> Enum.map(fn {drive, pid} ->
@@ -125,7 +125,7 @@ defmodule Support.Drive.Manipulation do
     total == count and MapSet.subset?(MapSet.new(started), scheme)
   end
 
-  defp await_till(action_fn, opts \\ []) do
+  def await_till(action_fn, opts \\ []) do
     time = opts[:time] || 2000
     step = opts[:step] || 500
 
