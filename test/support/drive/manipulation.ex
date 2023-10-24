@@ -7,13 +7,15 @@ defmodule Support.Drive.Manipulation do
     cargo: "cargo_db",
     backup: "backup_db",
     onliners: "onliners_db",
-    main: "main_db"
+    main: "main_db",
+    dump: "DCIM"
   }
   @supervisor_type %{
     Platform.App.Drive.MainDbSupervisor => :main,
     Platform.App.Drive.BackupDbSupervisor => :backup,
     Platform.App.Drive.CargoSyncSupervisor => :cargo,
-    Platform.App.Drive.OnlinersSyncSupervisor => :onliners
+    Platform.App.Drive.OnlinersSyncSupervisor => :onliners,
+    Platform.App.Drive.UsbDriveDumpSupervisor => :dump
   }
 
   alias Platform.UsbDrives.Detector
@@ -23,18 +25,18 @@ defmodule Support.Drive.Manipulation do
   def insert_cargo_drive(drive), do: insert_drive(drive, :cargo)
   def insert_backup_drive(drive), do: insert_drive(drive, :backup)
   def insert_onliners_drive(drive), do: insert_drive(drive, :onliners)
+  def insert_dump_drive(drive), do: insert_drive(drive, :dump)
 
   def nothing_is_started?, do: check_scenario(0, [])
   def only_main_scenario_started?, do: check_scenario(1, main: 1)
   def only_cargo_scenario_started?, do: check_scenario(1, cargo: 1)
   def only_backup_scenario_started?, do: check_scenario(1, backup: 1)
   def only_onliners_scenario_started?, do: check_scenario(1, onliners: 1)
+  def only_dump_scenario_started?, do: check_scenario(1, dump: 1)
   def main_and_non_main_scenario_started?, do: check_scenario(2, main: 1)
   def main_and_cargo_scenario_started?, do: check_scenario(2, main: 1, cargo: 1)
   def main_and_onliners_scenario_started?, do: check_scenario(2, main: 1, onliners: 1)
-  def main_and_backup_started?, do: check_scenario(2, main: 1, backup: 1)
-  def main_and_backup_and_cargo_started?, do: check_scenario(3, main: 1, backup: 1, cargo: 1)
-  def main_and_cargo_and_onliners_started?, do: check_scenario(3, main: 1, cargo: 1, onliners: 1)
+  def main_and_backup_scenario_started?, do: check_scenario(2, main: 1, backup: 1)
 
   def await_supervision_started do
     await_till(
