@@ -3,28 +3,60 @@ defmodule DriveSupervisionTest do
 
   import Support.Drive.Manipulation
 
-  test "main dies by last stage" do
-    await_supervision_started()
-    assert nothing_is_started?()
-    insert_main_drive("main_drive")
-    await_main_set_up_completely("main_drive")
+  @drive "main_drive"
 
-    kill_last_stage_children("main_drive")
+  test "main dies by last stage" do
+    prepare()
+    await_main_set_up_completely(@drive)
+    # print_supervision_tree()
+
+    kill_last_stage_children(@drive)
     Process.sleep(100)
-    await_main_set_up_completely("main_drive")
+    await_main_set_up_completely(@drive)
+    # print_supervision_tree()
 
     # and one more time to trigger prev stage killing
-    kill_last_stage_children("main_drive")
+    kill_last_stage_children(@drive)
     Process.sleep(100)
-    await_main_set_up_completely("main_drive")
+    await_main_set_up_completely(@drive)
+    # print_supervision_tree()
 
-    eject_all_drives()
-    clean_filesystem()
+    cleanup()
   end
 
-  test "main dies by first stage in scenario"
-  test "main dies in mounter"
-  test "main dies in indication"
+  test "main dies by first stage in scenario" do
+    prepare()
+    # print_supervision_tree()
+
+    kill_a_child_in_scenario(@drive)
+    Process.sleep(100)
+    await_main_set_up_completely(@drive)
+    # print_supervision_tree()
+
+    kill_a_child_in_scenario(@drive)
+    Process.sleep(100)
+    await_main_set_up_completely(@drive)
+    # print_supervision_tree()
+
+    cleanup()
+  end
+
+  test "main dies in mounter" do
+    prepare()
+    # print_supervision_tree()
+
+    kill_mounter(@drive)
+    Process.sleep(100)
+    await_main_set_up_completely(@drive)
+    # print_supervision_tree()
+
+    kill_mounter(@drive)
+    Process.sleep(100)
+    await_main_set_up_completely(@drive)
+    # print_supervision_tree()
+
+    cleanup()
+  end
 
   defp kill_last_stage_children(drive) do
     get_drive_scenarios()
@@ -33,6 +65,27 @@ defmodule DriveSupervisionTest do
     |> stage_children()
     |> Enum.map(&elem(&1, 0))
     |> Enum.each(&Process.exit(&1, :test))
+  end
+
+  defp kill_a_child_in_scenario(drive) do
+    {_, pid, _, _} =
+      get_drive_scenarios()
+      |> Map.get(drive)
+      |> Supervisor.which_children()
+      |> List.first()
+
+    Process.exit(pid, :test)
+  end
+
+  defp kill_mounter(drive) do
+    get_registered_drives(Healed)
+    |> Map.new()
+    |> Map.get(drive)
+    |> stage_children()
+    |> Enum.reject(&match?({_, DynamicSupervisor}, &1))
+    |> List.first()
+    |> elem(0)
+    |> Process.exit(:test)
   end
 
   defp await_main_set_up_completely(drive) do
@@ -80,5 +133,33 @@ defmodule DriveSupervisionTest do
     else
       _ -> false
     end
+  end
+
+  defp prepare do
+    await_supervision_started()
+    assert nothing_is_started?()
+    insert_main_drive(@drive)
+  end
+
+  defp cleanup do
+    eject_all_drives()
+    clean_filesystem()
+  end
+
+  defp print_supervision_tree do
+    Platform.App.DeviceSupervisor
+    |> Process.whereis()
+    |> build_supervision_tree()
+    |> IO.inspect(limit: :infinity)
+  end
+
+  defp build_supervision_tree(supervisor) do
+    supervisor
+    |> Supervisor.which_children()
+    |> Enum.map(fn
+      {_, pid, :worker, spec} -> {pid, spec}
+      {_, pid, :supervisor, _} -> {pid, pid |> build_supervision_tree()}
+    end)
+    |> Map.new()
   end
 end

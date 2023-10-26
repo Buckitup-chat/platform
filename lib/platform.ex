@@ -9,7 +9,8 @@ defmodule Platform do
       start:
         {Supervisor, :start_link,
          [specs, [strategy: :rest_for_one, max_restarts: 1, max_seconds: 50]]},
-      shutdown: calc_exit_time(specs)
+      shutdown: calc_exit_time(specs),
+      type: :supervisor
     }
     |> then(&DynamicSupervisor.start_child(dynamic_supervisor, &1))
   end
@@ -79,8 +80,8 @@ defmodule Platform do
   defp inject_next_stage(spec, stage_name, next_tree) do
     case spec do
       %{start: {module, func, [args]}} ->
-        Map.put(
-          spec,
+        spec
+        |> Map.put(
           :start,
           {module, func, [args |> Keyword.merge(next: [under: stage_name, run: next_tree])]}
         )

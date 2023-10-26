@@ -1,4 +1,4 @@
-.PHONY: zip burn card ssh test nothing await_restart burn_in
+.PHONY: zip burn card ssh test nothing await_restart burn_in cover
 
 
 platform_version := $(shell git log -1 --date=format:%Y-%m-%d --format=%cd_%h)
@@ -60,3 +60,7 @@ add_ip_alias:
 
 del_ip_alias:
 	sudo ifconfig en0 -alias 192.168.24.200
+
+cover:
+	mix coveralls.html
+
