@@ -35,7 +35,7 @@ defmodule Platform.App.Drive.BootSupervisor do
       use_task(task_supervisor),
       {DriveIndicationStarter, []} |> exit_takes(15_000),
       {:stage, name(Healed, device), {@healer, device: device, task_in: task_supervisor}},
-      {:stage, name(Mounted, device),
+      {:step, name(Mounted, device),
        {@mounter, device: device, at: mount_path, task_in: task_supervisor} |> exit_takes(15_000)},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider, [device, [mounted: mount_path, next: [under: next_supervisor]]]}

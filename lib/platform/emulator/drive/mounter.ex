@@ -18,7 +18,7 @@ defmodule Platform.Emulator.Drive.Mounter do
       next_supervisor: next |> Keyword.fetch!(:under),
       task_ref: nil
     }
-    |> tap(fn _ -> send(self(), :mounted) end)
+    |> tap(fn _ -> Process.send_after(self(), :mounted, 100) end)
   end
 
   @impl true

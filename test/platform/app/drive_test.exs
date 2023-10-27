@@ -132,7 +132,7 @@ defmodule Platform.App.DrivesTest do
     operator = Chat.User.login("Operator")
     Chat.User.register(operator)
 
-    {room_identity, room} = Chat.Rooms.add(operator, "Room", :public)
+    {room_identity, _room} = Chat.Rooms.add(operator, "Room", :public)
     room_key = room_identity |> Chat.Identity.pub_key()
 
     room_key
@@ -146,6 +146,5 @@ defmodule Platform.App.DrivesTest do
       |> Chat.Time.monotonic_offset()
 
     Chat.Sync.UsbDriveDumpRoom.activate(room_key, room_identity, monotonic_offset)
-
   end
 end
