@@ -41,7 +41,6 @@ defmodule Platform.Storage.InternalToMain.Copier do
         Process.sleep(1_000)
         Switching.mirror(main, internal)
         DbBrokers.refresh()
-        Process.sleep(3_000)
       end)
 
     {:noreply, %{state | task: task}}

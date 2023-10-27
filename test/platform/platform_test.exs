@@ -60,6 +60,31 @@ defmodule Platform.PlatformTest do
            ]}
         ]
       },
+      "step and stage" => %{
+        spec: [O, {:step, First, {A, b: 1}}, B, C, {:stage, Second, {D, some: :arg}}, E, F],
+        prepared: [
+          O,
+          {A,
+           b: 1,
+           next: [
+             under: Test.First,
+             run: [
+               B,
+               C,
+               Platform.use_next_stage(Test.Second, 10_000),
+               {D, some: :arg, next: [under: Test.Second, run: [E, F]]}
+             ]
+           ]},
+          Platform.use_next_stage(Test.First, 25_000)
+        ]
+      },
+      "one step, no tail" => %{
+        spec: [O, {:step, First, {A, b: 1}}],
+        prepared: [
+          O,
+          {A, b: 1}
+        ]
+      },
       "one stage, no tail" => %{
         spec: [O, {:stage, First, {A, b: 1}}],
         prepared: [

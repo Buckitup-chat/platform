@@ -9,23 +9,29 @@ defmodule Platform.UsbDrives.Drive do
     Registry.lookup(Platform.Drives.Registry, {stage, drive})
   end
 
+  def terminate(nil), do: :skip
+
   def terminate(drive) do
     Task.Supervisor.start_child(Platform.TaskSupervisor, fn ->
-      mounted = registry_name(Mounted, drive)
+      registry_name(Mounted, drive)
+      |> terminate_children()
 
-      mounted
-      |> DynamicSupervisor.which_children()
-      |> Enum.each(fn {_, pid, _, _} ->
-        DynamicSupervisor.terminate_child(mounted, pid)
-      end)
-
-      healed = registry_name(Healed, drive)
-
-      healed
-      |> DynamicSupervisor.which_children()
-      |> Enum.each(fn {_, pid, _, _} ->
-        DynamicSupervisor.terminate_child(healed, pid)
-      end)
+      registry_name(Healed, drive)
+      |> terminate_children()
     end)
+  end
+
+  defp terminate_children(name) do
+    name
+    |> DynamicSupervisor.which_children()
+    |> Enum.each(fn {_, pid, _, _} ->
+      try do
+        DynamicSupervisor.terminate_child(name, pid)
+      rescue
+        _ -> :skip
+      end
+    end)
+  rescue
+    _ -> :skip
   end
 end

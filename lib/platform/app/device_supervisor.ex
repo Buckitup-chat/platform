@@ -20,13 +20,22 @@ defmodule Platform.App.DeviceSupervisor do
   def init(_init_arg) do
     "Device Supervisor start" |> Logger.debug()
 
-    children = [
-      {DynamicSupervisor, name: Platform.Drives, strategy: :one_for_one}
-      |> exit_takes(150_000),
-      {Registry, name: Platform.Drives.Registry, keys: :unique},
-      Platform.UsbDrives.Detector.Watcher
-    ]
+    children =
+      [
+        {DynamicSupervisor, name: Platform.Drives, strategy: :one_for_one}
+        |> exit_takes(150_000),
+        {Registry, name: Platform.Drives.Registry, keys: :unique},
+        Platform.UsbDrives.Detector.Watcher |> unless_on_host()
+      ]
+      |> Enum.reject(&is_nil/1)
 
     Supervisor.init(children, strategy: :one_for_one)
+  end
+
+  defp unless_on_host(x) do
+    if Platform.Application.target() != :host do
+      # coveralls-ignore-next-line
+      x
+    end
   end
 end

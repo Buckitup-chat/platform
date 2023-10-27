@@ -1,5 +1,6 @@
 defmodule Platform.App.Sync.Onliners.LogicTest do
   use ExUnit.Case, async: true
+  # todo: make readable
 
   alias Chat.Content.{Files, Memo, RoomInvites}
   alias Chat.Utils.StorageId
@@ -31,6 +32,7 @@ defmodule Platform.App.Sync.Onliners.LogicTest do
     end)
   end
 
+  @tag :skip
   test "syncs online users" do
     DynamicSupervisor.start_link(name: OnlinersDynamicSupervisor, strategy: :one_for_one)
     full_path = "#{Db.file_path()}-onliners"

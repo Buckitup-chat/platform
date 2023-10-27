@@ -22,7 +22,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
   end
 
   @impl true
-  def init([_device, path]) do
+  def init([device, path]) do
     "Backup DB Supervisor start" |> Logger.info()
 
     type = "backup_db"
@@ -36,7 +36,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
       {Task, fn -> File.mkdir_p!(full_path) end},
       {Chat.Db.MediaDbSupervisor, [db, full_path]} |> exit_takes(20_000),
       {Bouncer, db: db, type: type},
-      {Copier, continuous?: continuous?, tasks_name: tasks} |> exit_takes(35_000)
+      {Copier, continuous?: continuous?, tasks_name: tasks, device: device} |> exit_takes(35_000)
     ]
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->

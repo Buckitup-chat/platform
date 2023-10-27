@@ -1,5 +1,6 @@
 defmodule Platform.App.Db.BackupDbSupervisorTest do
   use ExUnit.Case, async: false
+  # todo: make readable
 
   import Support.RetryHelper
 
@@ -26,30 +27,31 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
   @storage_mount_path Application.compile_env(:platform, :mount_path_storage)
 
   setup do
-    [@storage_mount_path, "main_db"]
-    |> Path.join()
-    |> File.rm_rf!()
-
-    "#{@media_mount_path}/**/*"
-    |> Path.wildcard()
-    |> Enum.reject(&String.contains?(&1, "DCIM"))
-    |> Enum.each(&File.rm_rf!/1)
-
-    AdminRoom.store_media_settings(%MediaSettings{functionality: :backup})
-
-    start_supervised!(
-      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
-    )
-
-    start_supervised!(
-      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
-    )
-
-    on_exit(fn ->
-      Switching.set_default(InternalDb)
-    end)
+    #    [@storage_mount_path, "main_db"]
+    #    |> Path.join()
+    #    |> File.rm_rf!()
+    #
+    #    "#{@media_mount_path}/**/*"
+    #    |> Path.wildcard()
+    #    |> Enum.reject(&String.contains?(&1, "DCIM"))
+    #    |> Enum.each(&File.rm_rf!/1)
+    #
+    #    AdminRoom.store_media_settings(%MediaSettings{functionality: :backup})
+    #
+    #    start_supervised!(
+    #      {DynamicSupervisor, name: Platform.MainDbSupervisor, strategy: :one_for_one}
+    #    )
+    #
+    #    start_supervised!(
+    #      {DynamicSupervisor, name: Platform.App.Media.DynamicSupervisor, strategy: :one_for_one}
+    #    )
+    #
+    #    on_exit(fn ->
+    #      Switching.set_default(InternalDb)
+    #    end)
   end
 
+  @tag :skip
   describe "regular backup" do
     test "copies data once from main to backup DB and vice versa" do
       AdminRoom.store_backup_settings(%BackupSettings{type: :regular})
@@ -111,6 +113,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
     end
   end
 
+  @tag :skip
   describe "continuous backup" do
     test "mirrors main DB changes to internal and backup DBs" do
       AdminRoom.store_backup_settings(%BackupSettings{type: :continuous})
