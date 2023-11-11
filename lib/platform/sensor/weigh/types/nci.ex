@@ -51,14 +51,4 @@ defimpl Platform.Sensor.Weigh.Protocol, for: Platform.Sensor.Weigh.Types.NCI do
     do: {:parse_response, Chat.Sync.Weigh.NCI.parse_weight_response(binary)}
 
   defp parse_status(binary), do: {:parse_status, Chat.Sync.Weigh.NCI.parse_status(binary)}
-
-  defp summary(map) do
-    map
-    |> Enum.filter(&elem(&1, 1))
-    |> Enum.map_join(" ", fn {key, _} ->
-      key
-      |> to_string()
-      |> String.trim_trailing("?")
-    end)
-  end
 end

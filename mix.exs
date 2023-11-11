@@ -45,7 +45,6 @@ defmodule Platform.MixProject do
       {:ramoops_logger, "~> 0.3.0"},
       {:observer_cli, "~> 1.7"},
       {:nerves_leds, "~> 0.8.1"},
-      {:dns, "~> 2.3"},
       # Dependencies for all targets
       {:nerves, "~> 1.10.4", runtime: false},
       {:shoehorn, "~> 0.9.1"},
@@ -56,7 +55,6 @@ defmodule Platform.MixProject do
       {:nerves_runtime, "~> 0.13.5", targets: @all_targets},
       {:nerves_pack, "~> 0.7.0", targets: @all_targets},
       # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
-      # {:dns, "~> 2.3", targets: @all_targets},
 
       # Dependencies for specific targets
       # NOTE: It's generally low risk and recommended to follow minor version
@@ -72,13 +70,13 @@ defmodule Platform.MixProject do
       {:nerves_system_bbb, "~> 2.12", runtime: false, targets: :bbb},
       {:nerves_system_osd32mp1, "~> 0.8", runtime: false, targets: :osd32mp1},
       {:nerves_system_x86_64, "~> 1.21", runtime: false, targets: :x86_64},
-      {:bktp_rpi4,
-       github: "Buckitup-chat/bktp_rpi4",
-       runtime: false,
-       targets: :bktp_rpi4,
-       nerves: [compile: false]},
-      # {:bktp_rpi4,
-      #  path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
+#      {:bktp_rpi4,
+#       github: "Buckitup-chat/bktp_rpi4",
+#       runtime: false,
+#       targets: :bktp_rpi4,
+#       nerves: [compile: false]},
+       {:bktp_rpi4,
+        path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
       {:chat,
        path: "../chat",
        targets: [:host | @all_targets],
