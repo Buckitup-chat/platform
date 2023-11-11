@@ -8,8 +8,8 @@ File.rm_rf("priv/test_db")
 
 File.rm_rf("priv/test_storage")
 
-Logger.put_application_level(:graceful_genserver, :warning)
-Logger.put_application_level(:platform, :info)
-Logger.put_application_level(:chat, :info)
+Logger.put_application_level(:graceful_genserver, :error)
+Logger.put_application_level(:platform, :error)
+Logger.put_application_level(:chat, :error)
 
 ExUnit.start()
