@@ -103,13 +103,9 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   end
 
   defp weight_sensor_message_db_keys(weight_sensor, cargo_user) do
-    with true <- weight_sensor !== %{},
-         type <- weight_sensor[:type],
-         true <- is_binary(type) and byte_size(type) > 0,
-         name <- weight_sensor[:name],
-         true <- is_binary(name) and byte_size(name) > 0,
-         opts <- Map.drop(weight_sensor, [:name, :type]) |> Map.to_list(),
-         {:ok, content} <- Platform.Sensor.Weigh.poll(type, name, opts |> fix_parity()),
+    with {:ok, {name, type, opts}} = AdminRoom.parse_weight_setting(weight_sensor),
+         {:ok, content} <- Platform.Sensor.Weigh.poll(type, name, opts),
+         true <- is_binary(content),
          {:ok, keys_set} <- CargoRoom.write_text(cargo_user, content) do
       keys_set
     else
@@ -117,16 +113,6 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
     end
   rescue
     _ -> MapSet.new()
-  end
-
-  defp fix_parity(opts) do
-    if is_binary(opts[:parity]) do
-      opts
-      |> Keyword.delete(:parity)
-      |> Keyword.put(:parity, opts[:parity] |> String.to_existing_atom())
-    else
-      opts
-    end
   end
 
   defp log_unwritten_keys(progress) do
