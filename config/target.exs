@@ -57,6 +57,33 @@ maybe_usb =
 
 # Configure the network using vintage_net
 # See https://github.com/nerves-networking/vintage_net for more information
+lan_as_dhcp_client = %{type: VintageNetEthernet, ipv4: %{method: :dhcp}}
+
+lan_as_internet_replacement = %{
+  type: VintageNetEthernet,
+  dhcpd: %{
+    start: {192, 168, 24, 10},
+    end: {192, 168, 24, 250},
+    options: %{
+      dns: [{192, 168, 25, 1}],
+      subnet: {255, 255, 255, 0},
+      router: [{192, 168, 24, 1}],
+      domain: "buckitup.app",
+      search: ["buckitup.app"]
+    }
+  },
+  ipv4: %{
+    address: {192, 168, 24, 1},
+    method: :static,
+    prefix_length: 24,
+    name_servers: [{192, 168, 24, 1}]
+  }
+}
+
+config :platform, :lan_profiles,
+  dhcp_client: lan_as_dhcp_client,
+  internet_replacement: lan_as_internet_replacement
+
 config :vintage_net,
   regulatory_domain: "00",
   # Uncomment following to disable config change persistance. It need to be commented to allow wifi modification
@@ -65,27 +92,7 @@ config :vintage_net,
   additional_name_servers: [{{192, 168, 24, 1}}],
   config:
     [
-      {"eth0",
-       %{
-         type: VintageNetEthernet,
-         dhcpd: %{
-           start: {192, 168, 24, 10},
-           end: {192, 168, 24, 250},
-           options: %{
-             dns: [{192, 168, 25, 1}],
-             subnet: {255, 255, 255, 0},
-             router: [{192, 168, 24, 1}],
-             domain: "buckitup.app",
-             search: ["buckitup.app"]
-           }
-         },
-         ipv4: %{
-           address: {192, 168, 24, 1},
-           method: :static,
-           prefix_length: 24,
-           name_servers: [{192, 168, 24, 1}]
-         }
-       }},
+      {"eth0", lan_as_internet_replacement},
       {"wlan0",
        %{
          type: VintageNetWiFi,
