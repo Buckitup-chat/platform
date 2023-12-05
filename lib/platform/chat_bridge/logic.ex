@@ -26,8 +26,12 @@ defmodule Platform.ChatBridge.Logic do
     _ -> error(:getting_lan_profile)
   end
 
+  def get_lan_known_profiles do
+    Lan.profiles() |> mark(:lan_known_profiles)
+  end
+
   def get_lan_ip do
-    Lan.get_ip() |> mark(:lan_ip)
+    Lan.get_ip_address() |> mark(:lan_ip)
   rescue
     _ -> error(:getting_lan_ip)
   end

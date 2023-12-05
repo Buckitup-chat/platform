@@ -14,6 +14,17 @@ defmodule Platform.ChatBridge.Lan do
   end
 
   def get_ip_address do
+    {:ok, addr_list} = :inet.getifaddrs()
+    addr_list
+    |> Enum.find_value(fn {iface, list} ->
+      if iface == @iface |> to_charlist() do
+        list |> Enum.filter(& match?({:addr, {_,_,_,_}}, &1))
+        |> Enum.at(0)
+        |> elem(1)
+        |> Tuple.to_list()
+        |> Enum.map_join(".", &to_string/1)
+      end
+    end)
   end
 
   def profiles do
