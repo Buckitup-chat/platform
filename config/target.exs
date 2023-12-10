@@ -81,8 +81,8 @@ lan_as_internet_replacement = %{
 }
 
 config :platform, :lan_profiles,
-  dhcp_client: lan_as_dhcp_client,
-  internet_replacement: lan_as_internet_replacement
+  internet: lan_as_dhcp_client,
+  no_internet: lan_as_internet_replacement
 
 config :vintage_net,
   regulatory_domain: "00",
