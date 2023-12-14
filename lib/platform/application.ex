@@ -52,6 +52,12 @@ defmodule Platform.Application do
          ]
          |> Enum.each(&System.cmd("sysctl", ["-w", &1]))
 
+         wan = "eth0"
+         wifi = "wlan0"
+         System.cmd("iptables", ["-t",  "nat", "-A", "POSTROUTING" , "-o", wan,  "-j", "MASQUERADE"])
+         System.cmd("iptables", ["--append", "FORWARD", "--in-interface", wifi, "-j", "ACCEPT"])
+         System.cmd("iptables", ["-A", "INPUT", "-i", wan, "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
+
          Logger.put_module_level(Tesla.Middleware.Logger, :error)
        end},
       Platform.Storage.DriveIndication,
