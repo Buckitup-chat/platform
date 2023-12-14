@@ -202,20 +202,23 @@ cert_present? =
 if cert_present? do
   config :chat, ChatWeb.Endpoint,
     url: [host: "buckitup.app"],
-    check_origin:
-      [
-        "//buckitup.app",
-        "http://192.168.25.1",
-        "http://192.168.24.1"
-      ] ++ maybe_nerves_local,
+#    check_origin:
+#      [
+#        "//buckitup.app",
+#        "http://192.168.25.1",
+#        "http://192.168.24.1"
+#      ] ++ maybe_nerves_local,
+    http: [ip: {0, 0, 0, 0}, port: 80],
     https: [
       port: 443,
       cipher_suite: :strong,
       cacertfile: ssl_cacertfile,
       certfile: ssl_certfile,
       keyfile: ssl_keyfile
-    ],
-    force_ssl: [rewrite_on: [:x_forwarded_proto]]
+    ]
+#    force_ssl: [rewrite_on: [:x_forwarded_proto]]
+
+  config :chat, :handle_all_traffic, true
 else
   config :chat, ChatWeb.Endpoint,
     http: [ip: {0, 0, 0, 0}, port: 80],
