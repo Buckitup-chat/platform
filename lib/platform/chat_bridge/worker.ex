@@ -40,6 +40,18 @@ defmodule Platform.ChatBridge.Worker do
       {:set_wifi, ssid, password} ->
         Logic.set_wifi_settings(ssid, password)
 
+      :lan_ip ->
+        Logic.get_lan_ip()
+
+      :lan_profile ->
+        Logic.get_lan_profile()
+
+      :lan_known_profiles ->
+        Logic.get_lan_known_profiles()
+
+      {:lan_set_profile, profile} ->
+        Logic.set_lan_profile(profile)
+
       :get_device_log ->
         Logic.get_device_log()
 

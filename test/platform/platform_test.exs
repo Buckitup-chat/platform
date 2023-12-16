@@ -101,35 +101,36 @@ defmodule Platform.PlatformTest do
         prepared: []
       },
       "one virtual stage" => %{
-        spec: [O, {:stage, First, A},{:step, Second, B}, C],
+        spec: [O, {:stage, First, A}, {:step, Second, B}, C],
         prepared: [
           O,
           %{
             id: Test.First,
             shutdown: 10000,
-            start: {DynamicSupervisor, :start_link,
-              [[name: Test.First, strategy: :one_for_one, max_restarts: 0]]},
+            start:
+              {DynamicSupervisor, :start_link,
+               [[name: Test.First, strategy: :one_for_one, max_restarts: 0]]},
             type: :supervisor
           },
           {A,
-            [
-              next: [
-                under: Test.First,
-                run: [
-                  {B, [next: [under: Test.Second, run: [C]]]},
-                  %{
-                    id: Test.Second,
-                    shutdown: 5000,
-                    start: {DynamicSupervisor, :start_link,
+           [
+             next: [
+               under: Test.First,
+               run: [
+                 {B, [next: [under: Test.Second, run: [C]]]},
+                 %{
+                   id: Test.Second,
+                   shutdown: 5000,
+                   start:
+                     {DynamicSupervisor, :start_link,
                       [[name: Test.Second, strategy: :one_for_one, max_restarts: 0]]},
-                    type: :supervisor
-                  }
-                ]
-              ]
-            ]}
+                   type: :supervisor
+                 }
+               ]
+             ]
+           ]}
         ]
-      },
-
+      }
     }
 
     for {title, %{spec: spec, prepared: prepared}} <- cases do

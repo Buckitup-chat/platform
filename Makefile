@@ -32,8 +32,21 @@ platform_burn_in: faster_burn_in faster_ssh
 
 full_burn_in: prepare_chat faster_burn_in clean_chat faster_ssh
 
-burn: zip
+burn:
+	make prepare_chat
+	rm -f image.*.zip
+	rm -f platform.*.fw
 	mix upload
+	cp _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw platform.$(version).fw
+	make clean_chat
+
+image:
+	make prepare_chat
+	rm -f image.*.zip
+	rm -f platform.*.fw
+	mix firmware
+	cp _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw platform.$(version).fw
+	make clean_chat
 
 ssh:
 	ssh -i ~/.ssh/buckit.id_rsa -o "StrictHostKeyChecking=no" nerves.local
