@@ -88,8 +88,8 @@ config :vintage_net,
   regulatory_domain: "00",
   # Uncomment following to disable config change persistance. It need to be commented to allow wifi modification
   # persistence: VintageNet.Persistence.Null,
-  internet_host_list: [{192, 168, 24, 1}],
-  additional_name_servers: [{{192, 168, 24, 1}}],
+  internet_host_list: [{"192.168.25.1", 80}],
+  additional_name_servers: [],
   config:
     [
       {"eth0", lan_as_internet_replacement},
@@ -106,13 +106,6 @@ config :vintage_net,
              domain: "buckitup.app",
              search: ["buckitup.app"]
            }
-         },
-         dnsd: %{
-           records: [
-             {"buckitup.app", {192, 168, 25, 1}}
-             # {"*", {192, 168, 25, 1}}
-           ],
-           ttl: 10
          },
          ipv4: %{
            address: {192, 168, 25, 1},
