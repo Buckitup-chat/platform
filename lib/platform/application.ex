@@ -40,6 +40,7 @@ defmodule Platform.Application do
       # Starts a worker by calling: Platform.Worker.start_link(arg)
       # {Platform.Worker, arg},
       Platform.ChatBridge.Worker,
+      {Platform.Dns.Server, 53},
       {Task,
        fn ->
          Chat.Time.init_time()
@@ -48,7 +49,7 @@ defmodule Platform.Application do
            "vm.dirty_expire_centisecs=300",
            "vm.dirty_writeback_centisecs=50",
            "vm.dirtytime_expire_seconds=500",
-           "net.ipv4.forward=1"
+           "net.ipv4.ip_forward=1"
          ]
          |> Enum.each(&System.cmd("sysctl", ["-w", &1]))
 

@@ -87,6 +87,8 @@ defmodule Platform.MixProject do
       #        runtime: false,
       #        targets: :bktp_rpi4,
       #        nerves: [compile: false]},
+      {:dns, "~> 2.4"},
+             {:socket, "~> 0.3.13"},
       {:excoveralls, "~> 0.14", only: [:test]},
       {:graceful_genserver, "~> 0.1.0"},
       {:circuits_uart, "~> 1.3"},
