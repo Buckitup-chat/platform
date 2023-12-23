@@ -18,7 +18,9 @@ defmodule Platform.Dns.Server do
         }
       ]
     else
-      {:ok, %{anlist: anlist}} = DNS.query(query.domain, query.type, nameservers: [{"8.8.4.4", 53}])
+      {:ok, %{anlist: anlist}} =
+        DNS.query(query.domain, query.type, nameservers: [{"8.8.4.4", 53}])
+
       anlist
     end
     |> then(fn anlist -> %{record | anlist: anlist, header: %{record.header | qr: true}} end)
