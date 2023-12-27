@@ -9,8 +9,8 @@ defmodule Platform.ChatBridge.Worker do
   alias Platform.ChatBridge.Lan
   alias Platform.ChatBridge.Logic
 
-  @incoming_topic "chat->platform"
-  @outgoing_topic "platform->chat"
+  @incoming_topic Application.compile_env!(:chat, :topic_to_platform)
+  @outgoing_topic Application.compile_env!(:chat, :topic_from_platform)
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, :ok, Keyword.merge([name: __MODULE__], opts))
