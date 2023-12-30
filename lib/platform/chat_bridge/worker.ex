@@ -6,10 +6,11 @@ defmodule Platform.ChatBridge.Worker do
   use GenServer
 
   alias Phoenix.PubSub
+  alias Platform.ChatBridge.Lan
   alias Platform.ChatBridge.Logic
 
-  @incoming_topic "chat->platform"
-  @outgoing_topic "platform->chat"
+  @incoming_topic Application.compile_env!(:chat, :topic_to_platform)
+  @outgoing_topic Application.compile_env!(:chat, :topic_from_platform)
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, :ok, Keyword.merge([name: __MODULE__], opts))
@@ -52,6 +53,8 @@ defmodule Platform.ChatBridge.Worker do
       {:lan_set_profile, profile} ->
         Logic.set_lan_profile(profile)
 
+      {:lan_ip_and_mask, pid} -> {:to, pid, {:range, {Lan.get_ip_address(), Lan.get_ip_mask()}}}
+
       :get_device_log ->
         Logic.get_device_log()
 
@@ -76,6 +79,8 @@ defmodule Platform.ChatBridge.Worker do
   end
 
   defp noreply(x), do: {:noreply, x}
+
+  defp respond({:to, pid, message}), do: send(pid, message)
 
   defp respond(message) do
     # Logger.info("Platform responds: " <> inspect(message, pretty: true))

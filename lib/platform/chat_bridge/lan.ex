@@ -14,19 +14,11 @@ defmodule Platform.ChatBridge.Lan do
   end
 
   def get_ip_address do
-    {:ok, addr_list} = :inet.getifaddrs()
+    get_iface_property(@iface, :addr)
+  end
 
-    addr_list
-    |> Enum.find_value(fn {iface, list} ->
-      if iface == @iface |> to_charlist() do
-        list
-        |> Enum.filter(&match?({:addr, {_, _, _, _}}, &1))
-        |> Enum.at(0)
-        |> elem(1)
-        |> Tuple.to_list()
-        |> Enum.map_join(".", &to_string/1)
-      end
-    end)
+  def get_ip_mask do
+    get_iface_property(@iface, :netmask)
   end
 
   def profiles do
@@ -38,14 +30,22 @@ defmodule Platform.ChatBridge.Lan do
     VintageNet.get_configuration(iface)
   end
 
+  defp get_iface_property(iface, property) do
+    {:ok, addr_list} = :inet.getifaddrs()
+
+    addr_list
+    |> Enum.find_value(fn {interface, list} -> interface == to_charlist(iface) && list end)
+    |> Enum.find(&match?({^property, {_, _, _, _}}, &1))
+    |> elem(1)
+    |> Tuple.to_list()
+    |> Enum.map_join(".", &to_string/1)
+  end
+
   defp detect_know_profile(config) do
     configured_profiles()
-    |> Enum.find_value(:unknown, fn {profile, known_config} ->
-      if known_config == config do
-        profile
-      else
-        nil
-      end
+    |> Enum.find_value(:unknown, fn
+      {profile, ^config} -> profile
+      _ -> nil
     end)
   end
 
