@@ -10,7 +10,7 @@ defmodule Platform.App.ZeroTierSupervisor do
   def init(arg) do
     # cmd "zerotier-cli -D/root/zt info"
     [
-      {Task, fn -> System.cmd("modprobe tun") end},
+      {Task, fn -> System.cmd("modprobe", ["tun"]) end},
       {MuonTrap.Daemon, ["zerotier-one", ["-d", "/root/zt"]]},
       Platform.ChatBridge.ZeroTierWorker
     ]

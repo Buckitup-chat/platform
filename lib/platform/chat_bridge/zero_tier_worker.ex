@@ -6,9 +6,7 @@ defmodule Platform.ChatBridge.ZeroTierWorker do
   use GenServer
   import Tools.GenServerHelpers
 
-  alias Phoenix.PubSub
-
-  @topic Application.compile_env!(:chat, :zero_tier_topic)
+  @topic Application.compile_env!(:chat, :topic_to_zerotier)
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, :ok, Keyword.merge([name: __MODULE__], opts))
@@ -19,11 +17,13 @@ defmodule Platform.ChatBridge.ZeroTierWorker do
     {:ok, %{}, {:continue, :init}}
   end
 
+  @impl true
   def handle_continue(:init, state) do
-    PubSub.subscribe(Chat.PubSub, @topic)
+    Phoenix.PubSub.subscribe(Chat.PubSub, @topic)
     noreply(state)
   end
 
+  @impl true
   def handle_info({command, pid}, state) do
     command
     |> parse
@@ -39,12 +39,13 @@ defmodule Platform.ChatBridge.ZeroTierWorker do
       :list_networks -> "listnetworks"
       {:join_network, id} -> "join #{id}"
       {:leave_network, id} -> "leave #{id}"
+      _ -> ""
     end
-    |> then(&"zerotier-cli -D/root/zt -j #{&1}")
+    |> then(&{"zerotier-cli", ["-D/root/zt", "-j", &1]})
   end
 
-  defp run(command) do
-    {out, code} = System.cmd(command)
+  defp run({command, args}) do
+    {out, code} = System.cmd(command, args)
 
     if code != 0 do
       Logger.error("ZeroTier: #{out}")
