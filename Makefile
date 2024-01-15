@@ -36,6 +36,7 @@ burn:
 	make prepare_chat
 	rm -f image.*.zip
 	rm -f platform.*.fw
+	mix firmware
 	mix upload
 	cp _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw platform.$(version).fw
 	make clean_chat

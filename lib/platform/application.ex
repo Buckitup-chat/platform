@@ -73,9 +73,9 @@ defmodule Platform.Application do
 
          Logger.put_module_level(Tesla.Middleware.Logger, :error)
        end},
-      Platform.App.ZeroTierSupervisor,
       Platform.Storage.DriveIndication,
-      Platform.App.DeviceSupervisor
+      Platform.App.DeviceSupervisor,
+      Platform.App.ZeroTierSupervisor
     ]
   end
 

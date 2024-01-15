@@ -37,11 +37,11 @@ defmodule Platform.ChatBridge.ZeroTierWorker do
     case command do
       :info -> "info"
       :list_networks -> "listnetworks"
-      {:join_network, id} -> "join #{id}"
-      {:leave_network, id} -> "leave #{id}"
+      {:join_network, id} -> ["join", "#{id}"]
+      {:leave_network, id} -> ["leave", "#{id}"]
       _ -> ""
     end
-    |> then(&{"zerotier-cli", ["-D/root/zt", "-j", &1]})
+    |> then(&{"zerotier-cli", ["-D/root/zt", "-j", &1] |> List.flatten()})
   end
 
   defp run({command, args}) do
