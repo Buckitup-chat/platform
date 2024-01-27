@@ -53,7 +53,8 @@ defmodule Platform.ChatBridge.Worker do
       {:lan_set_profile, profile} ->
         Logic.set_lan_profile(profile)
 
-      {:lan_ip_and_mask, pid} -> {:to, pid, {:range, {Lan.get_ip_address(), Lan.get_ip_mask()}}}
+      {:lan_ip_and_mask, pid} ->
+        {:to, pid, {:range, {Lan.get_ip_address(), Lan.get_ip_mask()}}}
 
       :get_device_log ->
         Logic.get_device_log()
@@ -76,6 +77,8 @@ defmodule Platform.ChatBridge.Worker do
     |> respond()
 
     noreply(state)
+  rescue
+    _ -> noreply(state)
   end
 
   defp noreply(x), do: {:noreply, x}
