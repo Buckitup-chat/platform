@@ -37,7 +37,8 @@ config :chat, Chat.Db.ChangeTracker, expire_seconds: 31
 config :chat,
   topic_to_platform: "chat->platform",
   topic_from_platform: "platform->chat",
-  topic_to_zerotier: "-> zerotier"
+  topic_to_zerotier: "-> zerotier",
+  topic_to_nerveskey: "-> nerveskey"
 
 config :mime, :types, %{
   "text/plain" => ["social_part", "data"],
