@@ -85,7 +85,7 @@ defmodule Platform.ChatBridge.NervesKeyWorker do
     end
   end
 
-  defp find_transport(flow) do
+  defp find_transport do
     Platform.NervesKey.Transport
     |> Agent.get(fn state -> state end)
   end

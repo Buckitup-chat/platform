@@ -1,0 +1,66 @@
+# Cryptochip cert usage
+
+```elixir
+Mix.install([
+  {:nerves_key, "~> 1.2"}
+])
+```
+
+## Section
+
+```elixir
+years_valid = 100
+
+{s_cert, s_priv_key} = NervesKey.create_signing_key_pair(years_valid: years_valid)
+pem_s_cert = X509.Certificate.to_pem(s_cert)
+pem_s_key = X509.PrivateKey.to_pem(s_priv_key)
+
+IO.puts(pem_s_cert)
+
+IO.puts("=== === === === === ===")
+
+IO.puts(pem_s_key)
+```
+
+```elixir
+device_key = X509.PrivateKey.new_ec(ATECC508A.Certificate.curve())
+device_public_key = X509.PublicKey.derive(device_key)
+atecc508a_serial_number = :crypto.strong_rand_bytes(9)
+
+cert =
+  ATECC508A.Certificate.new_device(
+    device_public_key,
+    atecc508a_serial_number,
+    "dev name",
+    s_cert,
+    s_priv_key
+  )
+
+pem_cert = X509.Certificate.to_pem(cert)
+pem_key = X509.PrivateKey.to_pem(device_key)
+
+device_key
+cert
+```
+
+```elixir
+secret_a =
+  s_cert
+  |> X509.Certificate.public_key()
+  |> elem(0)
+  |> :public_key.compute_key(device_key)
+
+secret_b =
+  cert
+  |> X509.Certificate.public_key()
+  |> elem(0)
+  |> :public_key.compute_key(s_priv_key)
+
+secret_a == secret_b
+```
+
+And can use `Enigma.cipher` and `Enigma.decipher` with the secret
+
+```elixir
+
+```
