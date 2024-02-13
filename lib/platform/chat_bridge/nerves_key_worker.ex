@@ -69,24 +69,29 @@ defmodule Platform.ChatBridge.NervesKeyWorker do
          my_hash <- hash_cert_and_key(cert, key),
          true <- hash == my_hash,
          transport <- find_transport(),
-         manufacturer_sn <- NervesKey.default_info(transport).manufacturer_sn,
+         info <- NervesKey.default_info(transport),
+         manufacturer_sn <- info.manufacturer_sn,
          false <- NervesKey.provisioned?(transport) do
-      #      NervesKey.provision(cert, name)
       provision_info = %NervesKey.ProvisioningInfo{
         manufacturer_sn: manufacturer_sn,
-        board_name: name
+        board_name:
+          case name do
+            "" -> info.board_name
+            nil -> info.board_name
+            good when is_binary(good) -> good
+            _ -> info.board_name
+          end
       }
 
       # Double-check what you typed above before running this
-      # NervesKey.provision(transport, provision_info, cert, key)
-      :skip
+      NervesKey.provision(transport, provision_info, cert, key)
     else
       _ -> :error
     end
   end
 
   defp find_transport do
-    Platform.NervesKey.Transport
+    Platform.NervesKey.Agent
     |> Agent.get(fn state -> state end)
   end
 
