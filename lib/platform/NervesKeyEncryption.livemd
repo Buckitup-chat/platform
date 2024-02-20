@@ -61,6 +61,26 @@ secret_a == secret_b
 
 And can use `Enigma.cipher` and `Enigma.decipher` with the secret
 
+## Device encryption
+
 ```elixir
+   {:ok, engine} = NervesKey.PKCS11.load_engine()
+   {:ok, i2c} = ATECC508A.Transport.I2C.init([])
+
+   signer_cert = NervesKey.signer_cert(i2c)
+   cert = NervesKey.device_cert(i2c)
+   key = NervesKey.PKCS11.private_key(engine, {:i2c, 1})
+
+    b_key = X509.PrivateKey.new_ec(ATECC508A.Certificate.curve())
+    b_pub_key = X509.PublicKey.derive(b_key)
+
+
+secret_a = cert |> X509.Certificate.public_key()|> elem(0)|> :public_key.compute_key( b_key)
+secret_b = b_pub_key |> elem(0) |> :public_key.compute_key(key)
+
+secret_a == secret_b
+
+
+Does not work !!!
 
 ```

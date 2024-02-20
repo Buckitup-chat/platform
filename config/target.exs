@@ -171,8 +171,8 @@ config :chat, ChatWeb.Endpoint,
   # http: [port: {:system, "PORT"}],
   #  http: [port: 80],
   # url: [host: System.get_env("APP_NAME") <> ".gigalixirapp.com", port: 443]
-  secret_key_base: "HEY05EB1dFVSu6KykKHuS4rQPQzSHv4F7mGVB/gnDLrIu75wE/ytBXy2TaL3A6RA",
-  # secret_key_base: Map.fetch!(System.get_env(), "SECRET_KEY_BASE"),
+  # secret_key_base: "HEY05EB1dFVSu6KykKHuS4rQPQzSHv4F7mGVB/gnDLrIu75wE/ytBXy2TaL3A6RA",
+  secret_key_base: Map.fetch!(System.get_env(), "SECRET_KEY_BASE"),
   server: true,
   code_reloader: false
 

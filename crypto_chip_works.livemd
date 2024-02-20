@@ -1,0 +1,77 @@
+# ECDH on cryptochip
+
+## Section
+
+command codes from https://github.com/MicrochipTech/cryptoauthlib/blob/8ee1d99146720575ee096ec10f813a2abc8797df/lib/calib/calib_command.h#L228
+
+```c
+#define ATCA_CHECKMAC     ((uint8_t)0x28)  //!< CheckMac command op-code
+#define ATCA_DERIVE_KEY   ((uint8_t)0x1C)  //!< DeriveKey command op-code
+#define ATCA_INFO         ((uint8_t)0x30)  //!< Info command op-code
+#define ATCA_GENDIG       ((uint8_t)0x15)  //!< GenDig command op-code
+#define ATCA_GENKEY       ((uint8_t)0x40)  //!< GenKey command op-code
+#define ATCA_HMAC         ((uint8_t)0x11)  //!< HMAC command op-code
+#define ATCA_LOCK         ((uint8_t)0x17)  //!< Lock command op-code
+#define ATCA_MAC          ((uint8_t)0x08)  //!< MAC command op-code
+#define ATCA_NONCE        ((uint8_t)0x16)  //!< Nonce command op-code
+#define ATCA_PAUSE        ((uint8_t)0x01)  //!< Pause command op-code
+#define ATCA_PRIVWRITE    ((uint8_t)0x46)  //!< PrivWrite command op-code
+#define ATCA_RANDOM       ((uint8_t)0x1B)  //!< Random command op-code
+#define ATCA_READ         ((uint8_t)0x02)  //!< Read command op-code
+#define ATCA_SIGN         ((uint8_t)0x41)  //!< Sign command op-code
+#define ATCA_UPDATE_EXTRA ((uint8_t)0x20)  //!< UpdateExtra command op-code
+#define ATCA_VERIFY       ((uint8_t)0x45)  //!< GenKey command op-code
+#define ATCA_WRITE        ((uint8_t)0x12)  //!< Write command op-code
+#define ATCA_ECDH         ((uint8_t)0x43)  //!< ECDH command op-code
+#define ATCA_COUNTER      ((uint8_t)0x24)  //!< Counter command op-code
+#define ATCA_DELETE       ((uint8_t)0x13)  //!< Delete command op-code
+#define ATCA_SHA          ((uint8_t)0x47)  //!< SHA command op-code
+#define ATCA_AES          ((uint8_t)0x51)  //!< AES command op-code
+#define ATCA_KDF          ((uint8_t)0x56)  //!< KDF command op-code
+#define ATCA_SECUREBOOT   ((uint8_t)0x80)  //!< Secure Boot command op-code
+#define ATCA_SELFTEST     ((uint8_t)0x77)  //!< Self test command op-code
+```
+
+<!-- livebook:{"break_markdown":true} -->
+
+commands implemented in NervesKey  https://github.com/nerves-hub/atecc508a/blob/v1.2.0/lib/atecc508a/request.ex#L23C1-L30C1
+
+<!-- livebook:{"force_markdown":true} -->
+
+```elixir
+  @atecc508a_op_read 0x02
+  @atecc508a_op_write 0x12
+  @atecc508a_op_nonce 0x16
+  @atecc508a_op_genkey 0x40
+  @atecc508a_op_lock 0x17
+  @atecc508a_op_random 0x1B
+  @atecc508a_op_sign 0x41
+```
+
+```elixir
+i2c = Platform.NervesKey.Agent |> Agent.get(fn state -> state end)
+
+cert = NervesKey.device_cert(i2c)
+
+b_key = X509.PrivateKey.new_ec(ATECC508A.Certificate.curve())
+b_pub_key = X509.PublicKey.derive(b_key)
+
+secret_b = cert |> X509.Certificate.public_key() |> elem(0) |> :public_key.compute_key(b_key)
+
+<<_asn_enc::8, b_pub_key_raw::binary>> = b_pub_key |> elem(0) |> elem(1)
+b_pub_key_raw = ATECC508A.Certificate.public_key_to_raw(b_pub_key)
+
+op_ecdh = 0x43
+timeout = 998
+resp_len = 32
+# key_id = 0?
+
+# operation, key::16 = 0, _flags? = 0, apyload
+payload = <<op_ecdh, 0, 0, 0, b_pub_key_raw::binary>>
+
+resp = ATECC508A.Transport.request(i2c, payload, timeout, resp_len)
+
+{:ok, secret_a} = resp
+
+secret_a == secret_b
+```
