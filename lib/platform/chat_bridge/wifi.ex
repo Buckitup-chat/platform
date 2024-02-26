@@ -20,8 +20,8 @@ defmodule Platform.ChatBridge.Wifi do
     VintageNet.get_configuration(@iface)
   end
 
-  defp ssid_and_password(wifi) do
-    %{ssid: wifi.ssid, password: wifi.psk}
+  defp ssid_and_password(%{ssid: ssid, psk: hex_psk} = _wifi) do
+    %{ssid: ssid, password: get_psk_env(default: hex_psk)}
   end
 
   defp inject_ssid(config, ssid), do: inject_config(config, &Map.put(&1, :ssid, ssid))
@@ -48,4 +48,30 @@ defmodule Platform.ChatBridge.Wifi do
   defp set_wifi_in_wlan(wifi, wlan) do
     put_in(wlan, [:vintage_net_wifi, :networks], [wifi])
   end
+
+  defp get_psk_env(opts) do
+    Application.get_env(:vintage_net, :config)
+    |> maybe_get_config_for(@iface)
+    |> maybe_get_first_network()
+    |> maybe_get_psk(default: opts[:default])
+  end
+
+  defp maybe_get_config_for(configs, iface) do
+    Enum.find_value(configs, fn
+      {^iface, config} -> {:ok, config}
+      _ -> nil
+    end)
+  end
+
+  defp maybe_get_first_network({:ok, config}) do
+    config
+    |> get_in([:vintage_net_wifi, :networks])
+    |> List.first()
+  end
+
+  defp maybe_get_first_network(_), do: nil
+
+  defp maybe_get_psk(%{psk: psk} = _network, _default), do: psk
+
+  defp maybe_get_psk(nil, default), do: default
 end
