@@ -53,7 +53,7 @@ defmodule Platform.ChatBridge.Wifi do
     Application.get_env(:vintage_net, :config)
     |> maybe_get_config_for(@iface)
     |> maybe_get_first_network()
-    |> maybe_get_psk(default: opts[:default])
+    |> maybe_get_psk(opts[:default])
   end
 
   defp maybe_get_config_for(configs, iface) do
