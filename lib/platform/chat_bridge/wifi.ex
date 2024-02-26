@@ -49,29 +49,21 @@ defmodule Platform.ChatBridge.Wifi do
     put_in(wlan, [:vintage_net_wifi, :networks], [wifi])
   end
 
-  defp get_psk_env(opts) do
-    Application.get_env(:vintage_net, :config)
-    |> maybe_get_config_for(@iface)
-    |> maybe_get_first_network()
-    |> maybe_get_psk(opts[:default])
+  def get_psk_env(opts) do
+    with {:ok, configs} <- Application.get_env(:vintage_net, :config),
+         {:ok, iface_config} <- find_iface_config(configs, @iface),
+         [network_config] <- get_in(iface_config, [:vintage_net_wifi, :networks]),
+         psk <- network_config[:psk] do
+      psk
+    else
+      _error -> Keyword.get(opts, :default)
+    end
   end
 
-  defp maybe_get_config_for(configs, iface) do
-    Enum.find_value(configs, fn
-      {^iface, config} -> {:ok, config}
-      _ -> nil
+  defp find_iface_config(configs, iface) do
+    Enum.reduce_while(configs, {:error, :not_found}, fn
+      {^iface, config}, _acc -> {:halt, {:ok, config}}
+      {_other_iface, _config}, acc -> {:cont, acc}
     end)
   end
-
-  defp maybe_get_first_network({:ok, config}) do
-    config
-    |> get_in([:vintage_net_wifi, :networks])
-    |> List.first()
-  end
-
-  defp maybe_get_first_network(_), do: nil
-
-  defp maybe_get_psk(%{psk: psk} = _network, _default), do: psk
-
-  defp maybe_get_psk(nil, default), do: default
 end
