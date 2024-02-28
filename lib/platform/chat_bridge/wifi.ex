@@ -61,12 +61,9 @@ defmodule Platform.ChatBridge.Wifi do
   end
 
   defp find_iface_config(configs, iface) do
-    case Enum.find(configs, fn
-           {^iface, _config} -> true
-           _ -> false
-         end) do
+    Enum.find_value(configs, {:error, :not_found}, fn
       {^iface, config} -> {:ok, config}
-      _ -> {:error, :not_found}
-    end
+      _ -> false
+    end)
   end
 end
