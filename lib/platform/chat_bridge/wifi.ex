@@ -20,8 +20,8 @@ defmodule Platform.ChatBridge.Wifi do
     VintageNet.get_configuration(@iface)
   end
 
-  defp ssid_and_password(wifi) do
-    %{ssid: wifi.ssid, password: wifi.psk}
+  defp ssid_and_password(%{ssid: ssid, psk: hex_psk} = _wifi) do
+    %{ssid: ssid, password: get_psk_env(default: hex_psk)}
   end
 
   defp inject_ssid(config, ssid), do: inject_config(config, &Map.put(&1, :ssid, ssid))
@@ -47,5 +47,23 @@ defmodule Platform.ChatBridge.Wifi do
 
   defp set_wifi_in_wlan(wifi, wlan) do
     put_in(wlan, [:vintage_net_wifi, :networks], [wifi])
+  end
+
+  def get_psk_env(opts) do
+    with {:ok, configs} <- Application.get_env(:vintage_net, :config),
+         {:ok, iface_config} <- find_iface_config(configs, @iface),
+         [network_config] <- get_in(iface_config, [:vintage_net_wifi, :networks]),
+         psk <- network_config[:psk] do
+      psk
+    else
+      _error -> Keyword.get(opts, :default)
+    end
+  end
+
+  defp find_iface_config(configs, iface) do
+    Enum.find_value(configs, {:error, :not_found}, fn
+      {^iface, config} -> {:ok, config}
+      _ -> false
+    end)
   end
 end
