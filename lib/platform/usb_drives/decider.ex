@@ -13,6 +13,7 @@ defmodule Platform.UsbDrives.Decider do
   alias Platform.App.Drive.CargoSyncSupervisor
   alias Platform.App.Drive.OnlinersSyncSupervisor
   alias Platform.App.Drive.UsbDriveDumpSupervisor
+  alias Platform.Storage.DriveIndication
 
   @supervisor_map %{
     backup: BackupDbSupervisor,
@@ -41,6 +42,10 @@ defmodule Platform.UsbDrives.Decider do
   @impl true
   def handle_continue(:decide, %{device: device, at: path, next_supervisor: supervisor} = state) do
     scenario = decide(path)
+
+    if scenario != CargoSyncSupervisor do
+      DriveIndication.drive_reset()
+    end
 
     if scenario do
       start(scenario, supervisor, device, path)
