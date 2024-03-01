@@ -49,14 +49,13 @@ defmodule Platform.ChatBridge.Wifi do
     put_in(wlan, [:vintage_net_wifi, :networks], [wifi])
   end
 
-  def get_psk_env(opts) do
-    with {:ok, configs} <- Application.get_env(:vintage_net, :config),
+  def get_psk_env([default: hex_password] = _opts \\ []) do
+    with {:ok, configs} <- {:ok, Application.get_env(:vintage_net, :config)},
          {:ok, iface_config} <- find_iface_config(configs, @iface),
-         [network_config] <- get_in(iface_config, [:vintage_net_wifi, :networks]),
-         psk <- network_config[:psk] do
+         [%{psk: psk} | _] <- get_in(iface_config, [:vintage_net_wifi, :networks]) do
       psk
     else
-      _error -> Keyword.get(opts, :default)
+      _ -> hex_password
     end
   end
 
