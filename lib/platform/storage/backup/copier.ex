@@ -11,7 +11,6 @@ defmodule Platform.Storage.Backup.Copier do
   alias Chat.Ordering
   alias Chat.Sync.DbBrokers
 
-  alias Platform.Storage.DriveIndication
   alias Platform.Leds
   alias Platform.Storage.Stopper
 
@@ -66,7 +65,6 @@ defmodule Platform.Storage.Backup.Copier do
 
   def on_msg(:copied, %{continuous?: continuous?, device: device} = state) do
     set_db_flag(backup: false)
-    DriveIndication.drive_complete()
 
     unless continuous? do
       Stopper.start_link(wait: 100, device: device)
