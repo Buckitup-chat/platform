@@ -5,7 +5,6 @@ defmodule Platform.Storage.Stopper do
 
   require Logger
 
-  alias Platform.Storage.DriveIndication
   alias Platform.Leds
   alias Platform.UsbDrives.Drive
 
@@ -18,7 +17,6 @@ defmodule Platform.Storage.Stopper do
 
     Task.Supervisor.async_nolink(Platform.TaskSupervisor, fn ->
       Leds.blink_dump()
-      DriveIndication.drive_complete()
       Logger.info("backup finished. Stopping supervisor")
 
       Process.sleep(wait)
