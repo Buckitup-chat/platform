@@ -55,6 +55,7 @@ defmodule Platform.Storage.Copier do
         Ordering.reset()
         Leds.blink_write()
         Copying.await_copied(Db.db(), target_db, backup_keys)
+        DbBrokers.refresh()
         Leds.blink_done()
       end)
 
