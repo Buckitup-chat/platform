@@ -15,6 +15,7 @@ defmodule Platform.Storage.Copier do
   alias Chat.Db
   alias Chat.Db.Copying
   alias Chat.Ordering
+  alias Chat.Sync.DbBrokers
 
   alias Platform.Leds
 
