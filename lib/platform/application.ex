@@ -72,6 +72,8 @@ defmodule Platform.Application do
          ])
 
          Logger.put_module_level(Tesla.Middleware.Logger, :error)
+
+         System.cmd("modprobe", ["pwm-raspberrypi-poe"])
        end},
       Platform.Storage.DriveIndication,
       Platform.App.DeviceSupervisor,
