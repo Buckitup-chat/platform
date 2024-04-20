@@ -4,9 +4,10 @@ defmodule Platform.Tools.PartEd do
   require Logger
 
   alias Platform.Tools.PartEd.Print
+  alias Platform.Tools.Proto.Device
 
   def size(partition, details \\ &print/1) do
-    {root, num} = partition |> parse_partition_device()
+    {root, num} = partition |> Device.name() |> parse_partition_device()
 
     case details.(root) do
       {:ok, device_details} ->
@@ -27,17 +28,14 @@ defmodule Platform.Tools.PartEd do
     end
   end
 
-  defp parse_partition_device(<<?s, ?d, x>>),
-    do: {"sd" <> <<x>>, 0}
-
-  defp parse_partition_device(<<?s, ?d, x>> <> num),
-    do: {"sd" <> <<x>>, num |> String.to_integer()}
-
-  defp parse_partition_device("mmcblk" <> <<x>>),
-    do: {"mmcblk" <> <<x>>, 0}
-
-  defp parse_partition_device("mmcblk" <> <<x, ?p>> <> num),
-    do: {"mmcblk" <> <<x>>, num |> String.to_integer()}
+  defp parse_partition_device(raw) do
+    case raw do
+      <<?s, ?d, x>> -> {"sd" <> <<x>>, 0}
+      <<?s, ?d, x>> <> num -> {"sd" <> <<x>>, num |> String.to_integer()}
+      "mmcblk" <> <<x>> -> {"mmcblk" <> <<x>>, 0}
+      "mmcblk" <> <<x, ?p>> <> num -> {"mmcblk" <> <<x>>, num |> String.to_integer()}
+    end
+  end
 
   defp print(device) do
     case parted(device, "unit b print free") do
@@ -47,6 +45,6 @@ defmodule Platform.Tools.PartEd do
   end
 
   defp parted(device, params) do
-    System.cmd("parted", ["/dev/" <> device, params])
+    System.cmd("parted", [device |> Device.path(), params])
   end
 end
