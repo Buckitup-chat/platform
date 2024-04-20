@@ -9,7 +9,7 @@ defmodule Platform.Tools.Mount do
   end
 
   def unmount(path) do
-    System.cmd("umount", [path])
+    System.cmd("umount", ["-f", path])
   end
 
   def resize_tmp(size) do
