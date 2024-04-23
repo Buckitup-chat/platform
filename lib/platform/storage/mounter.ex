@@ -56,13 +56,9 @@ defmodule Platform.Storage.Mounter do
   def on_exit(reason, %{path: path, task_supervisor: task_supervisor}) do
     "mount cleanup #{path} #{inspect(reason)}" |> Logger.warning()
 
-    Task.Supervisor.async_nolink(task_supervisor, fn ->
+    Task.Supervisor.start_child(task_supervisor, fn ->
+      Process.sleep(2000)
       Mount.unmount(path)
     end)
-    |> Task.await(:timer.seconds(15))
-    |> case do
-      {_, 0} -> :ok
-      e -> Logger.warning(inspect(e))
-    end
   end
 end
