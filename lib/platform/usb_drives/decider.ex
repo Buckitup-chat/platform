@@ -5,6 +5,9 @@ defmodule Platform.UsbDrives.Decider do
 
   require Logger
 
+  alias Platform.Tools.Mount
+  alias Platform.Tools.Mkfs
+
   alias Chat.Admin.MediaSettings
   alias Chat.AdminRoom
   alias Chat.Sync.UsbDriveDumpRoom
@@ -61,9 +64,17 @@ defmodule Platform.UsbDrives.Decider do
       File.exists?("#{path}/onliners_db") -> OnlinersSyncSupervisor
       File.exists?("#{path}/backup_db") -> BackupDbSupervisor
       File.exists?("#{path}/main_db") -> (on_internal_db?() && MainDbSupervisor) || nil
-      create_first_main?() -> MainDbSupervisor
-      true -> default_scenario()
+      create_first_main?() -> MainDbSupervisor |> may_optimimize_if_blank(path)
+      true -> default_scenario() |> may_optimimize_if_blank(path)
     end
+  end
+
+  defp may_optimimize_if_blank(scenario, path) do
+    if drive_blank?(path) and should_optimize?() do
+      optimize_fs(path)
+    end
+
+    scenario
   end
 
   defp on_internal_db? do
@@ -76,9 +87,46 @@ defmodule Platform.UsbDrives.Decider do
     create_main? and on_internal_db?()
   end
 
+  defp should_optimize? do
+    %MediaSettings{optimize: optimize?} = AdminRoom.get_media_settings()
+    optimize?
+  end
+
   defp default_scenario do
     %MediaSettings{functionality: scenario} = AdminRoom.get_media_settings()
     Map.get(@supervisor_map, scenario)
+  end
+
+  defp drive_blank?(path) do
+    File.ls!(path)
+    |> Enum.empty?()
+  end
+
+  defp optimize_fs(path) do
+    device = Mount.device(path)
+
+    device
+    |> tap(fn device ->
+      Process.sleep(1000)
+      {output, code} = Mount.unmount("/dev/" <> device)
+
+      Logger.debug([
+        "[drive] [decider] Unmounting #{device}\n",
+        "exit code: #{code} \n",
+        output
+      ])
+    end)
+    |> tap(fn device ->
+      Process.sleep(1000)
+      {output, code} = Mkfs.f2fs(device)
+
+      Logger.info([
+        "[drive] [decider] F2FS optimization for #{device}\n",
+        "exit code: #{code} \n",
+        output
+      ])
+    end)
+    |> Mount.mount_at_path(path)
   end
 
   defp start(nil, _, _, _), do: :skip

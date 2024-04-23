@@ -43,7 +43,7 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
       {:stage, Copying,
        {Copier, target: target_db, task_in: tasks, get_db_keys_from: ScopeProvider}
        |> exit_takes(10_000)},
-      {Stopper, device: device}
+      {Stopper, device: device} |> exit_takes(500)
     ]
     |> prepare_stages(Platform.App.Drive.OnlinersStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 50)

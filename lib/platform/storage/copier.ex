@@ -71,7 +71,12 @@ defmodule Platform.Storage.Copier do
 
   def on_msg(:copied, %{next_run: next_spec, next_under: next_supervisor} = state) do
     "[media] Synced " |> Logger.info()
+
     Platform.start_next_stage(next_supervisor, next_spec)
+    |> case do
+      {:ok, _} -> :ok
+      {:error, error} -> Logger.error(inspect(error, pretty: true))
+    end
 
     {:noreply, state}
   end

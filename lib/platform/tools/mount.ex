@@ -2,14 +2,15 @@ defmodule Platform.Tools.Mount do
   @moduledoc "mount wrapper"
 
   require Logger
+  alias Platform.Tools.Proto.Device
 
   def mount_at_path(device, path) do
     log_mounting(device, path)
-    mount(["/dev/" <> device, path])
+    mount([device |> Device.path(), path])
   end
 
-  def unmount(path) do
-    System.cmd("umount", [path])
+  def unmount(device) do
+    System.cmd("umount", ["-f", device |> Device.path()])
   end
 
   def resize_tmp(size) do
@@ -51,6 +52,6 @@ defmodule Platform.Tools.Mount do
   end
 
   defp log_mounting(device, path) do
-    Logger.info("[platform] Mounting /dev/#{device} at #{path}")
+    Logger.info("[platform] Mounting #{device |> Device.path()} at #{path}")
   end
 end

@@ -1,9 +1,11 @@
 defmodule Platform.Tools.Lsblk do
   @moduledoc "List partition info"
 
+  alias Platform.Tools.Proto.Device
+
   def fs_type(device) do
     "lsblk"
-    |> System.cmd(["-o", "FSTYPE", "/dev/" <> device])
+    |> System.cmd(["-o", "FSTYPE", device |> Device.path()])
     |> parse_fs_type()
   end
 
