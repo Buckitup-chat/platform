@@ -26,14 +26,15 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   def on_msg(:perform, state) do
     keys_holder = Keyword.fetch!(state, :get_keys_from)
 
-    %{me: cargo_user, rooms: [_room_identity]} = GenServer.call(keys_holder, :keys)
+    %{me: cargo_user, rooms: [room_identity]} = GenServer.call(keys_holder, :keys)
     %{camera_sensors: sensors, weight_sensor: weight_sensor} = AdminRoom.get_cargo_settings()
+    room_identity_fn = fn key -> if key === room_identity.public_key, do: room_identity end
 
     db_keys =
       sensors
-      |> Enum.map(&fn -> image_sensor_message_db_keys(&1, cargo_user) end)
+      |> Enum.map(&fn -> image_sensor_message_db_keys(&1, cargo_user, room_identity_fn) end)
       |> then(fn funcs ->
-        fn -> weight_sensor_message_db_keys(weight_sensor, cargo_user) end
+        fn -> weight_sensor_message_db_keys(weight_sensor, cargo_user, room_identity_fn) end
         |> then(&[&1 | funcs])
       end)
       |> Task.async_stream(& &1.(),
@@ -46,7 +47,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
         {:error, _}, acc -> acc
         {:exit, :timeout}, acc -> acc
       end)
-      |> MapSet.union(summary_message_db_keys(cargo_user))
+      |> MapSet.union(summary_message_db_keys(cargo_user, room_identity_fn))
       |> MapSet.to_list()
 
     db_keys
@@ -82,11 +83,12 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   def on_exit(_reason, _state) do
   end
 
-  defp image_sensor_message_db_keys(sensor, cargo_user) do
+  defp image_sensor_message_db_keys(sensor, cargo_user, get_room_identity_fn) do
     with {:ok, {type, content}} <- Sensor.get_image(sensor),
          size_string <- byte_size(content) |> to_string(),
          headers <- %{"Content-Type" => type, "Content-Length" => size_string},
-         {:ok, keys_set} <- CargoRoom.write_file(cargo_user, content, headers) do
+         {:ok, keys_set} <-
+           CargoRoom.write_file(cargo_user, content, headers, get_room_identity_fn) do
       keys_set
     else
       _ -> MapSet.new()
@@ -95,14 +97,14 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
     _ -> MapSet.new()
   end
 
-  defp summary_message_db_keys(cargo_user) do
-    case CargoRoom.write_text(cargo_user, "Cargo synchronized") do
+  defp summary_message_db_keys(cargo_user, get_room_identity_fn) do
+    case CargoRoom.write_text(cargo_user, "Cargo synchronized", get_room_identity_fn) do
       {:ok, keys} -> keys
       _ -> MapSet.new()
     end
   end
 
-  defp weight_sensor_message_db_keys(weight_sensor, cargo_user) do
+  defp weight_sensor_message_db_keys(weight_sensor, cargo_user, get_room_identity_fn) do
     with true <- weight_sensor !== %{},
          type <- weight_sensor[:type],
          true <- is_binary(type) and byte_size(type) > 0,
@@ -110,7 +112,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
          true <- is_binary(name) and byte_size(name) > 0,
          opts <- Map.drop(weight_sensor, [:name, :type]) |> Map.to_list(),
          {:ok, content} <- Platform.Sensor.Weigh.poll(type, name, opts |> fix_parity()),
-         {:ok, keys_set} <- CargoRoom.write_text(cargo_user, content) do
+         {:ok, keys_set} <- CargoRoom.write_text(cargo_user, content, get_room_identity_fn) do
       keys_set
     else
       _ -> MapSet.new()
