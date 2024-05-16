@@ -39,10 +39,12 @@ defmodule Platform.Dns.Server do
       {:noreply, state}
   end
 
+  @domain Application.compile_env(:chat, :domain) |> to_charlist()
+
   def handle(record, _) do
     query = hd(record.qdlist)
 
-    if match?(%{type: :a, domain: ~c"buckitup.app"}, query) do
+    if match?(%{type: :a, domain: @domain}, query) do
       [
         %DNS.Resource{
           domain: query.domain,

@@ -48,12 +48,51 @@ if keys == [],
 config :nerves_ssh,
   authorized_keys: Enum.map(keys, &File.read!/1)
 
-maybe_usb =
-  if config_env() == :dev do
-    [{"usb0", %{type: VintageNetDirect}}]
-  else
-    []
+#############################
+##
+## SSL or HTTP-only
+##
+#############################
+ssl_cacertfile = "priv/cert/buckitup_app.ca-bundle"
+ssl_certfile = "priv/cert/buckitup_app.crt"
+ssl_keyfile = "priv/cert/priv.key"
+
+cert_present? =
+  [ssl_cacertfile, ssl_certfile, ssl_keyfile]
+  |> Enum.map(&("../chat/" <> &1))
+  |> Enum.all?(&File.exists?/1)
+
+domain =
+  cond do
+    # todo: env var here
+    cert_present? -> "buckitup.app"
+    true -> "www.buckitup.org"
   end
+
+if cert_present? do
+  config :chat, ChatWeb.Endpoint,
+    url: [host: domain],
+    http: [ip: {0, 0, 0, 0}, port: 80],
+    https: [
+      port: 443,
+      cipher_suite: :strong,
+      cacertfile: ssl_cacertfile,
+      certfile: ssl_certfile,
+      keyfile: ssl_keyfile
+    ]
+else
+  config :chat, ChatWeb.Endpoint,
+    http: [ip: {0, 0, 0, 0}, port: 80],
+    url: [host: domain, scheme: "http"],
+    check_origin: false
+end
+
+config :chat, :domain, domain
+
+# maybe_usb =
+#   if config_env() == :dev,
+#     do: [{"usb0", %{type: VintageNetDirect}}],
+#     else: []
 
 # Configure the network using vintage_net
 # See https://github.com/nerves-networking/vintage_net for more information
@@ -68,8 +107,8 @@ lan_as_internet_replacement = %{
       dns: [{192, 168, 25, 1}],
       subnet: {255, 255, 255, 0},
       router: [{192, 168, 24, 1}],
-      domain: "buckitup.app",
-      search: ["buckitup.app"]
+      domain: domain,
+      search: [domain]
     }
   },
   ipv4: %{
@@ -90,44 +129,44 @@ config :vintage_net,
   # persistence: VintageNet.Persistence.Null,
   internet_host_list: [{"192.168.25.1", 80}],
   additional_name_servers: [],
-  config:
-    [
-      {"eth0", lan_as_internet_replacement},
-      {"wlan0",
-       %{
-         type: VintageNetWiFi,
-         dhcpd: %{
-           start: {192, 168, 25, 10},
-           end: {192, 168, 25, 250},
-           options: %{
-             dns: [{192, 168, 25, 1}],
-             subnet: {255, 255, 255, 0},
-             router: [{192, 168, 25, 1}],
-             domain: "buckitup.app",
-             search: ["buckitup.app"]
-           }
-         },
-         ipv4: %{
-           address: {192, 168, 25, 1},
-           method: :static,
-           prefix_length: 24,
-           name_servers: [{192, 168, 25, 1}]
-         },
-         vintage_net_wifi: %{
-           networks: [
-             %{
-               key_mgmt: :wpa_psk,
-               mode: :ap,
-               psk: "buckitup",
-               ssid: "buckitup.app",
-               proto: "RSN",
-               pairwise: "CCMP",
-               group: "CCMP"
-             }
-           ]
+  config: [
+    {"eth0", lan_as_internet_replacement},
+    {"wlan0",
+     %{
+       type: VintageNetWiFi,
+       dhcpd: %{
+         start: {192, 168, 25, 10},
+         end: {192, 168, 25, 250},
+         options: %{
+           dns: [{192, 168, 25, 1}],
+           subnet: {255, 255, 255, 0},
+           router: [{192, 168, 25, 1}],
+           domain: domain,
+           search: [domain]
          }
-       }}
-    ] ++ maybe_usb
+       },
+       ipv4: %{
+         address: {192, 168, 25, 1},
+         method: :static,
+         prefix_length: 24,
+         name_servers: [{192, 168, 25, 1}]
+       },
+       vintage_net_wifi: %{
+         networks: [
+           %{
+             key_mgmt: :wpa_psk,
+             mode: :ap,
+             psk: "buckitup",
+             ssid: "BuckitUp.app",
+             proto: "RSN",
+             pairwise: "CCMP",
+             group: "CCMP"
+           }
+         ]
+       }
+     }},
+    {"usb0", %{type: VintageNetDirect}}
+  ]
 
 config :mdns_lite,
   # The `host` key specifies what hostnames mdns_lite advertises.  `:hostname`
@@ -177,38 +216,9 @@ config :chat, ChatWeb.Endpoint,
   code_reloader: false
 
 maybe_nerves_local =
-  if config_env() == :dev do
-    ["http://nerves.local"]
-  else
-    []
-  end
-
-ssl_cacertfile = "priv/cert/buckitup_app.ca-bundle"
-ssl_certfile = "priv/cert/buckitup_app.crt"
-ssl_keyfile = "priv/cert/priv.key"
-
-cert_present? =
-  [ssl_cacertfile, ssl_certfile, ssl_keyfile]
-  |> Enum.map(&("../chat/" <> &1))
-  |> Enum.all?(&File.exists?/1)
-
-if cert_present? do
-  config :chat, ChatWeb.Endpoint,
-    url: [host: "buckitup.app"],
-    http: [ip: {0, 0, 0, 0}, port: 80],
-    https: [
-      port: 443,
-      cipher_suite: :strong,
-      cacertfile: ssl_cacertfile,
-      certfile: ssl_certfile,
-      keyfile: ssl_keyfile
-    ]
-else
-  config :chat, ChatWeb.Endpoint,
-    http: [ip: {0, 0, 0, 0}, port: 80],
-    url: [host: "buckitup.app", scheme: "http"],
-    check_origin: false
-end
+  if config_env() == :dev,
+    do: ["http://nerves.local"],
+    else: []
 
 config :chat, :cub_db_file, "/root/db"
 config :chat, :admin_cub_db_file, "/root/admin_db_v2"
