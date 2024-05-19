@@ -66,7 +66,7 @@ domain =
   cond do
     # todo: env var here
     cert_present? -> "buckitup.app"
-    true -> "www.buckitup.org"
+    true -> "demo.buckitup.org"
   end
 
 if cert_present? do
