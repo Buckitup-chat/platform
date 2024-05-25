@@ -5,6 +5,8 @@ defmodule Platform.Dns.Server do
   #  @behaviour DNS.Server
   use GenServer
 
+  require Logger
+
   @doc """
   Start DNS.Server` server.
 
@@ -27,12 +29,21 @@ defmodule Platform.Dns.Server do
   def handle_info({:udp, client, ip, wtv, data}, state) do
     record = DNS.Record.decode(data)
     response = handle(record, client)
-    Socket.Datagram.send!(state.socket, DNS.Record.encode(response), {ip, wtv})
+
+    Socket.Datagram.send(state.socket, DNS.Record.encode(response), {ip, wtv})
+    |> case do
+      :ok ->
+        :ok
+
+      {:error, send_error} ->
+        Logger.warning(
+          "[Dns.Server] sending response error: #{inspect(send_error)} on: #{data |> format_data |> inspect()}"
+        )
+    end
+
     {:noreply, state}
   rescue
     err ->
-      require Logger
-
       formatted = format_data(data)
       Logger.warning("[Dns.Server] error: #{inspect(err)} on: #{inspect(formatted)}")
 
