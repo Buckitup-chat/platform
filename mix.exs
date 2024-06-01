@@ -93,7 +93,9 @@ defmodule Platform.MixProject do
       {:graceful_genserver, "~> 0.1.0"},
       {:circuits_uart, "~> 1.3"},
       {:circuits_gpio, "~> 1.0"},
-      {:nerves_key, "~> 1.1"}
+      {:nerves_key, "~> 1.1"},
+      {:atecc508a, path: "/Users/lukianov/work/buckitUp/atecc508a", override: true}
+      # {:atecc508a, "~> 1.2"}
       # {:vintage_net_bridge, github: "mnishiguchi/vintage_net_bridge"}
     ]
   end
