@@ -26,35 +26,29 @@ defmodule Platform.Dns.Server do
 
   def handle_info({:udp, client, ip, wtv, data}, state) do
     Task.start(fn ->
-      proxy_dns_request(client, ip, wtv, data)
+      proxy_dns_request(client, ip, wtv, data, state.socket)
     end)
 
     {:noreply, state}
   end
 
-  defp proxy_dns_request(client, ip, wtv, data) do
-    record = DNS.Record.decode(data)
-    response = inject_or_proxy(record, client)
-
-    Socket.Datagram.send(state.socket, DNS.Record.encode(response), {ip, wtv})
+  defp proxy_dns_request(client, ip, wtv, data, socket) do
+    data
+    |> DNS.Record.decode()
+    |> inject_known_or_proxy_request(client)
+    |> DNS.Record.encode()
+    |> then(&Socket.Datagram.send(socket, &1, {ip, wtv}))
     |> case do
-      :ok ->
-        :ok
-
-      {:error, send_error} ->
-        Logger.warning(
-          "[Dns.Server] sending response error: #{inspect(send_error)} on: #{data |> format_data |> inspect()}"
-        )
+      :ok -> :ok
+      {:error, send_error} -> log_send_error(send_error, data)
     end
   rescue
-    err ->
-      formatted = format_data(data)
-      Logger.warning("[Dns.Server] error: #{inspect(err)} on: #{inspect(formatted)}")
+    err -> log_error(err, data)
   end
 
   @domain Application.compile_env(:chat, :domain) |> to_charlist()
 
-  defp inject_or_proxy(record, _) do
+  defp inject_known_or_proxy_request(record, _) do
     query = hd(record.qdlist)
 
     case query do
@@ -84,7 +78,7 @@ defmodule Platform.Dns.Server do
         {:ok, %{anlist: anlist}} =
           DNS.query(query.domain, query.type,
             nameservers: [{"8.8.4.4", 53}],
-            timeout: :timer.seconds(30)
+            timeout: :timer.seconds(3)
           )
 
         anlist
@@ -111,5 +105,23 @@ defmodule Platform.Dns.Server do
     |> Enum.reverse()
   rescue
     _ -> data
+  end
+
+  defp log_send_error(send_error, data) do
+    Logger.warning([
+      "[Dns.Server] sending response error: ",
+      inspect(send_error),
+      " on: ",
+      data |> format_data() |> inspect()
+    ])
+  end
+
+  defp log_error(err, data) do
+    Logger.warning([
+      "[Dns.Server] error: ",
+      inspect(err),
+      " on: ",
+      data |> format_data() |> inspect()
+    ])
   end
 end
