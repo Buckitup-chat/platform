@@ -79,7 +79,8 @@ if cert_present? do
       cacertfile: ssl_cacertfile,
       certfile: ssl_certfile,
       keyfile: ssl_keyfile
-    ]
+    ],
+    check_origin: ["//#{domain}"]
 else
   config :chat, ChatWeb.Endpoint,
     http: [ip: {0, 0, 0, 0}, port: 80],
