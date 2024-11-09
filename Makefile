@@ -3,7 +3,8 @@
 
 platform_version := $(shell git log -1 --date=format:%Y-%m-%d --format=%cd_%h)
 chat_version := $(shell bash chat_version.sh)
-version := "$(platform_version)___$(chat_version)"
+domain := $(shell cat ./built_for_domain)
+version := "$(platform_version)___$(chat_version).$(domain)"
 
 nothing:
 	@echo  $(version)

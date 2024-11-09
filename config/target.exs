@@ -53,32 +53,48 @@ config :nerves_ssh,
 ## SSL or HTTP-only
 ##
 #############################
-ssl_cacertfile = "priv/cert/buckitup_app.ca-bundle"
-ssl_certfile = "priv/cert/buckitup_app.crt"
-ssl_keyfile = "priv/cert/priv.key"
-
-cert_present? =
-  [ssl_cacertfile, ssl_certfile, ssl_keyfile]
-  |> Enum.map(&("../chat/" <> &1))
-  |> Enum.all?(&File.exists?/1)
-
 domain =
   cond do
-    # todo: env var here
-    cert_present? -> "buckitup.app"
+    domain = System.get_env("DOMAIN") -> domain
     true -> "demo.buckitup.org"
   end
 
+domain_to_file_prefix = fn domain ->
+  String.replace(domain, ".", "_")
+end
+
+chat_vsn = Application.spec(:chat, :vsn) |> to_string
+cert_src_dir = "../cert/#{domain}"
+cert_deploy_dir = "../chat/priv/certs"
+cert_image_dir = "../chat-#{chat_vsn}/priv/certs"
+File.rm_rf!(cert_deploy_dir)
+
+ssl_cacertfile = "#{domain_to_file_prefix.(domain)}.ca-bundle"
+ssl_certfile = "#{domain_to_file_prefix.(domain)}.crt"
+ssl_keyfile = "priv.key"
+
+cert_present? =
+  [ssl_cacertfile, ssl_certfile, ssl_keyfile]
+  |> Enum.map(&Path.join([cert_src_dir, &1]))
+  |> Enum.all?(&File.exists?/1)
+
 if cert_present? do
+  File.mkdir_p!(cert_deploy_dir)
+
+  [ssl_cacertfile, ssl_certfile, ssl_keyfile]
+  |> Enum.map(fn filename ->
+    File.cp!(Path.join([cert_src_dir, filename]), Path.join([cert_deploy_dir, filename]))
+  end)
+
   config :chat, ChatWeb.Endpoint,
     url: [host: domain],
     http: [ip: {0, 0, 0, 0}, port: 80],
     https: [
       port: 443,
       cipher_suite: :strong,
-      cacertfile: ssl_cacertfile,
-      certfile: ssl_certfile,
-      keyfile: ssl_keyfile
+      cacertfile: [cert_image_dir, ssl_cacertfile] |> Path.join(),
+      certfile: [cert_image_dir, ssl_certfile] |> Path.join(),
+      keyfile: [cert_image_dir, ssl_keyfile] |> Path.join()
     ],
     check_origin: ["//#{domain}"]
 else
@@ -89,6 +105,8 @@ else
 end
 
 config :chat, :domain, domain
+
+File.write!("built_for_domain", domain)
 
 # maybe_usb =
 #   if config_env() == :dev,
