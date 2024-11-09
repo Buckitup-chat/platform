@@ -1,8 +1,6 @@
 defmodule Platform.Dns.Server do
   @moduledoc "DnsServer to inject our domain"
 
-  #  use DNS.Server
-  #  @behaviour DNS.Server
   use GenServer
 
   require Logger
@@ -27,49 +25,63 @@ defmodule Platform.Dns.Server do
   end
 
   def handle_info({:udp, client, ip, wtv, data}, state) do
-    record = DNS.Record.decode(data)
-    response = handle(record, client)
-
-    Socket.Datagram.send(state.socket, DNS.Record.encode(response), {ip, wtv})
-    |> case do
-      :ok ->
-        :ok
-
-      {:error, send_error} ->
-        Logger.warning(
-          "[Dns.Server] sending response error: #{inspect(send_error)} on: #{data |> format_data |> inspect()}"
-        )
-    end
+    Task.start(fn ->
+      proxy_dns_request(client, ip, wtv, data, state.socket)
+    end)
 
     {:noreply, state}
-  rescue
-    err ->
-      formatted = format_data(data)
-      Logger.warning("[Dns.Server] error: #{inspect(err)} on: #{inspect(formatted)}")
+  end
 
-      {:noreply, state}
+  defp proxy_dns_request(client, ip, wtv, data, socket) do
+    data
+    |> DNS.Record.decode()
+    |> inject_known_or_proxy_request(client)
+    |> DNS.Record.encode()
+    |> then(&Socket.Datagram.send(socket, &1, {ip, wtv}))
+    |> case do
+      :ok -> :ok
+      {:error, send_error} -> log_send_error(send_error, data)
+    end
+  rescue
+    err -> log_error(err, data)
   end
 
   @domain Application.compile_env(:chat, :domain) |> to_charlist()
 
-  def handle(record, _) do
+  defp inject_known_or_proxy_request(record, _) do
     query = hd(record.qdlist)
 
-    if match?(%{type: :a, domain: @domain}, query) do
-      [
-        %DNS.Resource{
-          domain: query.domain,
-          class: query.class,
-          type: query.type,
-          ttl: 10,
-          data: {192, 168, 25, 1}
-        }
-      ]
-    else
-      {:ok, %{anlist: anlist}} =
-        DNS.query(query.domain, query.type, nameservers: [{"8.8.4.4", 53}])
+    case query do
+      %{type: :a, domain: @domain} ->
+        [
+          %DNS.Resource{
+            domain: query.domain,
+            class: query.class,
+            type: query.type,
+            ttl: 10,
+            data: {192, 168, 25, 1}
+          }
+        ]
 
-      anlist
+      %{type: :cname, domain: @domain} ->
+        [
+          %DNS.Resource{
+            domain: query.domain,
+            class: query.class,
+            type: query.type,
+            ttl: 10,
+            data: {192, 168, 25, 1}
+          }
+        ]
+
+      _ ->
+        {:ok, %{anlist: anlist}} =
+          DNS.query(query.domain, query.type,
+            nameservers: [{"8.8.4.4", 53}],
+            timeout: :timer.seconds(3)
+          )
+
+        anlist
     end
     |> then(fn anlist -> %{record | anlist: anlist, header: %{record.header | qr: true}} end)
   rescue
@@ -93,5 +105,23 @@ defmodule Platform.Dns.Server do
     |> Enum.reverse()
   rescue
     _ -> data
+  end
+
+  defp log_send_error(send_error, data) do
+    Logger.warning([
+      "[Dns.Server] sending response error: ",
+      inspect(send_error),
+      " on: ",
+      data |> format_data() |> inspect()
+    ])
+  end
+
+  defp log_error(err, data) do
+    Logger.warning([
+      "[Dns.Server] error: ",
+      inspect(err),
+      " on: ",
+      data |> format_data() |> inspect()
+    ])
   end
 end
