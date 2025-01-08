@@ -46,14 +46,14 @@ defmodule Platform.MixProject do
       {:observer_cli, "~> 1.7"},
       {:nerves_leds, "~> 0.8.1"},
       # Dependencies for all targets
-      {:nerves, "~> 1.10.4", runtime: false},
+      {:nerves, "~> 1.10", runtime: false},
       {:shoehorn, "~> 0.9.1"},
-      {:ring_logger, "~> 0.10.5"},
-      {:toolshed, "~> 0.3.1"},
+      {:ring_logger, "~> 0.10"},
+      {:toolshed, "~> 0.3"},
 
       # Dependencies for all targets except :host
       {:nerves_runtime, "~> 0.13.5", targets: @all_targets},
-      {:nerves_pack, "~> 0.7.0", targets: @all_targets},
+      {:nerves_pack, "~> 0.7", targets: @all_targets},
       # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
 
       # Dependencies for specific targets
@@ -92,7 +92,7 @@ defmodule Platform.MixProject do
       {:excoveralls, "~> 0.14", only: [:test]},
       {:graceful_genserver, "~> 0.1.0"},
       {:circuits_uart, "~> 1.3"},
-      {:circuits_gpio, "~> 1.0"}
+      {:circuits_gpio, "~> 2.0 or ~> 1.0"}
       # {:vintage_net_bridge, github: "mnishiguchi/vintage_net_bridge"}
     ]
   end

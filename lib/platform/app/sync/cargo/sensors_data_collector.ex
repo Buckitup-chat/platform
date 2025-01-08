@@ -39,7 +39,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
       end)
       |> Task.async_stream(& &1.(),
         timeout: 10_000,
-        on_timeout: :kill_taks,
+        on_timeout: :kill_task,
         max_concurrency: 20
       )
       |> Enum.reduce(MapSet.new(), fn
