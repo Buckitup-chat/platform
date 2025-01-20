@@ -57,8 +57,11 @@ defmodule Platform.Tools.PartEd.Print do
           x
           |> Enum.take(4)
           |> Enum.map(&bytes/1)
+          |> then(fn list ->
+            partition_type = (Enum.at(x, 4) == "primary" && :primary) || :logical
+            list ++ [partition_type]
+          end)
           |> List.to_tuple()
-          |> Tuple.append((Enum.at(x, 4) == "primary" && :primary) || :logical)
         end)
     end)
   end
