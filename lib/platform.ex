@@ -104,10 +104,10 @@ defmodule Platform do
   end
 
   defp make_stage_name(prefix, name) when is_atom(prefix),
-    do: prefix |> Atom.to_string() |> String.slice(7..-1) |> make_stage_name(name)
+    do: prefix |> Atom.to_string() |> String.slice(7..-1//-1) |> make_stage_name(name)
 
   defp make_stage_name(prefix, name) when is_atom(name),
-    do: name |> Atom.to_string() |> String.slice(7..-1) |> then(&make_stage_name(prefix, &1))
+    do: name |> Atom.to_string() |> String.slice(7..-1//-1) |> then(&make_stage_name(prefix, &1))
 
   defp make_stage_name(_prefix, {:via, _, _} = via), do: via
   defp make_stage_name(prefix, name), do: :"Elixir.#{prefix}.#{name}"
