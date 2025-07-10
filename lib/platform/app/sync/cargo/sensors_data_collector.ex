@@ -39,13 +39,14 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
       end)
       |> Task.async_stream(& &1.(),
         timeout: 10_000,
-        on_timeout: :kill_task,
+        on_timeout: :exit,
         max_concurrency: 20
       )
       |> Enum.reduce(MapSet.new(), fn
         {:ok, set}, acc_set -> MapSet.union(acc_set, set)
         {:error, _}, acc -> acc
-        {:exit, :timeout}, acc -> acc
+        {:exit, _}, acc -> acc
+          
       end)
       |> MapSet.union(summary_message_db_keys(cargo_user, room_identity_fn))
       |> MapSet.to_list()
