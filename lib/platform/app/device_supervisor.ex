@@ -25,7 +25,8 @@ defmodule Platform.App.DeviceSupervisor do
         {DynamicSupervisor, name: Platform.Drives, strategy: :one_for_one}
         |> exit_takes(150_000),
         {Registry, name: Platform.Drives.Registry, keys: :unique},
-        Platform.UsbDrives.Detector.Watcher |> unless_on_host()
+        Platform.UsbDrives.Detector.Watcher |> unless_on_host(),
+        Platform.Internal.PgDb |> unless_on_host()
       ]
       |> Enum.reject(&is_nil/1)
 

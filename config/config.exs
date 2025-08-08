@@ -47,6 +47,26 @@ config :mime, :types, %{
 # Uncomment the following line to enable db writing logging
 config :chat, :db_write_logging, true
 
+# PostgreSQL configuration
+config :chat,
+  pg_port: 5432,
+  pg_socket_dir: "/root/pg/run"
+
+# Configure PostgreSQL connection for Chat.Repo
+config :chat, Chat.Repo,
+  adapter: Ecto.Adapters.Postgres,
+  username: "postgres",
+  password: "",
+  database: "chat",
+  hostname: "localhost",
+  port: {:system, "PGPORT", 5432},  # Use environment variable with fallback
+  pool_size: 5,
+  socket_dir: {:system, "PGSOCKET_DIR", "/root/pg/run"},  # Use environment variable with fallback
+  show_sensitive_data_on_connection_error: false
+
+# Configure Ecto repos
+config :chat, ecto_repos: [Chat.Repo]
+
 if Mix.target() == :host or Mix.target() == :"" do
   import_config "host.exs"
 else
