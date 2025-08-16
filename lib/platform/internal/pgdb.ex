@@ -20,6 +20,7 @@ defmodule Platform.Internal.PgDb do
     case Platform.PgDb.initialize() do
       :ok ->
         Logger.info("PostgreSQL database initialized successfully")
+
       {:error, reason} ->
         Logger.error("PostgreSQL database initialization failed: #{inspect(reason)}")
     end
@@ -82,6 +83,7 @@ defmodule Platform.Internal.PgDb do
         {:ok, output} ->
           if String.contains?(output, "0 rows") do
             Logger.info("Creating 'chat' database")
+
             case Platform.PgDb.create_database("chat") do
               {:ok, _} -> Logger.info("'chat' database created successfully")
               {:error, reason} -> Logger.error("Failed to create 'chat' database: #{reason}")
@@ -90,52 +92,9 @@ defmodule Platform.Internal.PgDb do
             Logger.info("'chat' database already exists")
           end
 
-          # # Run migrations if modules are available
-          # try do
-          #   if Code.ensure_loaded?(Chat.Repo) && Code.ensure_loaded?(Ecto.Migrator) do
-          #     Logger.info("Running migrations for Chat database")
-
-          #     # Get the migrations path
-          #     migrations_path = Path.join([:code.priv_dir(:chat), "repo", "migrations"])
-
-          #     if File.exists?(migrations_path) do
-
-          #       # Run migrations
-          #       Ecto.Migrator.run(Chat.Repo, migrations_path, :up, all: true)
-          #       Logger.info("Migrations completed successfully")
-
-          #     else
-          #       Logger.warning("No migrations directory found at #{migrations_path}")
-          #     end
-          #   else
-          #     modules = []
-          #     modules = if !Code.ensure_loaded?(Chat.Repo), do: ["Chat.Repo" | modules], else: modules
-          #     modules = if !Code.ensure_loaded?(Ecto.Migrator), do: ["Ecto.Migrator" | modules], else: modules
-          #     Logger.info("Skipping migrations, required modules not available: #{Enum.join(modules, ", ")}")
-          #   end
-          # rescue
-          #   e -> Logger.error("Error running migrations: #{inspect(e)}")
-          # end
-
         {:error, reason} ->
           Logger.error("Error checking for 'chat' database: #{reason}")
       end
-
-      # # Set environment variables for PostgreSQL connection
-      # # This ensures Chat.Repo will find the correct socket directory when it starts
-      # try do
-      #   pg_port = Application.get_env(:chat, :pg_port, 5432)
-      #   pg_socket_dir = Application.get_env(:chat, :pg_socket_dir, "/root/pg/run")
-
-      #   # Set environment variables that will be used by Chat.Repo's configuration
-      #   System.put_env("PGPORT", to_string(pg_port))
-      #   System.put_env("PGSOCKET_DIR", pg_socket_dir)
-
-      #   Logger.info("PostgreSQL environment configured: socket_dir=#{pg_socket_dir}, port=#{pg_port}")
-      #   Logger.info("Chat.Repo will be started by the Chat application's supervision tree")
-      # rescue
-      #   e -> Logger.error("Unexpected error during PostgreSQL environment setup: #{inspect(e)}")
-      # end
     else
       Logger.error("PostgreSQL server not running, can't set up database for Chat.Repo")
     end
