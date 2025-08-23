@@ -26,7 +26,8 @@ defmodule Platform.App.DeviceSupervisor do
         |> exit_takes(150_000),
         {Registry, name: Platform.Drives.Registry, keys: :unique},
         Platform.UsbDrives.Detector.Watcher |> unless_on_host(),
-        Platform.Internal.PgDb |> unless_on_host()
+        # Platform.Internal.PgDb |> unless_on_host(),
+        nil
       ]
       |> Enum.reject(&is_nil/1)
 
