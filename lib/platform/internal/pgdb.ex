@@ -9,10 +9,8 @@ defmodule Platform.Internal.PgDb do
 
   import Platform, only: [use_task: 1, exit_takes: 2, prepare_stages: 2]
 
-
   @db_name Application.get_env(:chat, Chat.Repo, database: "chat")[:database]
   @pg_data_dir "/root/pg/data"
-
 
   def start_link(args) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)
@@ -21,11 +19,12 @@ defmodule Platform.Internal.PgDb do
   @impl true
   def init(_args) do
     Logger.info("Starting PostgreSQL database supervisor")
+    Platform.PgDb.initialize()
+    Logger.info("PostgreSQL database initialized successfully")
 
     [
-      {Task, fn -> Platform.PgDb.initialize() end},
       postgres_daemon_spec(),
-      {Task, fn -> Platform.PgDb.create_database(@db_name) end},
+      {Task, fn -> Platform.PgDb.create_database(@db_name) end}
       # use_task(:postgres_tasks),
       #
       # # Stage 1: Initialize PostgreSQL
