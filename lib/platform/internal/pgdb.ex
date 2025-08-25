@@ -7,9 +7,7 @@ defmodule Platform.Internal.PgDb do
 
   require Logger
 
-  import Platform, only: [use_task: 1, exit_takes: 2, prepare_stages: 2]
-
-  @db_name Application.get_env(:chat, Chat.Repo, database: "chat")[:database]
+  @db_name Application.compile_env(:chat, Chat.Repo, database: "chat")[:database]
   @pg_data_dir "/root/pg/data"
 
   def start_link(args) do
@@ -18,29 +16,17 @@ defmodule Platform.Internal.PgDb do
 
   @impl true
   def init(_args) do
-    Logger.info("Starting PostgreSQL database supervisor")
+    Logger.info("Starting PostgreSQL supervisor")
     Platform.PgDb.initialize()
-    Logger.info("PostgreSQL database initialized successfully")
+    Logger.info("PostgreSQL initialized successfully")
 
     [
       postgres_daemon_spec(),
-      {Task, fn -> Platform.PgDb.create_database(@db_name) end}
-      # use_task(:postgres_tasks),
-      #
-      # # Stage 1: Initialize PostgreSQL
-      # {:stage, :pg_initializer, {Platform.Internal.PgInitializer, []} |> exit_takes(120_000)},
-      #
-      # # Stage 2: Start PostgreSQL daemon after initialization
-      # {:stage, :pg_daemon, postgres_daemon_spec() |> exit_takes(30_000)},
-      #
-      # # Stage 3: Set up chat database
-      # {:stage, :chat_db, {Task, fn -> setup_chat_database() end} |> exit_takes(15_000)}
+      {Task, fn -> setup_chat_database() end}
     ]
-    # |> prepare_stages(Platform.Internal.PgStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
 
-  # Create a MuonTrap.Daemon spec for PostgreSQL
   defp postgres_daemon_spec do
     {postgres_uid_str, _} = MuonTrap.cmd("id", ["-u", "postgres"], stderr_to_stdout: true)
     postgres_uid = String.trim(postgres_uid_str) |> String.to_integer()
@@ -50,16 +36,10 @@ defmodule Platform.Internal.PgDb do
 
     {MuonTrap.Daemon,
      [
-       "/usr/bin/pg_ctl",
-       [
-         "-D",
-         @pg_data_dir,
-         "-l",
-         "/dev/null",
-         "-o",
-         "#{Enum.join(pg_minimal_settings, " ")} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
-         "start"
-       ],
+       "/usr/bin/postgres",
+       ["-D", @pg_data_dir] ++
+         pg_minimal_settings ++
+         ["-c", "port=#{pg_port}", "-c", "log_destination=stderr"],
        [
          stderr_to_stdout: true,
          log_output: :debug,
@@ -69,56 +49,20 @@ defmodule Platform.Internal.PgDb do
      ]}
   end
 
-  # defp setup_chat_database(attempts \\ 0) do
-  #   max_attempts = 3
-  #
-  #   Logger.info("Setting up database for Chat.Repo (attempt #{attempts + 1}/#{max_attempts})")
-  #
-  #   with true <- attempts < max_attempts || attempts_ended(max_attempts),
-  #        true <- Platform.PgDb.server_running?(),
-  #        {:ok, db_exists} <- check_database_exists(),
-  #        {:ok, result} <- (not db_exists && create_database()) || {:ok, :exists} do
-  #     {:ok, result}
-  #   else
-  #     false ->
-  #       Logger.error("PostgreSQL server not running, retrying in 2 seconds")
-  #       Process.sleep(2000)
-  #       setup_chat_database(attempts + 1)
-  #
-  #     {:error, reason} ->
-  #       Logger.error("Error in database setup: #{inspect(reason)}")
-  #       Process.sleep(1000)
-  #       setup_chat_database(attempts + 1)
-  #   end
-  # end
-  #
-  # defp attempts_ended(max_attempts) do
-  #   Logger.error("Failed to set up Chat database after #{max_attempts} attempts")
-  #   {:error, :max_attempts_exceeded}
-  # end
-  #
-  # defp check_database_exists() do
-  #   case Platform.PgDb.run_sql("SELECT 1 FROM pg_database WHERE datname = 'chat'") do
-  #     {:ok, output} ->
-  #       exists = not String.contains?(output, "0 rows")
-  #       {:ok, exists}
-  #
-  #     error ->
-  #       error
-  #   end
-  # end
-  #
-  # defp create_database() do
-  #   # Need to create database
-  #   Logger.info("Creating 'chat' database")
-  #
-  #   case Platform.PgDb.create_database("chat") do
-  #     {:ok, _} ->
-  #       Logger.info("'chat' database created successfully")
-  #       {:ok, :created}
-  #
-  #     error ->
-  #       error
-  #   end
-  # end
+  defp setup_chat_database do
+    if wait_for_db_ready() == :ok,
+      do: Platform.PgDb.ensure_db_exists(@db_name)
+  end
+
+  defp wait_for_db_ready do
+    1..10
+    |> Enum.reduce_while({:error, :timeout}, fn _i, acc ->
+      if Platform.PgDb.server_running?() do
+        {:halt, :ok}
+      else
+        Process.sleep(2000)
+        {:cont, acc}
+      end
+    end)
+  end
 end

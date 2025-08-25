@@ -54,7 +54,6 @@ defmodule Platform.PgDb do
   Creates the data directory and performs `initdb`.
   """
   def initialize do
-    # Ensure directories exist
     File.mkdir_p!(@pg_data_dir)
     File.mkdir_p!(@pg_run_dir)
 
@@ -218,30 +217,6 @@ defmodule Platform.PgDb do
     end
   end
 
-  @doc """
-  Get the child specification for adding PostgreSQL to a supervision tree.
-  """
-  def child_spec do
-    %{
-      id: __MODULE__,
-      start: {__MODULE__, :start_link, []},
-      type: :worker,
-      restart: :permanent,
-      shutdown: 10_000
-    }
-  end
-
-  @doc """
-  Start function for the supervision tree.
-  This is a legacy function maintained for backwards compatibility.
-  The actual PostgreSQL server is now managed by Platform.Internal.PgDb.
-  """
-  def start_link do
-    # PostgreSQL is now initialized and started by Platform.Internal.PgDb
-    # This is kept for API compatibility but doesn't actually start PostgreSQL
-    Task.start_link(fn -> :ok end)
-  end
-
   def ensure_db_exists(name) do
     # Check if database exists
     {:ok, output} = run_sql("SELECT datname FROM pg_database WHERE datname = '#{name}';")
@@ -254,7 +229,6 @@ defmodule Platform.PgDb do
       create_database(name)
     end
   end
-
 
   # Private functions
 
