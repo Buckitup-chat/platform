@@ -54,8 +54,18 @@ defmodule Platform.PgDb do
   Creates the data directory and performs `initdb`.
   """
   def initialize do
+    {postgres_uid_str, _} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
+    {postgres_gid_str, _} = MuonTrap.cmd("id", ["-g", @postgres_user], stderr_to_stdout: true)
+    postgres_uid = String.trim(postgres_uid_str) |> String.to_integer()
+    postgres_gid = String.trim(postgres_gid_str) |> String.to_integer()
+
     File.mkdir_p!(@pg_data_dir)
     File.mkdir_p!(@pg_run_dir)
+
+    [@pg_data_dir, @pg_run_dir]
+    |> ensure_dirs_permissions(postgres_uid, postgres_gid)
+
+    File.chmod!("/root/pg", 0o755)
 
     if initialized?() do
       Logger.info("PostgreSQL database already initialized")
@@ -110,27 +120,9 @@ defmodule Platform.PgDb do
     case server_running?() do
       true ->
         Logger.debug("Running SQL: #{sql} on database #{db_name}")
-        # Use TCP connection
-        args = [
-          "-U",
-          @postgres_user,
-          "-d",
-          db_name,
-          "-c",
-          sql,
-          "-h",
-          @pg_host,
-          "-p",
-          "#{@pg_port}"
-        ]
 
         {output, status} =
-          MuonTrap.cmd(
-            "psql",
-            args,
-            uid: get_postgres_uid(),
-            stderr_to_stdout: true
-          )
+          run_pg("psql", ["-d", db_name, "-c", sql], as_postgres_user: true)
 
         if status == 0 do
           {:ok, output}
@@ -159,24 +151,8 @@ defmodule Platform.PgDb do
           Logger.info("Database '#{db_name}' already exists")
           {:ok, db_name}
         else
-          # Use TCP connection
-          args = [
-            "-U",
-            @postgres_user,
-            "-h",
-            @pg_host,
-            "-p",
-            "#{@pg_port}",
-            db_name
-          ]
-
           {output, status} =
-            MuonTrap.cmd(
-              "createdb",
-              args,
-              uid: get_postgres_uid(),
-              stderr_to_stdout: true
-            )
+            run_pg("createdb", [db_name], as_postgres_user: true)
 
           if status == 0 do
             Logger.info("Database '#{db_name}' created successfully")
@@ -198,20 +174,8 @@ defmodule Platform.PgDb do
   """
   def server_running? do
     # Check using TCP connection
-    case MuonTrap.cmd(
-           "psql",
-           [
-             "-U",
-             @postgres_user,
-             "-h",
-             @pg_host,
-             "-p",
-             "#{@pg_port}",
-             "-c",
-             "SELECT 1"
-           ],
-           stderr_to_stdout: true
-         ) do
+    run_pg("psql", ["-c", "SELECT 1"])
+    |> case do
       {_, 0} -> true
       _ -> false
     end
@@ -233,20 +197,6 @@ defmodule Platform.PgDb do
   # Private functions
 
   defp do_initialize do
-    # Get postgres user ID
-    {postgres_uid_str, _} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
-    {postgres_gid_str, _} = MuonTrap.cmd("id", ["-g", @postgres_user], stderr_to_stdout: true)
-    postgres_uid = String.trim(postgres_uid_str) |> String.to_integer()
-    postgres_gid = String.trim(postgres_gid_str) |> String.to_integer()
-
-    # Set permissions
-    :file.change_owner(String.to_charlist(@pg_data_dir), postgres_uid, postgres_gid)
-    File.chmod!(@pg_data_dir, 0o700)
-    :file.change_owner(String.to_charlist(@pg_run_dir), postgres_uid, postgres_gid)
-    File.chmod!(@pg_run_dir, 0o700)
-    # Ensure parent directory is accessible
-    :file.change_mode(String.to_charlist("/root/pg"), 0o711)
-
     # Run initdb
     args = ["--auth-host=trust", "--auth-local=trust", "-D", @pg_data_dir] ++ @pg_minimal_settings
 
@@ -260,6 +210,30 @@ defmodule Platform.PgDb do
       Logger.error("PostgreSQL database initialization failed: #{output}")
       {:error, output}
     end
+  end
+
+  defp ensure_dirs_permissions([], _uid, _gid), do: :ok
+
+  defp ensure_dirs_permissions([dir | rest], uid, gid) do
+    File.chown!(dir, uid)
+    File.chgrp!(dir, gid)
+    File.chmod!(dir, 0o770)
+
+    {:ok, filelist} = File.ls!(dir)
+
+    Enum.reduce(filelist, rest, fn file_or_dir, acc ->
+      path = Path.join(dir, file_or_dir)
+
+      if File.dir?(path) do
+        [path | acc]
+      else
+        File.chown!(path, uid)
+        File.chgrp!(path, gid)
+        File.chmod!(path, 0o770)
+        acc
+      end
+    end)
+    |> ensure_dirs_permissions(uid, gid)
   end
 
   defp do_start do
@@ -324,6 +298,21 @@ defmodule Platform.PgDb do
       Logger.error("PostgreSQL server failed to stop: #{output}")
       {:error, output}
     end
+  end
+
+  defp run_pg(tool, args, opts \\ []) do
+    cmd_opts =
+      Enum.reduce(opts, [stderr_to_stdout: true], fn
+        {:as_postgres_user, true}, acc -> Keyword.put(acc, :uid, get_postgres_uid())
+        _, acc -> acc
+      end)
+
+    {output, status} =
+      MuonTrap.cmd(
+        "/usr/bin/#{tool}",
+        ["-U", @postgres_user, "-h", @pg_host, "-p", "#{@pg_port}"] ++ args,
+        cmd_opts
+      )
   end
 
   # Helper to get postgres user ID
