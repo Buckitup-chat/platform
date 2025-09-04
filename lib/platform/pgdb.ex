@@ -197,6 +197,9 @@ defmodule Platform.PgDb do
   # Private functions
 
   defp do_initialize do
+    {postgres_uid_str, _} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
+    postgres_uid = String.trim(postgres_uid_str) |> String.to_integer()
+
     # Run initdb
     args = ["--auth-host=trust", "--auth-local=trust", "-D", @pg_data_dir] ++ @pg_minimal_settings
 
@@ -307,12 +310,11 @@ defmodule Platform.PgDb do
         _, acc -> acc
       end)
 
-    {output, status} =
-      MuonTrap.cmd(
-        "/usr/bin/#{tool}",
-        ["-U", @postgres_user, "-h", @pg_host, "-p", "#{@pg_port}"] ++ args,
-        cmd_opts
-      )
+    MuonTrap.cmd(
+      "/usr/bin/#{tool}",
+      ["-U", @postgres_user, "-h", @pg_host, "-p", "#{@pg_port}"] ++ args,
+      cmd_opts
+    )
   end
 
   # Helper to get postgres user ID
