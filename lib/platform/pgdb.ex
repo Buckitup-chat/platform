@@ -54,16 +54,11 @@ defmodule Platform.PgDb do
   Creates the data directory and performs `initdb`.
   """
   def initialize do
-    {postgres_uid_str, _} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
-    {postgres_gid_str, _} = MuonTrap.cmd("id", ["-g", @postgres_user], stderr_to_stdout: true)
-    postgres_uid = String.trim(postgres_uid_str) |> String.to_integer()
-    postgres_gid = String.trim(postgres_gid_str) |> String.to_integer()
-
     File.mkdir_p!(@pg_data_dir)
     File.mkdir_p!(@pg_run_dir)
 
     [@pg_data_dir, @pg_run_dir]
-    |> ensure_dirs_permissions(postgres_uid, postgres_gid)
+    |> ensure_dirs_permissions(get_postgres_uid(), get_postgres_gid())
 
     File.chmod!("/root/pg", 0o755)
 
@@ -197,14 +192,11 @@ defmodule Platform.PgDb do
   # Private functions
 
   defp do_initialize do
-    {postgres_uid_str, _} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
-    postgres_uid = String.trim(postgres_uid_str) |> String.to_integer()
-
     # Run initdb
     args = ["--auth-host=trust", "--auth-local=trust", "-D", @pg_data_dir] ++ @pg_minimal_settings
 
     {output, status} =
-      MuonTrap.cmd("/usr/bin/initdb", args, uid: postgres_uid, stderr_to_stdout: true)
+      MuonTrap.cmd("/usr/bin/initdb", args, uid: get_postgres_uid(), stderr_to_stdout: true)
 
     if status == 0 do
       Logger.info("PostgreSQL database initialized successfully")
@@ -220,7 +212,7 @@ defmodule Platform.PgDb do
   defp ensure_dirs_permissions([dir | rest], uid, gid) do
     File.chown!(dir, uid)
     File.chgrp!(dir, gid)
-    File.chmod!(dir, 0o770)
+    File.chmod!(dir, 0o750)
 
     {:ok, filelist} = File.ls(dir)
 
@@ -232,7 +224,7 @@ defmodule Platform.PgDb do
       else
         File.chown!(path, uid)
         File.chgrp!(path, gid)
-        File.chmod!(path, 0o770)
+        File.chmod!(path, 0o750)
         acc
       end
     end)
@@ -321,5 +313,10 @@ defmodule Platform.PgDb do
   defp get_postgres_uid do
     {uid_str, 0} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
     String.trim(uid_str) |> String.to_integer()
+  end
+
+  defp get_postgres_gid do
+    {gid_str, 0} = MuonTrap.cmd("id", ["-g", @postgres_user], stderr_to_stdout: true)
+    String.trim(gid_str) |> String.to_integer()
   end
 end
