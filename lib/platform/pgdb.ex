@@ -222,7 +222,7 @@ defmodule Platform.PgDb do
     File.chgrp!(dir, gid)
     File.chmod!(dir, 0o770)
 
-    {:ok, filelist} = File.ls!(dir)
+    {:ok, filelist} = File.ls(dir)
 
     Enum.reduce(filelist, rest, fn file_or_dir, acc ->
       path = Path.join(dir, file_or_dir)
