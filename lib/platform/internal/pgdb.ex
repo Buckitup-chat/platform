@@ -28,25 +28,13 @@ defmodule Platform.Internal.PgDb do
   end
 
   defp postgres_daemon_spec do
-    {postgres_uid_str, _} = MuonTrap.cmd("id", ["-u", "postgres"], stderr_to_stdout: true)
-    postgres_uid = String.trim(postgres_uid_str) |> String.to_integer()
-
     pg_port = Application.get_env(:chat, :pg_port, 5432)
-    pg_minimal_settings = Platform.PgDb.minimal_settings()
-
-    {MuonTrap.Daemon,
-     [
-       "/usr/bin/postgres",
-       ["-D", @pg_data_dir] ++
-         pg_minimal_settings ++
-         ["-c", "port=#{pg_port}", "-c", "log_destination=stderr"],
-       [
-         stderr_to_stdout: true,
-         log_output: :debug,
-         uid: postgres_uid,
-         name: :postgres_daemon
-       ]
-     ]}
+    
+    Platform.Tools.Postgres.daemon_spec(
+      pg_dir: "/root/pg",
+      pg_port: pg_port,
+      name: :postgres_daemon
+    )
   end
 
   defp setup_chat_database do

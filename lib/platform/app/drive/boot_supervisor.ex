@@ -10,13 +10,6 @@ defmodule Platform.App.Drive.BootSupervisor do
   alias Platform.Storage.DriveIndicationStarter
   alias Platform.UsbDrives.Decider
 
-  @healer (Application.compile_env(:platform, :target) == :host &&
-             Platform.Emulator.Drive.Healer) || Platform.Storage.Healer
-  @mounter (Application.compile_env(:platform, :target) == :host &&
-              Platform.Emulator.Drive.Mounter) || Platform.Storage.Mounter
-
-  @mount_path Application.compile_env(:platform, :mount_path_media)
-
   def start_link([device, name]) do
     Supervisor.start_link(__MODULE__, [device],
       name: name,
@@ -26,10 +19,32 @@ defmodule Platform.App.Drive.BootSupervisor do
   end
 
   def init([device]) do
+    device
+    |> supervision_tree()
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
+    |> tap(fn res ->
+      "Platform.App.Drives.BootSupervisor init result #{inspect(res)}" |> Logger.debug()
+    end)
+  end
+
+  if :host == Application.compile_env(:platform, :target) do
+    @healer Platform.Emulator.Drive.Healer
+    @mounter Platform.Emulator.Drive.Mounter
+  else
+    @healer Platform.Storage.Healer
+    @mounter Platform.Storage.Mounter
+  end
+
+  @mount_path Application.compile_env(:platform, :mount_path_media)
+
+  def supervision_tree(device) do
     task_supervisor = name(BootTask, device)
     next_supervisor = name(Scenario, device)
 
     mount_path = [@mount_path, device] |> Path.join()
+    pg_dir = [mount_path, "pg"] |> Path.join()
+    port = find_free_port_like(5432)
+    repo_name = name(Repo, device)
 
     [
       use_task(task_supervisor),
@@ -37,17 +52,44 @@ defmodule Platform.App.Drive.BootSupervisor do
       {:stage, name(Healed, device), {@healer, device: device, task_in: task_supervisor}},
       {:step, name(Mounted, device),
        {@mounter, device: device, at: mount_path, task_in: task_supervisor} |> exit_takes(15_000)},
+      {Platform.App.Drive.PostgresSupervisor,
+       name: name(Postgres, device), pg_dir: pg_dir, pg_port: port, repo: repo_name},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
-      {Decider, [device, [mounted: mount_path, next: [under: next_supervisor]]]}
+      {Decider,
+       [
+         device,
+         [
+           mounted: mount_path,
+           pg_dir: pg_dir,
+           pg_port: port,
+           repo: repo_name,
+           next: [under: next_supervisor]
+         ]
+       ]}
     ]
     |> prepare_stages(Platform.App.Drive.Boot)
-    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
-    |> tap(fn res ->
-      "Platform.App.Drives.BootSupervisor init result #{inspect(res)}" |> Logger.debug()
-    end)
   end
 
   defp name(stage, device) do
     Platform.UsbDrives.Drive.registry_name(stage, device)
+  end
+
+  defp find_free_port_like(port) when is_integer(port) do
+    :gen_tcp.connect(~c"localhost", port, [], 100)
+    |> case do
+      {:error, :econnrefused} ->
+        true
+
+      {:ok, socket} ->
+        :gen_tcp.close(socket)
+        false
+
+      {:error, _} ->
+        false
+    end
+    |> case do
+      true -> port
+      false -> find_free_port_like(port + 1)
+    end
   end
 end
