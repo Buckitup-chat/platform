@@ -19,7 +19,7 @@ defmodule Platform.App.Drive.UsbDriveDumpSupervisor do
   end
 
   @impl Supervisor
-  def init([_device, path]) do
+  def init([_device, path | _]) do
     "UsbDriveDumpSupervisor start" |> Logger.info()
 
     full_path = [path, "DCIM"] |> Path.join()

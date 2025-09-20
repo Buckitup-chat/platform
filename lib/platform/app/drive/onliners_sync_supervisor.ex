@@ -25,7 +25,7 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   end
 
   @impl true
-  def init([device, path]) do
+  def init([device, path | _]) do
     "OnlinersSyncSupervisor start" |> Logger.info()
 
     type = "onliners_db"
