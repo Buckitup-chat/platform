@@ -8,6 +8,7 @@ defmodule Platform.App.Drive.BootSupervisor do
   require Logger
 
   alias Platform.Storage.DriveIndicationStarter
+  alias Platform.Storage.Pg
   alias Platform.UsbDrives.Decider
 
   def start_link([device, name]) do
@@ -30,9 +31,15 @@ defmodule Platform.App.Drive.BootSupervisor do
   if :host == Application.compile_env(:platform, :target) do
     @healer Platform.Emulator.Drive.Healer
     @mounter Platform.Emulator.Drive.Mounter
+    @pg_daemon Platform.Emulator.EmptyBypass
+    @pg_db_creator Platform.Emulator.EmptyBypass
+    @pg_initializer Platform.Emulator.EmptyBypass
   else
     @healer Platform.Storage.Healer
     @mounter Platform.Storage.Mounter
+    @pg_daemon Platform.Storage.Pg.Daemon
+    @pg_db_creator Platform.Storage.Pg.DbCreator
+    @pg_initializer Platform.Storage.Pg.Initializer
   end
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
@@ -52,8 +59,12 @@ defmodule Platform.App.Drive.BootSupervisor do
       {:stage, name(Healed, device), {@healer, device: device, task_in: task_supervisor}},
       {:step, name(Mounted, device),
        {@mounter, device: device, at: mount_path, task_in: task_supervisor} |> exit_takes(15_000)},
-      {Platform.App.Drive.PostgresSupervisor,
-       name: name(Postgres, device), pg_dir: pg_dir, pg_port: port, repo: repo_name},
+      {:step, name(InitPg, device),
+       {@pg_initializer, pg_dir: pg_dir, pg_port: port, task_in: task_supervisor} |> exit_takes(30_000)},
+      {:stage, name(PgServer, device),
+       {@pg_daemon, pg_dir: pg_dir, pg_port: port, name: name(PgDaemon, device), task_in: task_supervisor} |> exit_takes(180_000)},
+      {:step, name(DbCreated, device),
+       {@pg_db_creator, db_name: "chat", pg_port: port, task_in: task_supervisor} |> exit_takes(15_000)},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider,
        [

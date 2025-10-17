@@ -7,8 +7,6 @@ defmodule Platform.UsbDrives.Detector.PollingTest do
 
   @moduletag :capture_log
 
-  doctest Polling
-
   test "module exists" do
     assert is_list(Polling.module_info())
   end

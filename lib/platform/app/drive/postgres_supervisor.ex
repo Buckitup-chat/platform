@@ -1,5 +1,16 @@
 defmodule Platform.App.Drive.PostgresSupervisor do
-  @moduledoc "Starts Posrges server from the drive"
+  @moduledoc """
+  DEPRECATED: This module has been replaced by modular step/stage approach.
+  
+  The functionality has been split into:
+  - Platform.Storage.Pg.Initializer (step: init_pg)
+  - Platform.Storage.Pg.Daemon (stage: start_pg_server)
+  - Platform.Storage.Pg.DbCreator (step: ensure_db_created)
+  
+  Used in Platform.App.Drive.BootSupervisor.
+  
+  Note: Chat.Repo and migrations remain in the Chat domain.
+  """
 
   use Supervisor
 

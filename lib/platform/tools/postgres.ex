@@ -3,33 +3,21 @@ defmodule Platform.Tools.Postgres do
   Configurable PostgreSQL tools that wrap Platform.PgDb functionality.
   All configuration is passed as options rather than using hardcoded values.
   """
-
-  alias MuonTrap
   require Logger
 
-  # Hardcoded values as per instructions
   @postgres_user "postgres"
   @pg_host "localhost"
 
-  @pg_minimal_settings [
-    "-c",
-    "shared_buffers=400kB",
-    "-c",
-    "max_connections=15",
-    "-c",
-    "dynamic_shared_memory_type=mmap",
-    "-c",
-    "max_prepared_transactions=0",
-    "-c",
-    "max_locks_per_transaction=32",
-    "-c",
-    "max_files_per_process=64",
-    "-c",
-    "work_mem=1MB",
-    "-c",
-    "wal_level=logical",
-    "-c",
-    "listen_addresses=localhost"
+  @pg_minimal_settings ~w[
+    -c shared_buffers=400kB
+    -c max_connections=15
+    -c dynamic_shared_memory_type=mmap
+    -c max_prepared_transactions=0
+    -c max_locks_per_transaction=32
+    -c max_files_per_process=64
+    -c work_mem=1MB
+    -c wal_level=logical
+    -c listen_addresses=localhost
   ]
 
   @doc """
@@ -38,10 +26,6 @@ defmodule Platform.Tools.Postgres do
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
   - `:pg_port` - PostgreSQL port (default: 5432)
-  
-  ## Examples
-      iex> Platform.Tools.Postgres.initialize(pg_dir: "/tmp/pg", pg_port: 5433)
-      :ok
   """
   def initialize(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
