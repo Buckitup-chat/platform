@@ -92,9 +92,8 @@ defmodule Platform.App.Drive.BootSupervisor do
 
   defp pg_port_for_device(device) do
     "sd" <> <<index::8>> <> _ = device
-    offset = index - ?a
 
-    5432 + offset
+    5432 + 1 + index - ?a
   end
 
   defp mount_options do
