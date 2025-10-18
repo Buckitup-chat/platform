@@ -74,9 +74,7 @@ defmodule Platform.Application do
          Logger.put_module_level(Tesla.Middleware.Logger, :error)
 
          System.cmd("modprobe", ["pwm-raspberrypi-poe"])
-       end},
-      {Task,
-       fn ->
+
          try do
            mount_path = Application.get_env(:platform, :mount_path_media)
            File.mkdir_p!(mount_path)
