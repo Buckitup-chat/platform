@@ -77,9 +77,16 @@ defmodule Platform.Application do
        end},
       {Task,
        fn ->
-         mount_path = Application.get_env(:platform, :mount_path_media)
-         File.mkdir_p!(mount_path)
-         File.chmod!(mount_path, 0o755)
+         try do
+           mount_path = Application.get_env(:platform, :mount_path_media)
+           File.mkdir_p!(mount_path)
+           File.chmod!(mount_path, 0o755)
+         catch
+           t, e ->
+             Logger.debug(File.ls("/root") |> inspect())
+             Logger.debug(File.ls("/root/media") |> inspect())
+             Logger.error(" [platform] error setting media: #{inspect(t)} #{inspect(e)}")
+         end
        end},
       Platform.Storage.DriveIndication,
       Platform.App.DeviceSupervisor,
