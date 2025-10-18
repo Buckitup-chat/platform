@@ -94,7 +94,7 @@ defmodule Platform.App.Drive.BootSupervisor do
     "sd" <> <<index::8>> <> _ = device
     offset = index - ?a
 
-    5423 + offset
+    5432 + offset
   end
 
   defp mount_options do
