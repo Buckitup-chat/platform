@@ -35,7 +35,11 @@ defmodule Platform.Storage.Pg.Initializer do
       ) do
     %{ref: ref} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
-        Postgres.initialize(pg_dir: pg_dir, pg_port: pg_port)
+        try do
+          Postgres.initialize(pg_dir: pg_dir, pg_port: pg_port)
+        catch
+          _, reason -> {:error, reason}
+        end
       end)
 
     {:noreply, %{state | task_ref: ref}}
