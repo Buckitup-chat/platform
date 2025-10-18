@@ -83,8 +83,10 @@ defmodule Platform.Application do
            File.chmod!(mount_path, 0o755)
          catch
            t, e ->
+             require Logger
              Logger.debug(File.ls("/root") |> inspect())
              Logger.debug(File.ls("/root/media") |> inspect())
+             Logger.debug("config: #{inspect(Application.get_env(:platform, :mount_path_media))}")
              Logger.error(" [platform] error setting media: #{inspect(t)} #{inspect(e)}")
          end
        end},
