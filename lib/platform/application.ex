@@ -77,7 +77,7 @@ defmodule Platform.Application do
        end},
       {Task,
        fn ->
-         mount_path = Application.compile_env(:platform, :mount_path_media)
+         mount_path = Application.get_env(:platform, :mount_path_media)
          File.mkdir_p!(mount_path)
          File.chmod!(mount_path, 0o755)
        end},

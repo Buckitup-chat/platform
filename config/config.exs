@@ -50,7 +50,7 @@ config :chat, :db_write_logging, true
 # PostgreSQL configuration
 config :chat,
   pg_port: 5432,
-  pg_socket_dir: "/root/pg/run"
+  pg_socket_dir: "/tmp/pg_run"
 
 # Configure PostgreSQL connection for Chat.Repo
 config :chat, Chat.Repo,

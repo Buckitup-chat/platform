@@ -40,7 +40,7 @@ defmodule Platform.PgDbTest do
 
         # id commands for user/group
         {"id", ["-u", "postgres"]} -> {"999\n", 0}
-        {"id", ["-g", "postgres"]} -> {"999\n", 0}
+        {"id", ["-g", "postgres"]} -> {"998\n", 0}
 
         # Default case
         _ -> {"command output", 0}
@@ -383,7 +383,7 @@ defmodule Platform.PgDbTest do
 
         # Verify directories were created
         assert_received {:file_mkdir_p, "/root/pg/data"}
-        assert_received {:file_mkdir_p, "/root/pg/run"}
+        assert_received {:file_mkdir_p, "/tmp/pg_run"}
 
         # Capture exact initdb command
         assert_received {:muon_trap_cmd, "/usr/bin/initdb", args, opts}
@@ -393,7 +393,7 @@ defmodule Platform.PgDbTest do
           "-c", "dynamic_shared_memory_type=mmap", "-c", "max_prepared_transactions=0",
           "-c", "max_locks_per_transaction=32", "-c", "max_files_per_process=64",
           "-c", "work_mem=1MB", "-c", "wal_level=logical",
-          "-c", "listen_addresses=localhost", "-c", "unix_socket_directories=/root/pg/run"
+          "-c", "listen_addresses=localhost", "-c", "unix_socket_directories=/tmp/pg_run"
         ]
         assert opts == [uid: 999, stderr_to_stdout: true]
 
@@ -414,7 +414,7 @@ defmodule Platform.PgDbTest do
 
       # Should still create directories and set permissions
       assert_received {:file_mkdir_p, "/root/pg/data"}
-      assert_received {:file_mkdir_p, "/root/pg/run"}
+      assert_received {:file_mkdir_p, "/tmp/pg_run"}
 
       # Should not call initdb since already initialized
       refute_received {:muon_trap_cmd, "/usr/bin/initdb", _, _}
@@ -436,7 +436,7 @@ defmodule Platform.PgDbTest do
         assert_received {:muon_trap_cmd, "/usr/bin/pg_ctl", args, opts}
         assert args == [
           "-D", "/root/pg/data", "-l", "/dev/null", "-o",
-          "-c shared_buffers=400kB -c max_connections=15 -c dynamic_shared_memory_type=mmap -c max_prepared_transactions=0 -c max_locks_per_transaction=32 -c max_files_per_process=64 -c work_mem=1MB -c wal_level=logical -c listen_addresses=localhost -c port=5432 -c listen_addresses='localhost' -c unix_socket_directories=/root/pg/run -c log_destination=stderr",
+          "-c shared_buffers=400kB -c max_connections=15 -c dynamic_shared_memory_type=mmap -c max_prepared_transactions=0 -c max_locks_per_transaction=32 -c max_files_per_process=64 -c work_mem=1MB -c wal_level=logical -c listen_addresses=localhost -c unix_socket_directories=/tmp/pg_run -c port=5432 -c listen_addresses='localhost' -c log_destination=stderr",
           "start"
         ]
         assert opts == [uid: 999, stderr_to_stdout: true]
@@ -657,12 +657,12 @@ defmodule Platform.PgDbTest do
 
         # Verify directory permissions were set
         assert_received {:file_chown, "/root/pg/data", 999}
-        assert_received {:file_chgrp, "/root/pg/data", 999}
+        assert_received {:file_chgrp, "/root/pg/data", 998}
         assert_received {:file_chmod, "/root/pg/data", 0o750}
 
-        assert_received {:file_chown, "/root/pg/run", 999}
-        assert_received {:file_chgrp, "/root/pg/run", 999}
-        assert_received {:file_chmod, "/root/pg/run", 0o750}
+        assert_received {:file_chown, "/tmp/pg_run", 999}
+        assert_received {:file_chgrp, "/tmp/pg_run", 998}
+        assert_received {:file_chmod, "/tmp/pg_run", 0o750}
         end
       end
     end

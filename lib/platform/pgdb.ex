@@ -15,11 +15,11 @@ defmodule Platform.PgDb do
   require Logger
 
   # Default locations
-  @pg_data_dir "/root/pg/data"
-  @pg_run_dir "/root/pg/run"
-  @postgres_user "postgres"
+  # @pg_data_dir "/root/pg/data"
+  @pg_run_dir "/tmp/pg_run"
+  # @postgres_user "postgres"
   @pg_port Application.compile_env(:chat, :pg_port, 5432)
-  @pg_host "localhost"
+  # @pg_host "localhost"
 
   @pg_minimal_settings [
     "-c",
@@ -58,7 +58,7 @@ defmodule Platform.PgDb do
   """
   @deprecated "Use Platform.Tools.Postgres.initialize/1 instead"
   def initialize do
-    Postgres.initialize(pg_dir: "/root/pg", pg_port: @pg_port)
+    Postgres.initialize(pg_dir: "/root/pg")
   end
 
   @doc """
@@ -116,7 +116,6 @@ defmodule Platform.PgDb do
 
   # All private helper functions have been moved to Platform.Tools.Postgres
   # This module now only serves as a deprecated compatibility layer
-
 
   # def initialize do
   #   File.mkdir_p!(@pg_data_dir)
@@ -377,5 +376,4 @@ defmodule Platform.PgDb do
   #     _ -> step_fn.(data)
   #   end
   # end
-
 end
