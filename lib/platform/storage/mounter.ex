@@ -16,6 +16,7 @@ defmodule Platform.Storage.Mounter do
     %{
       device: opts |> Keyword.fetch!(:device),
       path: opts |> Keyword.fetch!(:at),
+      mount_options: opts |> Keyword.get(:mount_options, []),
       task_supervisor: opts |> Keyword.fetch!(:task_in),
       next_specs: next |> Keyword.fetch!(:run),
       next_supervisor: next |> Keyword.fetch!(:under),
@@ -30,12 +31,13 @@ defmodule Platform.Storage.Mounter do
         %{
           device: device,
           path: path,
+          mount_options: mount_options,
           task_supervisor: task_supervisor
         } = state
       ) do
     %{ref: ref} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
-        Device.mount_on(device, path)
+        Device.mount_on(device, path, mount_options)
       end)
 
     {:noreply, %{state | task_ref: ref}}

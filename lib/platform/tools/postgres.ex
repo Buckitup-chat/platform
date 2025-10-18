@@ -18,26 +18,25 @@ defmodule Platform.Tools.Postgres do
     -c work_mem=1MB
     -c wal_level=logical
     -c listen_addresses=localhost
+    -c unix_socket_directories=/tmp/pg_run
   ]
+
+  @pg_run_dir "/tmp/pg_run"
 
   @doc """
   Initialize the PostgreSQL database with configurable options.
-  
+
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
-  - `:pg_port` - PostgreSQL port (default: 5432)
   """
   def initialize(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_port = Keyword.get(opts, :pg_port, 5432)
-    
     pg_data_dir = Path.join(pg_dir, "data")
-    pg_run_dir = Path.join(pg_dir, "run")
-    
-    File.mkdir_p!(pg_data_dir)
-    File.mkdir_p!(pg_run_dir)
 
-    [pg_data_dir, pg_run_dir]
+    File.mkdir_p!(pg_data_dir)
+    File.mkdir_p!(@pg_run_dir)
+
+    [pg_data_dir, @pg_run_dir]
     |> ensure_dirs_permissions(get_postgres_uid(), get_postgres_gid())
 
     File.chmod!(pg_dir, 0o755)
@@ -49,9 +48,9 @@ defmodule Platform.Tools.Postgres do
         :ok
 
       false ->
-        unix_socket_setting = ["-c", "unix_socket_directories=#{pg_run_dir}"]
-        args = ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++ 
-               @pg_minimal_settings ++ unix_socket_setting
+        args =
+          ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++
+            @pg_minimal_settings
 
         Logger.info("Initializing PostgreSQL database at #{pg_data_dir}")
         run_pg("initdb", args, as_postgres_user: true)
@@ -69,7 +68,7 @@ defmodule Platform.Tools.Postgres do
 
   @doc """
   Check if PostgreSQL is already initialized.
-  
+
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data (required)
   """
@@ -81,7 +80,7 @@ defmodule Platform.Tools.Postgres do
 
   @doc """
   Start the PostgreSQL server with configurable options.
-  
+
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
   - `:pg_port` - PostgreSQL port (default: 5432)
@@ -89,9 +88,7 @@ defmodule Platform.Tools.Postgres do
   def start(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_port = Keyword.get(opts, :pg_port, 5432)
-    
     pg_data_dir = Path.join(pg_dir, "data")
-    pg_run_dir = Path.join(pg_dir, "run")
 
     server_running?(opts)
     |> go_on(fn
@@ -100,16 +97,15 @@ defmodule Platform.Tools.Postgres do
         :ok
 
       false ->
-        unix_socket_setting = "unix_socket_directories=#{pg_run_dir}"
         minimal_settings_str = Enum.join(@pg_minimal_settings, " ")
-        
+
         args = [
           "-D",
           pg_data_dir,
           "-l",
           "/dev/null",
           "-o",
-          "#{minimal_settings_str} -c port=#{pg_port} -c listen_addresses='localhost' -c #{unix_socket_setting} -c log_destination=stderr",
+          "#{minimal_settings_str} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
           "start"
         ]
 
@@ -138,7 +134,7 @@ defmodule Platform.Tools.Postgres do
 
   @doc """
   Stop the PostgreSQL server.
-  
+
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data (required)
   """
@@ -171,7 +167,7 @@ defmodule Platform.Tools.Postgres do
 
   @doc """
   Run a SQL command against the PostgreSQL database.
-  
+
   ## Options
   - `:pg_port` - PostgreSQL port (default: 5432)
   - `:db_name` - Database name (default: "postgres")
@@ -203,7 +199,7 @@ defmodule Platform.Tools.Postgres do
 
   @doc """
   Create a new PostgreSQL database.
-  
+
   ## Options
   - `:pg_port` - PostgreSQL port (default: 5432)
   """
@@ -217,7 +213,9 @@ defmodule Platform.Tools.Postgres do
         {:error, "PostgreSQL server not running"}
 
       true ->
-        {:ok, output} = run_sql("SELECT datname FROM pg_database WHERE datname = '#{db_name}';", opts)
+        {:ok, output} =
+          run_sql("SELECT datname FROM pg_database WHERE datname = '#{db_name}';", opts)
+
         String.contains?(output, db_name)
     end)
     |> go_on(fn
@@ -247,7 +245,7 @@ defmodule Platform.Tools.Postgres do
 
   @doc """
   Check if the PostgreSQL server is running.
-  
+
   ## Options
   - `:pg_port` - PostgreSQL port (default: 5432)
   """
@@ -263,7 +261,7 @@ defmodule Platform.Tools.Postgres do
 
   @doc """
   Ensure a database exists, creating it if necessary.
-  
+
   ## Options
   - `:pg_port` - PostgreSQL port (default: 5432)
   """
@@ -281,7 +279,7 @@ defmodule Platform.Tools.Postgres do
 
   @doc """
   Create a daemon specification for running PostgreSQL server under supervision.
-  
+
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
   - `:pg_port` - PostgreSQL port (default: 5432)
@@ -291,19 +289,15 @@ defmodule Platform.Tools.Postgres do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_port = Keyword.get(opts, :pg_port, 5432)
     daemon_name = Keyword.get(opts, :name, :postgres_daemon)
-    
+
     pg_data_dir = Path.join(pg_dir, "data")
-    pg_run_dir = Path.join(pg_dir, "run")
-    
     postgres_uid = get_postgres_uid()
-    unix_socket_setting = ["-c", "unix_socket_directories=#{pg_run_dir}"]
 
     {MuonTrap.Daemon,
      [
        "/usr/bin/postgres",
        ["-D", pg_data_dir] ++
          @pg_minimal_settings ++
-         unix_socket_setting ++
          ["-c", "port=#{pg_port}", "-c", "log_destination=stderr"],
        [
          stderr_to_stdout: true,
@@ -312,6 +306,16 @@ defmodule Platform.Tools.Postgres do
          name: daemon_name
        ]
      ]}
+  end
+
+  def get_postgres_uid do
+    {uid_str, 0} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
+    String.trim(uid_str) |> String.to_integer()
+  end
+
+  def get_postgres_gid do
+    {gid_str, 0} = MuonTrap.cmd("id", ["-g", @postgres_user], stderr_to_stdout: true)
+    String.trim(gid_str) |> String.to_integer()
   end
 
   # Private helper functions
@@ -348,17 +352,6 @@ defmodule Platform.Tools.Postgres do
       end)
 
     MuonTrap.cmd("/usr/bin/#{tool}", args, cmd_opts)
-  end
-
-  # Helper to get postgres user ID
-  defp get_postgres_uid do
-    {uid_str, 0} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
-    String.trim(uid_str) |> String.to_integer()
-  end
-
-  defp get_postgres_gid do
-    {gid_str, 0} = MuonTrap.cmd("id", ["-g", @postgres_user], stderr_to_stdout: true)
-    String.trim(gid_str) |> String.to_integer()
   end
 
   defp go_on(data, step_fn) do

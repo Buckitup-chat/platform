@@ -75,6 +75,12 @@ defmodule Platform.Application do
 
          System.cmd("modprobe", ["pwm-raspberrypi-poe"])
        end},
+      {Task,
+       fn ->
+         mount_path = Application.compile_env(:platform, :mount_path_media)
+         File.mkdir_p!(mount_path)
+         File.chmod!(mount_path, 0o755)
+       end},
       Platform.Storage.DriveIndication,
       Platform.App.DeviceSupervisor,
       Platform.App.ZeroTierSupervisor,

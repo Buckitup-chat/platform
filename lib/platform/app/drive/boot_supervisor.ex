@@ -8,7 +8,6 @@ defmodule Platform.App.Drive.BootSupervisor do
   require Logger
 
   alias Platform.Storage.DriveIndicationStarter
-  alias Platform.Storage.Pg
   alias Platform.UsbDrives.Decider
 
   def start_link([device, name]) do
@@ -58,13 +57,18 @@ defmodule Platform.App.Drive.BootSupervisor do
       {DriveIndicationStarter, []} |> exit_takes(15_000),
       {:stage, name(Healed, device), {@healer, device: device, task_in: task_supervisor}},
       {:step, name(Mounted, device),
-       {@mounter, device: device, at: mount_path, task_in: task_supervisor} |> exit_takes(15_000)},
+       {@mounter, device: device, at: mount_path, mount_options: mount_options(), task_in: task_supervisor}
+       |> exit_takes(15_000)},
       {:step, name(InitPg, device),
-       {@pg_initializer, pg_dir: pg_dir, pg_port: port, task_in: task_supervisor} |> exit_takes(30_000)},
+       {@pg_initializer, pg_dir: pg_dir, pg_port: port, task_in: task_supervisor}
+       |> exit_takes(30_000)},
       {:stage, name(PgServer, device),
-       {@pg_daemon, pg_dir: pg_dir, pg_port: port, name: name(PgDaemon, device), task_in: task_supervisor} |> exit_takes(180_000)},
+       {@pg_daemon,
+        pg_dir: pg_dir, pg_port: port, name: name(PgDaemon, device), task_in: task_supervisor}
+       |> exit_takes(180_000)},
       {:step, name(DbCreated, device),
-       {@pg_db_creator, db_name: "chat", pg_port: port, task_in: task_supervisor} |> exit_takes(15_000)},
+       {@pg_db_creator, db_name: "chat", pg_port: port, task_in: task_supervisor}
+       |> exit_takes(15_000)},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider,
        [
@@ -101,6 +105,16 @@ defmodule Platform.App.Drive.BootSupervisor do
     |> case do
       true -> port
       false -> find_free_port_like(port + 1)
+    end
+  end
+
+  defp mount_options do
+    try do
+      uid = Platform.Tools.Postgres.get_postgres_uid()
+      gid = Platform.Tools.Postgres.get_postgres_gid()
+      [uid: uid, gid: gid]
+    rescue
+      _ -> []
     end
   end
 end

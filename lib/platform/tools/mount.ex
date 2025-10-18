@@ -4,9 +4,9 @@ defmodule Platform.Tools.Mount do
   require Logger
   alias Platform.Tools.Proto.Device
 
-  def mount_at_path(device, path) do
+  def mount_at_path(device, path, mount_options \\ []) do
     log_mounting(device, path)
-    mount([device |> Device.path(), path])
+    mount([device |> Device.path(), path], mount_options)
   end
 
   def unmount(device) do
@@ -14,7 +14,7 @@ defmodule Platform.Tools.Mount do
   end
 
   def resize_tmp(size) do
-    mount(["/tmp", "-o", "remount,size=" <> size])
+    mount(["/tmp", "-o", "remount,size=" <> size], [])
   end
 
   def device(mountpoint, print_source \\ &print/0) do
@@ -43,12 +43,20 @@ defmodule Platform.Tools.Mount do
   defp split_by(str, delimiter), do: String.split(str, delimiter, parts: 2)
 
   defp print do
-    mount()
+    mount([], [])
     |> elem(0)
   end
 
-  defp mount(params \\ []) do
-    System.cmd("mount", Enum.concat(["-o", "sync"], params))
+  defp mount(params, mount_options) do
+    uid = mount_options |> Keyword.get(:uid)
+    gid = mount_options |> Keyword.get(:gid)
+
+    mount_opts =
+      if (uid && gid),
+      do: ["-o", "sync,uid=#{uid},gid=#{gid},umask=0027"],
+      else: ["-o", "sync"]
+
+    System.cmd("mount", Enum.concat(mount_opts, params))
   end
 
   defp log_mounting(device, path) do
