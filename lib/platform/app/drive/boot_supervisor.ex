@@ -49,7 +49,7 @@ defmodule Platform.App.Drive.BootSupervisor do
 
     mount_path = [@mount_path, device] |> Path.join()
     pg_dir = [mount_path, "pg"] |> Path.join()
-    port = find_free_port_like(5432)
+    port = pg_port_for_device(device)
     repo_name = name(Repo, device)
 
     [
@@ -57,7 +57,8 @@ defmodule Platform.App.Drive.BootSupervisor do
       {DriveIndicationStarter, []} |> exit_takes(15_000),
       {:stage, name(Healed, device), {@healer, device: device, task_in: task_supervisor}},
       {:step, name(Mounted, device),
-       {@mounter, device: device, at: mount_path, mount_options: mount_options(), task_in: task_supervisor}
+       {@mounter,
+        device: device, at: mount_path, mount_options: mount_options(), task_in: task_supervisor}
        |> exit_takes(15_000)},
       {:step, name(InitPg, device),
        {@pg_initializer, pg_dir: pg_dir, pg_port: port, task_in: task_supervisor}
@@ -89,23 +90,11 @@ defmodule Platform.App.Drive.BootSupervisor do
     Platform.UsbDrives.Drive.registry_name(stage, device)
   end
 
-  defp find_free_port_like(port) when is_integer(port) do
-    :gen_tcp.connect(~c"localhost", port, [], 100)
-    |> case do
-      {:error, :econnrefused} ->
-        true
+  defp pg_port_for_device(device) do
+    "sd" <> <<index::8>> <> _ = device
+    offset = index - ?a
 
-      {:ok, socket} ->
-        :gen_tcp.close(socket)
-        false
-
-      {:error, _} ->
-        false
-    end
-    |> case do
-      true -> port
-      false -> find_free_port_like(port + 1)
-    end
+    5423 + offset
   end
 
   defp mount_options do
