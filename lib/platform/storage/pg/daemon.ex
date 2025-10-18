@@ -40,30 +40,34 @@ defmodule Platform.Storage.Pg.Daemon do
       ) do
     # Start the postgres daemon as a child process
     daemon_spec = Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)
-    
+
+    [pg_dir, "data", "postmaster.pid"]
+    |> Path.join()
+    |> File.rm()
+
     {:ok, pid} = start_daemon(daemon_spec)
-    
+
     # Wait for PostgreSQL to be ready
     Task.Supervisor.async_nolink(task_supervisor, fn ->
       wait_for_postgres_ready(pg_port)
     end)
     |> Task.await(:timer.minutes(2))
-    
+
     Logger.info("PostgreSQL daemon ready on port #{pg_port}, starting next stage")
     Platform.start_next_stage(next_supervisor, next_specs)
-    
+
     {:noreply, %{state | daemon_pid: pid}}
   end
 
   @impl true
   def on_exit(reason, %{pg_port: pg_port, daemon_pid: daemon_pid}) do
     Logger.warning("PostgreSQL daemon stage exiting: #{inspect(reason)}")
-    
+
     # The MuonTrap.Daemon will be stopped by the supervisor
     if daemon_pid && Process.alive?(daemon_pid) do
       Logger.info("Stopping PostgreSQL daemon on port #{pg_port}")
     end
-    
+
     :ok
   end
 
