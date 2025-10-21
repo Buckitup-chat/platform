@@ -33,12 +33,16 @@ defmodule Platform.App.Drive.BootSupervisor do
     @pg_daemon Platform.Emulator.EmptyBypass
     @pg_db_creator Platform.Emulator.EmptyBypass
     @pg_initializer Platform.Emulator.EmptyBypass
+    @pg_repo_starter Platform.Emulator.EmptyBypass
+    @pg_migration_runner Platform.Emulator.EmptyBypass
   else
     @healer Platform.Storage.Healer
     @mounter Platform.Storage.Mounter
     @pg_daemon Platform.Storage.Pg.Daemon
     @pg_db_creator Platform.Storage.Pg.DbCreator
     @pg_initializer Platform.Storage.Pg.Initializer
+    @pg_repo_starter Platform.Storage.Repo.Starter
+    @pg_migration_runner Platform.Storage.Repo.MigrationRunner
   end
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
@@ -71,13 +75,10 @@ defmodule Platform.App.Drive.BootSupervisor do
        {@pg_db_creator, db_name: "chat", pg_port: port, task_in: task_supervisor}
        |> exit_takes(15_000)},
       {:stage, name(RepoStarted, device),
-       {Chat.Repo, name: repo_name, port: port}
+       {@pg_repo_starter, name: repo_name, port: port, task_in: task_supervisor}
        |> exit_takes(30_000)},
       {:step, name(MigrationsRun, device),
-       {Task,
-        fn ->
-          Chat.Repo.with_dynamic_repo(repo_name, fn -> Chat.RepoStarter.run_migrations() end)
-        end}
+       {@pg_migration_runner, repo_name: repo_name, task_in: task_supervisor}
        |> exit_takes(60_000)},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider,
