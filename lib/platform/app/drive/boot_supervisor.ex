@@ -70,6 +70,15 @@ defmodule Platform.App.Drive.BootSupervisor do
       {:step, name(DbCreated, device),
        {@pg_db_creator, db_name: "chat", pg_port: port, task_in: task_supervisor}
        |> exit_takes(15_000)},
+      {:stage, name(RepoStarted, device),
+       {Chat.Repo, name: repo_name, port: port}
+       |> exit_takes(30_000)},
+      {:step, name(MigrationsRun, device),
+       {Task,
+        fn ->
+          Chat.Repo.with_dynamic_repo(repo_name, fn -> Chat.RepoStarter.run_migrations() end)
+        end}
+       |> exit_takes(60_000)},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider,
        [
