@@ -8,7 +8,8 @@ defmodule Platform.Internal.PgDb do
   require Logger
 
   @db_name Application.compile_env(:chat, Chat.Repo, database: "chat")[:database]
-  @pg_data_dir "/root/pg/data"
+  @pg_port Application.compile_env(:chat, :pg_port, 5432)
+  @pg_dir "/root/pg"
 
   def start_link(args) do
     Supervisor.start_link(__MODULE__, args, name: __MODULE__)
@@ -17,7 +18,7 @@ defmodule Platform.Internal.PgDb do
   @impl true
   def init(_args) do
     Logger.info("Starting PostgreSQL supervisor")
-    Platform.PgDb.initialize()
+    Platform.Tools.Postgres.initialize(pg_dir: @pg_dir)
     Logger.info("PostgreSQL initialized successfully")
 
     [
@@ -28,42 +29,22 @@ defmodule Platform.Internal.PgDb do
   end
 
   defp postgres_daemon_spec do
-    # {postgres_uid_str, _} = MuonTrap.cmd("id", ["-u", "postgres"], stderr_to_stdout: true)
-    # postgres_uid = String.trim(postgres_uid_str) |> String.to_integer()
-
-    pg_port = Application.get_env(:chat, :pg_port, 5432)
-    # pg_minimal_settings = Platform.PgDb.minimal_settings()
-
-    # {MuonTrap.Daemon,
-    #  [
-    #    "/usr/bin/postgres",
-    #    ["-D", @pg_data_dir] ++
-    #      pg_minimal_settings ++
-    #      ["-c", "port=#{pg_port}", "-c", "log_destination=stderr"],
-    #    [
-    #      stderr_to_stdout: true,
-    #      log_output: :debug,
-    #      uid: postgres_uid,
-    #      name: :postgres_daemon
-    #    ]
-    #  ]}
-
     Platform.Tools.Postgres.daemon_spec(
-      pg_dir: "/root/pg",
-      pg_port: pg_port,
+      pg_dir: @pg_dir,
+      pg_port: @pg_port,
       name: :postgres_daemon
     )
   end
 
   defp setup_chat_database do
     if wait_for_db_ready() == :ok,
-      do: Platform.PgDb.ensure_db_exists(@db_name)
+      do: Platform.Tools.Postgres.create_database(@db_name, pg_port: @pg_port)
   end
 
   defp wait_for_db_ready do
     1..10
     |> Enum.reduce_while({:error, :timeout}, fn _i, acc ->
-      if Platform.PgDb.server_running?() do
+      if Platform.Tools.Postgres.server_running?(pg_port: @pg_port) do
         {:halt, :ok}
       else
         Process.sleep(2000)
