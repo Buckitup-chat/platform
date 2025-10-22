@@ -54,7 +54,7 @@ defmodule Platform.App.Drive.BootSupervisor do
     mount_path = [@mount_path, device] |> Path.join()
     pg_dir = [mount_path, "pg"] |> Path.join()
     port = pg_port_for_device(device)
-    repo_name = name(Repo, device)
+    repo_name = atom_name(Repo, device)
 
     [
       use_task(task_supervisor),
@@ -94,6 +94,12 @@ defmodule Platform.App.Drive.BootSupervisor do
        ]}
     ]
     |> prepare_stages(Platform.App.Drive.Boot)
+  end
+
+  defp atom_name(suffix, device) do
+    "sd" <> <<index::bitstring-size(8)>> <> _ = device
+
+    Module.concat([Platform.Dev, :"Sd#{index}", suffix])
   end
 
   defp name(stage, device) do

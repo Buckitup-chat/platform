@@ -33,9 +33,7 @@ defmodule Platform.Storage.Repo.MigrationRunner do
 
     %{ref: ref} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
-        Chat.Repo.with_dynamic_repo(repo_name, fn ->
-          Chat.RepoStarter.run_migrations()
-        end)
+        Chat.RepoStarter.run_migrations(repo_name)
       end)
 
     {:noreply, %{state | task_ref: ref}}
