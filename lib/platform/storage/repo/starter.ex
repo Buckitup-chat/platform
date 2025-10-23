@@ -34,7 +34,11 @@ defmodule Platform.Storage.Repo.Starter do
     Logger.info("Starting #{inspect(repo_name)} on port #{port}")
 
     # Start the repo as a supervised child
-    {:ok, pid} = repo_name.start_link(name: repo_name, port: port)
+    # {:ok, pid} = repo_name.start_link(name: repo_name, port: port)
+    {:ok, pid} =
+      Application.get_env(:chat, Chat.Repo)
+      |> Keyword.put(:port, port)
+      |> repo_name.start_link()
 
     Logger.info("Chat.Repo started successfully, starting next stage")
     Platform.start_next_stage(next_supervisor, next_specs)
