@@ -29,15 +29,10 @@ defmodule Platform.Storage.InternalToMain.Switcher do
          false <- is_nil(pg_opts),
          repo <- Map.get(pg_opts, :repo),
          false <- is_nil(repo),
-         "got repo: #{inspect(repo)}" |> Logger.debug(),
          original_repo <- Chat.Repo.get_dynamic_repo() do
-      "original repo: #{inspect(original_repo)}" |> Logger.debug()
-
       Keyword.put(args, :original_repo, original_repo)
       |> tap(fn _ ->
-        x = Chat.Repo.put_dynamic_repo(repo)
-        "repo set: #{inspect(repo)}, prev: #{inspect(x)}" |> Logger.debug()
-        Chat.Repo.get_dynamic_repo() |> inspect() |> Logger.debug()
+        Chat.Db.set_repo(repo)
       end)
     else
       x ->
@@ -49,7 +44,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   defp revert_db_repo(args) do
     with original_repo <- Keyword.get(args, :original_repo),
          false <- is_nil(original_repo) do
-      Chat.Repo.put_dynamic_repo(original_repo)
+      Chat.Db.set_repo(original_repo)
     end
   end
 end
