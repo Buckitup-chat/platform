@@ -9,7 +9,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   alias Chat.Db.Common
 
   @impl true
-  def on_init([args]) do
+  def on_init(args) do
     "switcher on start #{inspect(args)}" |> Logger.warning()
     set_db_mode(:main)
     switch_db_repo(args)
