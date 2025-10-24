@@ -27,19 +27,19 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   defp switch_db_repo(args) do
     with pg_opts <- Keyword.get(args, :pg_opts),
          false <- is_nil(pg_opts),
+         "got pg_opts" |> Logger.debug(),
          repo <- Map.get(pg_opts, :repo),
          false <- is_nil(repo),
+         "got repo: #{inspect(repo)}" |> Logger.debug(),
          original_repo <- Chat.Repo.get_dynamic_repo() do
-      repo
-      |> case do
-        {:via, Registry, {registry, key}} -> Registry.lookup(registry, key)
-        _ -> repo
-      end
-      |> Chat.Repo.put_dynamic_repo()
-
+      "original repo: #{inspect(original_repo)}" |> Logger.debug()
       Keyword.put(args, :original_repo, original_repo)
+      Chat.Repo.put_dynamic_repo(repo)
+      "repo set: #{inspect(repo)}" |> Logger.debug()
     else
-      _ -> args
+      x ->
+        "switcher no repo #{inspect(x)}" |> Logger.error()
+        args
     end
   end
 
