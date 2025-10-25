@@ -35,6 +35,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     else
       _ -> args
     end
+    |> tap(fn _ -> Chat.Sync.DbBrokers.refresh() end)
   end
 
   defp revert_db_repo(args) do
@@ -42,5 +43,6 @@ defmodule Platform.Storage.InternalToMain.Switcher do
          false <- is_nil(original_repo) do
       Chat.Db.set_repo(original_repo)
     end
+    |> tap(fn _ -> Chat.Sync.DbBrokers.refresh() end)
   end
 end
