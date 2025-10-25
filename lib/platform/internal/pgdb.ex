@@ -47,10 +47,11 @@ defmodule Platform.Internal.PgDb do
        {@pg_daemon,
         pg_dir: @pg_dir, pg_port: @pg_port, name: :postgres_daemon, task_in: task_supervisor}
        |> exit_takes(180_000)},
-      {Task, fn -> Process.sleep(5_000) end},
       {:step, Platform.Internal.PgDb.DbCreated,
        {@pg_db_creator, db_name: @db_name, pg_port: @pg_port, task_in: task_supervisor}
-       |> exit_takes(15_000)}
+       |> exit_takes(15_000)},
+      # pg_db_creator requires next stage to be present
+      {Task, fn -> :ok end}
     ]
     |> prepare_stages(Platform.Internal.PgDb.Stages)
   end

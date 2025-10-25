@@ -46,7 +46,7 @@ defmodule Platform.Tools.Postgres do
     initialized?(opts)
     |> go_on(fn
       true ->
-       log(["database already initialized at ", pg_data_dir], :info)
+        log(["database already initialized at ", pg_data_dir], :info)
         :ok
 
       false ->
@@ -60,6 +60,7 @@ defmodule Platform.Tools.Postgres do
     |> go_on(fn
       {_, 0} ->
         log(["PostgreSQL database initialized successfully"], :info)
+        Process.sleep(2000)
         :ok
 
       {output, _} ->
