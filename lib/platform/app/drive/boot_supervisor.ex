@@ -56,10 +56,6 @@ defmodule Platform.App.Drive.BootSupervisor do
     port = pg_port_for_device(device)
     repo_name = atom_name(Repo, device)
 
-    Application.get_env(:chat, Chat.Repo)
-    |> Keyword.put(:port, port)
-    |> then(&Application.put_env(:platfrom, repo_name, &1))
-
     repo_module_content =
       quote do
         use Ecto.Repo,
