@@ -52,9 +52,9 @@ defmodule Platform.Tools.Mount do
     gid = mount_options |> Keyword.get(:gid)
 
     mount_opts =
-      if (uid && gid),
-      do: ["-o", "sync,uid=#{uid},gid=#{gid},umask=0027"],
-      else: ["-o", "sync"]
+      if uid && gid,
+        do: ["-o", "sync,uid=#{uid},gid=#{gid},umask=0027"],
+        else: ["-o", "sync"]
 
     System.cmd("mount", Enum.concat(mount_opts, params))
   end

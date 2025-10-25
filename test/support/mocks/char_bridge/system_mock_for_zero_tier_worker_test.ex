@@ -14,5 +14,4 @@ defmodule PlatformTest.Mocks.CharBridge.SystemMockForZeroTierWorkerTest do
       {"", 0}
     end
   end
-
 end

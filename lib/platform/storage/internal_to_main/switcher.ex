@@ -30,14 +30,10 @@ defmodule Platform.Storage.InternalToMain.Switcher do
          repo <- Map.get(pg_opts, :repo),
          false <- is_nil(repo),
          original_repo <- Chat.Repo.get_dynamic_repo() do
+      Chat.Db.set_repo(repo)
       Keyword.put(args, :original_repo, original_repo)
-      |> tap(fn _ ->
-        Chat.Db.set_repo(repo)
-      end)
     else
-      x ->
-        "switcher no repo #{inspect(x)}" |> Logger.error()
-        args
+      _ -> args
     end
   end
 

@@ -7,6 +7,10 @@ defmodule Platform.Log do
     log(["[fsck] ", "(", inspect(code), ") ", msg], :warning)
   end
 
+  def postgres_log(msg, level \\ :info) do
+    log(["[postgres] ", msg], level)
+  end
+
   defp log(msg, level) do
     Logger.log(level, ["[platform] " | msg])
   end

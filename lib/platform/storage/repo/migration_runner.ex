@@ -68,8 +68,5 @@ defmodule Platform.Storage.Repo.MigrationRunner do
   end
 
   @impl true
-  def on_exit(_reason, _state) do
-    # No cleanup needed for migrations
-    :ok
-  end
+  def on_exit(_reason, _state), do: :ok
 end

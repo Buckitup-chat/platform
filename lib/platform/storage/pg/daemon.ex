@@ -38,7 +38,6 @@ defmodule Platform.Storage.Pg.Daemon do
           next_supervisor: next_supervisor
         } = state
       ) do
-    # Start the postgres daemon as a child process
     daemon_spec = Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)
 
     [pg_dir, "data", "postmaster.pid"]
@@ -47,7 +46,6 @@ defmodule Platform.Storage.Pg.Daemon do
 
     {:ok, pid} = start_daemon(daemon_spec)
 
-    # Wait for PostgreSQL to be ready
     Task.Supervisor.async_nolink(task_supervisor, fn ->
       wait_for_postgres_ready(pg_port)
     end)
@@ -63,7 +61,6 @@ defmodule Platform.Storage.Pg.Daemon do
   def on_exit(reason, %{pg_port: pg_port, daemon_pid: daemon_pid}) do
     Logger.warning("PostgreSQL daemon stage exiting: #{inspect(reason)}")
 
-    # The MuonTrap.Daemon will be stopped by the supervisor
     if daemon_pid && Process.alive?(daemon_pid) do
       Logger.info("Stopping PostgreSQL daemon on port #{pg_port}")
     end
@@ -72,7 +69,6 @@ defmodule Platform.Storage.Pg.Daemon do
   end
 
   defp start_daemon({module, args}) do
-    # Start the daemon as a supervised child
     case apply(module, :start_link, args) do
       {:ok, pid} -> {:ok, pid}
       {:error, {:already_started, pid}} -> {:ok, pid}
@@ -81,16 +77,17 @@ defmodule Platform.Storage.Pg.Daemon do
   end
 
   defp wait_for_postgres_ready(pg_port, attempts \\ 10) do
-    if Postgres.server_running?(pg_port: pg_port) do
-      :ok
-    else
-      if attempts > 0 do
-        Process.sleep(2000)
-        wait_for_postgres_ready(pg_port, attempts - 1)
-      else
+    cond do
+      attempts <= 0 ->
         Logger.error("PostgreSQL failed to start after 10 attempts")
         {:error, :timeout}
-      end
+
+      Postgres.server_running?(pg_port: pg_port) ->
+        :ok
+
+      true ->
+        Process.sleep(2000)
+        wait_for_postgres_ready(pg_port, attempts - 1)
     end
   end
 end

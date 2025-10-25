@@ -33,8 +33,6 @@ defmodule Platform.Storage.Repo.Starter do
       ) do
     Logger.info("Starting #{inspect(repo_name)} on port #{port}")
 
-    # Start the repo as a supervised child
-    # {:ok, pid} = repo_name.start_link(name: repo_name, port: port)
     {:ok, pid} =
       Application.get_env(:chat, Chat.Repo)
       |> Keyword.put(:port, port)
@@ -49,7 +47,6 @@ defmodule Platform.Storage.Repo.Starter do
   @impl true
   def on_exit(_reason, %{repo_name: repo_name}) do
     Logger.info("Repo starter stage exiting for #{inspect(repo_name)}")
-    # The repo will be stopped by the supervisor
     :ok
   end
 end

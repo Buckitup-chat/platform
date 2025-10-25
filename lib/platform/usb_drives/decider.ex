@@ -141,8 +141,6 @@ defmodule Platform.UsbDrives.Decider do
     |> Mount.mount_at_path(path)
   end
 
-  defp start(nil, _, _, _), do: :skip
-
   defp start(scenario, supervisor, device, path, pg_opts) do
     :ok =
       supervisor

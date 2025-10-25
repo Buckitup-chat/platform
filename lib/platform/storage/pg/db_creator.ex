@@ -54,8 +54,5 @@ defmodule Platform.Storage.Pg.DbCreator do
   end
 
   @impl true
-  def on_exit(_reason, _state) do
-    # No cleanup needed for database creation
-    :ok
-  end
+  def on_exit(_reason, _state), do: :ok
 end

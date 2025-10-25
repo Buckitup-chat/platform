@@ -3,8 +3,6 @@ defmodule Platform.Tools.Postgres do
   Configurable PostgreSQL tools that wrap Platform.PgDb functionality.
   All configuration is passed as options rather than using hardcoded values.
   """
-  require Logger
-
   @postgres_user "postgres"
   @pg_host "localhost"
 
@@ -28,6 +26,10 @@ defmodule Platform.Tools.Postgres do
 
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
+
+  ## Returns
+  - `:ok` if the PostgreSQL database was initialized successfully
+  - `{:error, output}` if the PostgreSQL database failed to initialize
   """
   def initialize(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
@@ -44,7 +46,7 @@ defmodule Platform.Tools.Postgres do
     initialized?(opts)
     |> go_on(fn
       true ->
-        Logger.info("PostgreSQL database already initialized at #{pg_data_dir}")
+        ["database already initialized at ", pg_data_dir] |> log(:info)
         :ok
 
       false ->
@@ -52,16 +54,16 @@ defmodule Platform.Tools.Postgres do
           ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++
             @pg_minimal_settings
 
-        Logger.info("Initializing PostgreSQL database at #{pg_data_dir}")
+        ["Initializing PostgreSQL database at ", pg_data_dir] |> log(:info)
         run_pg("initdb", args, as_postgres_user: true)
     end)
     |> go_on(fn
       {_, 0} ->
-        Logger.info("PostgreSQL database initialized successfully")
+        ["PostgreSQL database initialized successfully"] |> log(:info)
         :ok
 
       {output, _} ->
-        Logger.error("PostgreSQL database initialization failed: #{output}")
+        ["PostgreSQL database initialization failed: ", output] |> log(:error)
         {:error, output}
     end)
   end
@@ -84,6 +86,10 @@ defmodule Platform.Tools.Postgres do
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
   - `:pg_port` - PostgreSQL port (default: 5432)
+
+  ## Returns
+  - `:ok` if the PostgreSQL server was started successfully
+  - `{:error, output}` if the PostgreSQL server failed to start
   """
   def start(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
@@ -93,7 +99,7 @@ defmodule Platform.Tools.Postgres do
     server_running?(opts)
     |> go_on(fn
       true ->
-        Logger.info("PostgreSQL already running on port #{pg_port}")
+        ["PostgreSQL already running on port ", pg_port] |> log(:info)
         :ok
 
       false ->
@@ -109,12 +115,12 @@ defmodule Platform.Tools.Postgres do
           "start"
         ]
 
-        Logger.info("Starting PostgreSQL server on port #{pg_port}")
+        ["Starting PostgreSQL server on port ", pg_port] |> log(:info)
         run_pg("pg_ctl", args, as_postgres_user: true)
     end)
     |> go_on(fn
       {output, status} when status != 0 ->
-        Logger.error("PostgreSQL server failed to start: #{output}")
+        ["PostgreSQL server failed to start: ", output] |> log(:error)
         {:error, output}
 
       {output, 0} ->
@@ -123,11 +129,11 @@ defmodule Platform.Tools.Postgres do
     end)
     |> go_on(fn
       {_, true} ->
-        Logger.info("PostgreSQL server started successfully")
+        ["PostgreSQL server started successfully"] |> log(:info)
         :ok
 
       {output, false} ->
-        Logger.error("PostgreSQL server failed to start: #{output}")
+        ["PostgreSQL server failed to start: ", output] |> log(:error)
         {:error, output}
     end)
   end
@@ -137,6 +143,10 @@ defmodule Platform.Tools.Postgres do
 
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data (required)
+
+  ## Returns
+  - `:ok` if the PostgreSQL server was stopped successfully
+  - `{:error, output}` if the PostgreSQL server failed to stop
   """
   def stop(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
@@ -145,22 +155,22 @@ defmodule Platform.Tools.Postgres do
     server_running?(opts)
     |> go_on(fn
       false ->
-        Logger.info("PostgreSQL server not running")
+        ["PostgreSQL server not running"] |> log(:info)
         :ok
 
       true ->
-        Logger.info("Stopping PostgreSQL server")
+        ["Stopping PostgreSQL server"] |> log(:info)
         args = ["-D", pg_data_dir, "stop", "-m", "fast"]
 
         run_pg("pg_ctl", args, as_postgres_user: true)
     end)
     |> go_on(fn
       {_, 0} ->
-        Logger.info("PostgreSQL server stopped successfully")
+        ["PostgreSQL server stopped successfully"] |> log(:info)
         :ok
 
       {output, _} ->
-        Logger.error("PostgreSQL server failed to stop: #{output}")
+        ["PostgreSQL server failed to stop: ", output] |> log(:error)
         {:error, output}
     end)
   end
@@ -171,6 +181,10 @@ defmodule Platform.Tools.Postgres do
   ## Options
   - `:pg_port` - PostgreSQL port (default: 5432)
   - `:db_name` - Database name (default: "postgres")
+
+  ## Returns
+  - `{:ok, output}` if the SQL command was executed successfully
+  - `{:error, output}` if the SQL command failed
   """
   def run_sql(sql, opts \\ []) do
     pg_port = Keyword.get(opts, :pg_port, 5432)
@@ -179,11 +193,11 @@ defmodule Platform.Tools.Postgres do
     server_running?(opts)
     |> go_on(fn
       false ->
-        Logger.error("Cannot run SQL: PostgreSQL server not running")
+        ["Cannot run SQL: PostgreSQL server not running"] |> log(:error)
         {:error, "PostgreSQL server not running"}
 
       true ->
-        Logger.debug("Running SQL: #{sql} on database #{db_name}")
+        ["Running SQL: #{sql} on database #{db_name}"] |> log(:debug)
 
         run_pg(
           "psql",
@@ -202,6 +216,11 @@ defmodule Platform.Tools.Postgres do
 
   ## Options
   - `:pg_port` - PostgreSQL port (default: 5432)
+
+  ## Returns
+  - `{:ok, db_name}` if the database was created successfully
+  - `{:error, output}` if the database failed to create
+  - `{:error, "PostgreSQL server not running"}` if the PostgreSQL server is not running
   """
   def create_database(db_name, opts \\ []) do
     pg_port = Keyword.get(opts, :pg_port, 5432)
@@ -209,7 +228,7 @@ defmodule Platform.Tools.Postgres do
     server_running?(opts)
     |> go_on(fn
       false ->
-        Logger.error("Cannot create database: PostgreSQL server not running")
+        ["Cannot create database: PostgreSQL server not running"] |> log(:error)
         {:error, "PostgreSQL server not running"}
 
       true ->
@@ -220,11 +239,11 @@ defmodule Platform.Tools.Postgres do
     end)
     |> go_on(fn
       true ->
-        Logger.info("Database '#{db_name}' already exists")
+        ["Database '#{db_name}' already exists"] |> log(:info)
         {:ok, db_name}
 
       false ->
-        Logger.info("Creating database: #{db_name}")
+        ["Creating database: #{db_name}"] |> log(:info)
 
         run_pg(
           "createdb",
@@ -234,11 +253,11 @@ defmodule Platform.Tools.Postgres do
     end)
     |> go_on(fn
       {_, 0} ->
-        Logger.info("Database '#{db_name}' created successfully")
+        ["Database '#{db_name}' created successfully"] |> log(:info)
         {:ok, db_name}
 
       {output, _} ->
-        Logger.error("Failed to create database '#{db_name}': #{output}")
+        ["Failed to create database '#{db_name}': #{output}"] |> log(:error)
         {:error, output}
     end)
   end
@@ -264,15 +283,19 @@ defmodule Platform.Tools.Postgres do
 
   ## Options
   - `:pg_port` - PostgreSQL port (default: 5432)
+
+  ## Returns
+  - `{:ok, db_name}` if the database exists
+  - `{:error, output}` if the database does not exist
   """
   def ensure_db_exists(name, opts \\ []) do
     {:ok, output} = run_sql("SELECT datname FROM pg_database WHERE datname = '#{name}';", opts)
 
     if String.contains?(output, name) do
-      Logger.info("Database '#{name}' already exists")
+      ["Database '#{name}' already exists"] |> log(:info)
       {:ok, name}
     else
-      Logger.info("Creating database '#{name}'")
+      ["Creating database '#{name}'"] |> log(:info)
       create_database(name, opts)
     end
   end
@@ -318,8 +341,6 @@ defmodule Platform.Tools.Postgres do
     String.trim(gid_str) |> String.to_integer()
   end
 
-  # Private helper functions
-
   defp ensure_dirs_permissions([], _uid, _gid), do: :ok
 
   defp ensure_dirs_permissions([dir | rest], uid, gid) do
@@ -362,4 +383,6 @@ defmodule Platform.Tools.Postgres do
       _ -> step_fn.(data)
     end
   end
+
+  defp log(msg, level), do: Platform.Log.postgres_log(msg, level)
 end

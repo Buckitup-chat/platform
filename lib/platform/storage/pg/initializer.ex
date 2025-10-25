@@ -58,8 +58,5 @@ defmodule Platform.Storage.Pg.Initializer do
   end
 
   @impl true
-  def on_exit(_reason, _state) do
-    # No cleanup needed for initialization
-    :ok
-  end
+  def on_exit(_reason, _state), do: :ok
 end

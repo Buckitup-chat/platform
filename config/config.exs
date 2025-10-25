@@ -61,7 +61,6 @@ config :chat, Chat.Repo,
   hostname: "localhost",
   port: 5432,
   pool_size: 5,
-  # socket_dir: {:system, "PGSOCKET_DIR", "/root/pg/run"},  # Use environment variable with fallback
   show_sensitive_data_on_connection_error: false
 
 # Configure Ecto repos
