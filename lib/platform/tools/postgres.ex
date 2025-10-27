@@ -46,7 +46,7 @@ defmodule Platform.Tools.Postgres do
     initialized?(opts)
     |> go_on(fn
       true ->
-        ["database already initialized at ", pg_data_dir] |> log(:info)
+        log(["database already initialized at ", pg_data_dir], :info)
         :ok
 
       false ->
@@ -54,12 +54,13 @@ defmodule Platform.Tools.Postgres do
           ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++
             @pg_minimal_settings
 
-        ["Initializing PostgreSQL database at ", pg_data_dir] |> log(:info)
+        log(["Initializing PostgreSQL database at ", pg_data_dir], :info)
         run_pg("initdb", args, as_postgres_user: true)
     end)
     |> go_on(fn
       {_, 0} ->
-        ["PostgreSQL database initialized successfully"] |> log(:info)
+        log(["PostgreSQL database initialized successfully"], :info)
+        Process.sleep(2000)
         :ok
 
       {output, _} ->
@@ -99,7 +100,7 @@ defmodule Platform.Tools.Postgres do
     server_running?(opts)
     |> go_on(fn
       true ->
-        ["PostgreSQL already running on port ", pg_port] |> log(:info)
+        log(["PostgreSQL already running on port ", pg_port], :info)
         :ok
 
       false ->
@@ -115,12 +116,12 @@ defmodule Platform.Tools.Postgres do
           "start"
         ]
 
-        ["Starting PostgreSQL server on port ", pg_port] |> log(:info)
+        log(["Starting PostgreSQL server on port ", pg_port], :info)
         run_pg("pg_ctl", args, as_postgres_user: true)
     end)
     |> go_on(fn
       {output, status} when status != 0 ->
-        ["PostgreSQL server failed to start: ", output] |> log(:error)
+        log(["PostgreSQL server failed to start: ", output], :error)
         {:error, output}
 
       {output, 0} ->
@@ -129,11 +130,11 @@ defmodule Platform.Tools.Postgres do
     end)
     |> go_on(fn
       {_, true} ->
-        ["PostgreSQL server started successfully"] |> log(:info)
+        log(["PostgreSQL server started successfully"], :info)
         :ok
 
       {output, false} ->
-        ["PostgreSQL server failed to start: ", output] |> log(:error)
+        log(["PostgreSQL server failed to start: ", output], :error)
         {:error, output}
     end)
   end
@@ -155,22 +156,22 @@ defmodule Platform.Tools.Postgres do
     server_running?(opts)
     |> go_on(fn
       false ->
-        ["PostgreSQL server not running"] |> log(:info)
+        log(["PostgreSQL server not running"], :info)
         :ok
 
       true ->
-        ["Stopping PostgreSQL server"] |> log(:info)
+        log(["Stopping PostgreSQL server"], :info)
         args = ["-D", pg_data_dir, "stop", "-m", "fast"]
 
         run_pg("pg_ctl", args, as_postgres_user: true)
     end)
     |> go_on(fn
       {_, 0} ->
-        ["PostgreSQL server stopped successfully"] |> log(:info)
+        log(["PostgreSQL server stopped successfully"], :info)
         :ok
 
       {output, _} ->
-        ["PostgreSQL server failed to stop: ", output] |> log(:error)
+        log(["PostgreSQL server failed to stop: ", output], :error)
         {:error, output}
     end)
   end
@@ -193,11 +194,11 @@ defmodule Platform.Tools.Postgres do
     server_running?(opts)
     |> go_on(fn
       false ->
-        ["Cannot run SQL: PostgreSQL server not running"] |> log(:error)
+        log(["Cannot run SQL: PostgreSQL server not running"], :error)
         {:error, "PostgreSQL server not running"}
 
       true ->
-        ["Running SQL: #{sql} on database #{db_name}"] |> log(:debug)
+        log(["Running SQL: #{sql} on database #{db_name}"], :debug)
 
         run_pg(
           "psql",
@@ -228,7 +229,7 @@ defmodule Platform.Tools.Postgres do
     server_running?(opts)
     |> go_on(fn
       false ->
-        ["Cannot create database: PostgreSQL server not running"] |> log(:error)
+        log(["Cannot create database: PostgreSQL server not running"], :error)
         {:error, "PostgreSQL server not running"}
 
       true ->
@@ -239,11 +240,11 @@ defmodule Platform.Tools.Postgres do
     end)
     |> go_on(fn
       true ->
-        ["Database '#{db_name}' already exists"] |> log(:info)
+        log(["Database '#{db_name}' already exists"], :info)
         {:ok, db_name}
 
       false ->
-        ["Creating database: #{db_name}"] |> log(:info)
+        log(["Creating database: #{db_name}"], :info)
 
         run_pg(
           "createdb",
@@ -253,11 +254,11 @@ defmodule Platform.Tools.Postgres do
     end)
     |> go_on(fn
       {_, 0} ->
-        ["Database '#{db_name}' created successfully"] |> log(:info)
+        log(["Database '#{db_name}' created successfully"], :info)
         {:ok, db_name}
 
       {output, _} ->
-        ["Failed to create database '#{db_name}': #{output}"] |> log(:error)
+        log(["Failed to create database '#{db_name}': #{output}"], :error)
         {:error, output}
     end)
   end
@@ -292,10 +293,10 @@ defmodule Platform.Tools.Postgres do
     {:ok, output} = run_sql("SELECT datname FROM pg_database WHERE datname = '#{name}';", opts)
 
     if String.contains?(output, name) do
-      ["Database '#{name}' already exists"] |> log(:info)
+      log(["Database '#{name}' already exists"], :info)
       {:ok, name}
     else
-      ["Creating database '#{name}'"] |> log(:info)
+      log(["Creating database '#{name}'"], :info)
       create_database(name, opts)
     end
   end

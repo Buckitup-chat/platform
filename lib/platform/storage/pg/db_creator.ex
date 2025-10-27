@@ -11,6 +11,7 @@ defmodule Platform.Storage.Pg.DbCreator do
 
   @impl true
   def on_init(opts) do
+    Logger.warning("--------------- init DbCreator: #{inspect(opts)}")
     next = opts |> Keyword.fetch!(:next)
 
     %{
@@ -33,10 +34,23 @@ defmodule Platform.Storage.Pg.DbCreator do
           task_supervisor: task_supervisor
         } = state
       ) do
+    Logger.warning("--------------- starting DB creator")
+
     %{ref: ref} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
-        Postgres.ensure_db_exists(db_name, pg_port: pg_port)
+        try do
+          Logger.info("DbCreator '#{db_name}' started")
+          x = Postgres.ensure_db_exists(db_name, pg_port: pg_port)
+          Logger.warning("DbCreator '#{db_name}' returned #{inspect(x)}")
+        catch
+          type, reason ->
+            Logger.error("DbCreator '#{db_name}' failed with #{inspect({type, reason})}")
+        end
+        |> inspect()
+        |> Logger.warning()
       end)
+
+    Logger.warning("--------------- started DB creator task")
 
     {:noreply, %{state | task_ref: ref}}
   end
@@ -54,5 +68,7 @@ defmodule Platform.Storage.Pg.DbCreator do
   end
 
   @impl true
-  def on_exit(_reason, _state), do: :ok
+  def on_exit(reason, state) do
+    Logger.warning("Exitiing DbCreator: #{inspect({reason, state})}")
+  end
 end

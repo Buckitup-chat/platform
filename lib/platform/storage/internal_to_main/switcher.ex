@@ -12,14 +12,18 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   def on_init(args) do
     "switcher on start #{inspect(args)}" |> Logger.warning()
     set_db_mode(:main)
+
     switch_db_repo(args)
+    |> tap(fn _ -> Chat.Sync.DbBrokers.refresh() end)
   end
 
   @impl true
   def on_exit(reason, state) do
     "switcher cleanup #{inspect(reason)}" |> Logger.warning()
     set_db_mode(:main_to_internal)
+
     revert_db_repo(state)
+    |> tap(fn _ -> Chat.Sync.DbBrokers.refresh() end)
   end
 
   defp set_db_mode(mode), do: Common.put_chat_db_env(:mode, mode)
