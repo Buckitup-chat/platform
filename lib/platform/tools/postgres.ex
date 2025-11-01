@@ -20,21 +20,27 @@ defmodule Platform.Tools.Postgres do
   ]
 
   # Settings optimized for faster recovery on SD cards
+  # 90% focus on speed/absence of recovery, 10% on embedded constraints
+  # Key optimizations:
+  # - 5min checkpoints (vs 30min) = 6x faster recovery, max ~5min WAL replay
+  # - 256MB WAL (vs 1GB) = 4x less data to replay on recovery
+  # - Aggressive WAL/bgwriter = data persisted faster, less recovery needed
+  # - Balanced for SD card wear (not too aggressive on checkpoints)
   @pg_recovery_optimized_settings ~w[
-    -c checkpoint_timeout=30min
+    -c checkpoint_timeout=5min
     -c checkpoint_completion_target=0.9
-    -c max_wal_size=1GB
-    -c min_wal_size=80MB
+    -c max_wal_size=256MB
+    -c min_wal_size=64MB
     -c wal_compression=on
     -c full_page_writes=off
     -c fsync=off
     -c synchronous_commit=off
-    -c wal_writer_delay=1000ms
+    -c wal_writer_delay=200ms
     -c checkpoint_warning=30s
-    -c wal_sync_method=open_sync
-    -c wal_buffers=512kB
-    -c bgwriter_delay=1000ms
-    -c bgwriter_lru_maxpages=50
+    -c wal_sync_method=fdatasync
+    -c wal_buffers=256kB
+    -c bgwriter_delay=500ms
+    -c bgwriter_lru_maxpages=100
   ]
 
   @doc """
