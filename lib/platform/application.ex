@@ -45,6 +45,10 @@ defmodule Platform.Application do
        fn ->
          Chat.Time.init_time()
 
+         pg_run_dir = "/tmp/pg_run"
+         File.mkdir_p!(pg_run_dir)
+         Platform.Tools.Postgres.make_accessible(pg_run_dir)
+
          [
            "vm.dirty_expire_centisecs=300",
            "vm.dirty_writeback_centisecs=50",

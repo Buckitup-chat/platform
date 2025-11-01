@@ -19,6 +19,20 @@ defmodule Platform.Tools.Postgres do
     -c unix_socket_directories=/tmp/pg_run
   ]
 
+  # Settings optimized for faster recovery on SD cards
+  @pg_recovery_optimized_settings ~w[
+    -c checkpoint_timeout=30min
+    -c checkpoint_completion_target=0.9
+    -c max_wal_size=1GB
+    -c min_wal_size=80MB
+    -c wal_compression=on
+    -c full_page_writes=off
+    -c fsync=on
+    -c synchronous_commit=off
+    -c wal_writer_delay=1000ms
+    -c checkpoint_warning=30s
+  ]
+
   @doc """
   Initialize the PostgreSQL database with configurable options.
 
@@ -70,6 +84,13 @@ defmodule Platform.Tools.Postgres do
     end)
   end
 
+  def make_accessible(path) do
+    uid = get_postgres_uid()
+    gid = get_postgres_gid()
+
+    [path] |> ensure_dirs_permissions(uid, gid)
+  end
+
   @doc """
   Check if PostgreSQL is already initialized.
 
@@ -106,6 +127,7 @@ defmodule Platform.Tools.Postgres do
 
       false ->
         minimal_settings_str = Enum.join(@pg_minimal_settings, " ")
+        recovery_settings_str = Enum.join(@pg_recovery_optimized_settings, " ")
 
         args = [
           "-D",
@@ -113,7 +135,7 @@ defmodule Platform.Tools.Postgres do
           "-l",
           "/dev/null",
           "-o",
-          "#{minimal_settings_str} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
+          "#{minimal_settings_str} #{recovery_settings_str} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
           "start"
         ]
 
@@ -323,6 +345,7 @@ defmodule Platform.Tools.Postgres do
        "/usr/bin/postgres",
        ["-D", pg_data_dir] ++
          @pg_minimal_settings ++
+         @pg_recovery_optimized_settings ++
          ["-c", "port=#{pg_port}", "-c", "log_destination=stderr"],
        [
          stderr_to_stdout: true,
@@ -345,26 +368,60 @@ defmodule Platform.Tools.Postgres do
 
   defp ensure_dirs_permissions([], _uid, _gid), do: :ok
 
-  defp ensure_dirs_permissions([dir | rest], uid, gid) do
-    File.chown!(dir, uid)
-    File.chgrp!(dir, gid)
-    File.chmod!(dir, 0o750)
+  defp ensure_dirs_permissions(dirs, uid, gid) when is_list(dirs) do
+    # Process directories in parallel
+    dirs
+    |> Task.async_stream(
+      fn dir ->
+        set_permissions(dir, uid, gid, 0o700)
 
-    {:ok, filelist} = File.ls(dir)
+        {:ok, filelist} = File.ls(dir)
 
-    Enum.reduce(filelist, rest, fn file_or_dir, acc ->
-      path = Path.join(dir, file_or_dir)
+        Enum.reduce(filelist, [], fn file_or_dir, acc ->
+          path = Path.join(dir, file_or_dir)
 
-      if File.dir?(path) do
-        [path | acc]
-      else
-        File.chown!(path, uid)
-        File.chgrp!(path, gid)
-        File.chmod!(path, 0o750)
-        acc
-      end
-    end)
+          if File.dir?(path) do
+            [path | acc]
+          else
+            set_permissions(path, uid, gid, 0o600)
+            acc
+          end
+        end)
+      end,
+      max_concurrency: System.schedulers_online(),
+      timeout: :infinity
+    )
+    |> Enum.reduce([], fn {:ok, subdirs}, acc -> subdirs ++ acc end)
     |> ensure_dirs_permissions(uid, gid)
+  end
+
+  defp set_permissions(path, uid, gid, mod) do
+    with {:ok, info} <- File.stat(path) do
+      log(
+        [
+          "Setting permissions for ",
+          path,
+          ": current(uid=",
+          Integer.to_string(info.uid),
+          ", gid=",
+          Integer.to_string(info.gid),
+          ", mode=",
+          Integer.to_string(info.mode, 8),
+          ") -> target(uid=",
+          Integer.to_string(uid),
+          ", gid=",
+          Integer.to_string(gid),
+          ", mode=",
+          Integer.to_string(mod, 8),
+          ")"
+        ],
+        :debug
+      )
+
+      if info.uid != uid, do: File.chown!(path, uid)
+      if info.gid != gid, do: File.chgrp!(path, gid)
+      if info.mode != mod, do: File.chmod!(path, mod)
+    end
   end
 
   defp run_pg(tool, args, opts \\ []) do
