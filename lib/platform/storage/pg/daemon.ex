@@ -29,14 +29,7 @@ defmodule Platform.Storage.Pg.Daemon do
   @impl true
   def on_msg(
         :start,
-        %{
-          pg_dir: pg_dir,
-          pg_port: pg_port,
-          daemon_name: daemon_name,
-          task_supervisor: task_supervisor,
-          next_specs: next_specs,
-          next_supervisor: next_supervisor
-        } = state
+        %{pg_dir: pg_dir, pg_port: pg_port, daemon_name: daemon_name} = state
       ) do
     daemon_spec = Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)
 
@@ -46,6 +39,21 @@ defmodule Platform.Storage.Pg.Daemon do
 
     {:ok, pid} = start_daemon(daemon_spec)
 
+    send(self(), :wait_for_ready)
+
+    {:noreply, %{state | daemon_pid: pid}}
+  end
+
+  @impl GracefulGenServer
+  def on_msg(
+        :wait_for_ready,
+        %{
+          pg_port: pg_port,
+          task_supervisor: task_supervisor,
+          next_specs: next_specs,
+          next_supervisor: next_supervisor
+        } = state
+      ) do
     Task.Supervisor.async_nolink(task_supervisor, fn ->
       wait_for_postgres_ready(pg_port)
     end)
@@ -53,8 +61,7 @@ defmodule Platform.Storage.Pg.Daemon do
 
     Logger.info("PostgreSQL daemon ready on port #{pg_port}, starting next stage")
     Platform.start_next_stage(next_supervisor, next_specs)
-
-    {:noreply, %{state | daemon_pid: pid}}
+    {:noreply, state}
   end
 
   @impl true
