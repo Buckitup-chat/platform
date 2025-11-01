@@ -27,10 +27,14 @@ defmodule Platform.Tools.Postgres do
     -c min_wal_size=80MB
     -c wal_compression=on
     -c full_page_writes=off
-    -c fsync=on
+    -c fsync=off
     -c synchronous_commit=off
     -c wal_writer_delay=1000ms
     -c checkpoint_warning=30s
+    -c wal_sync_method=open_sync
+    -c wal_buffers=512kB
+    -c bgwriter_delay=1000ms
+    -c bgwriter_lru_maxpages=50
   ]
 
   @doc """
@@ -38,6 +42,7 @@ defmodule Platform.Tools.Postgres do
 
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
+  - `:optimize_mount` - Apply noatime/nodiratime mount optimizations (default: true)
 
   ## Returns
   - `:ok` if the PostgreSQL database was initialized successfully
@@ -46,6 +51,7 @@ defmodule Platform.Tools.Postgres do
   def initialize(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
+    optimize_mount = Keyword.get(opts, :optimize_mount, true)
 
     log(["[intialize] pg_data_dir: ", pg_data_dir], :debug)
     File.mkdir_p!(pg_data_dir)
@@ -58,6 +64,13 @@ defmodule Platform.Tools.Postgres do
 
     File.chmod!(pg_dir, 0o755)
     log(["[initialize] ", "dir permissions set"], :debug)
+
+    # Optimize mount options for PostgreSQL directory
+    if optimize_mount do
+      log(["[initialize] ", "optimizing mount options for ", pg_dir], :info)
+      Platform.Tools.Mount.remount_with_options(pg_dir, [])
+      log(["[initialize] ", "mount optimized"], :info)
+    end
 
     initialized?(opts)
     |> go_on(fn
@@ -419,8 +432,8 @@ defmodule Platform.Tools.Postgres do
       )
 
       if info.uid != uid, do: File.chown!(path, uid)
-      if info.gid != gid, do: File.chgrp!(path, gid)
-      if info.mode != mod, do: File.chmod!(path, mod)
+      # if info.gid != gid, do: File.chgrp!(path, gid)
+      if rem(info.mode, 0o1000) != mod, do: File.chmod!(path, mod)
     end
   end
 
