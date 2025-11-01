@@ -406,23 +406,25 @@ defmodule Platform.Tools.Postgres do
   end
 
   defp set_permissions(path, uid, gid, mod) do
-    with {:ok, info} <- File.stat(path),
-         change_uid? <- info.uid != uid,
-         change_gid? <- info.gid != gid,
-         change_mod? <- rem(info.mode, 0o1000) != mod,
+    with {:ok, %{mode: f_mod, uid: f_uid, gid: f_gid}} <- File.stat(path),
+         change_uid? <- f_uid != uid,
+         change_gid? <- false && f_gid != gid,
+         change_mod? <- rem(f_mod, 0o1000) != mod,
          true <- change_uid? || change_gid? || change_mod?,
-         log([path, " ", inspect(info), " -> ", inspect({uid, gid, mod})], :debug) do
-      track(change_uid?, fn -> File.chown!(path, uid) end)
-      track(change_gid?, fn -> File.chgrp!(path, gid) end)
-      track(change_mod?, fn -> File.chmod!(path, mod) end)
+         log(
+           [path, " ", inspect({f_uid, f_gid, f_mod |> Integer.to_string(8)}), " -> ", inspect({uid, gid, mod |> Integer.to_string(8)})],
+           :debug
+         ) do
+      track(change_uid?, fn -> File.chown!(path, uid) end, [path, "chown"])
+      # track(change_gid?, fn -> File.chgrp!(path, gid) end)
+      track(change_mod?, fn -> File.chmod!(path, mod) end, [path, "chmod"])
     end
   end
 
-  defp track(predicate, fun) do
+  defp track(predicate, fun, msg) do
     if predicate do
       :timer.tc(fun)
-      |> inspect()
-      |> log(:debug)
+      log([msg], :debug)
     end
   end
 
