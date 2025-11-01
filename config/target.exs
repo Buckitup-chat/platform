@@ -187,6 +187,11 @@ config :vintage_net,
     {"usb0", %{type: VintageNetDirect}}
   ]
 
+# Enable verbose logging for VintageNetWiFi to diagnose wpa_supplicant issues
+config :vintage_net_wifi,
+  verbose: true,
+  wpa_supplicant_options: ["-d"]
+
 config :mdns_lite,
   # The `host` key specifies what hostnames mdns_lite advertises.  `:hostname`
   # advertises the device's hostname.local. For the official Nerves systems, this

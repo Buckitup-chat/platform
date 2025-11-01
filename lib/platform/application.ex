@@ -45,6 +45,11 @@ defmodule Platform.Application do
        fn ->
          Chat.Time.init_time()
 
+         # Ensure wpa_supplicant control directory exists with proper permissions
+         wpa_control_dir = "/tmp/vintage_net/wpa_supplicant"
+         File.mkdir_p!(wpa_control_dir)
+         File.chmod!(wpa_control_dir, 0o755)
+
          pg_run_dir = "/tmp/pg_run"
          File.mkdir_p!(pg_run_dir)
          Platform.Tools.Postgres.make_accessible(pg_run_dir)
