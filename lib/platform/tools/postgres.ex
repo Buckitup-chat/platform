@@ -410,29 +410,8 @@ defmodule Platform.Tools.Postgres do
 
   defp set_permissions(path, uid, gid, mod) do
     with {:ok, info} <- File.stat(path) do
-      # log(
-      #   [
-      #     "Setting permissions for ",
-      #     path,
-      #     ": current(uid=",
-      #     Integer.to_string(info.uid),
-      #     ", gid=",
-      #     Integer.to_string(info.gid),
-      #     ", mode=",
-      #     Integer.to_string(info.mode, 8),
-      #     ") -> target(uid=",
-      #     Integer.to_string(uid),
-      #     ", gid=",
-      #     Integer.to_string(gid),
-      #     ", mode=",
-      #     Integer.to_string(mod, 8),
-      #     ")"
-      #   ],
-      #   :debug
-      # )
-
       if info.uid != uid, do: File.chown!(path, uid)
-      # if info.gid != gid, do: File.chgrp!(path, gid)
+      if info.gid != gid, do: File.chgrp!(path, gid)
       if rem(info.mode, 0o1000) != mod, do: File.chmod!(path, mod)
     end
   end
