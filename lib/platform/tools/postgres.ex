@@ -42,7 +42,6 @@ defmodule Platform.Tools.Postgres do
 
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
-  - `:optimize_mount` - Apply noatime/nodiratime mount optimizations (default: true)
 
   ## Returns
   - `:ok` if the PostgreSQL database was initialized successfully
@@ -51,7 +50,6 @@ defmodule Platform.Tools.Postgres do
   def initialize(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
-    optimize_mount = Keyword.get(opts, :optimize_mount, true)
 
     log(["[intialize] pg_data_dir: ", pg_data_dir], :debug)
     File.mkdir_p!(pg_data_dir)
@@ -64,13 +62,6 @@ defmodule Platform.Tools.Postgres do
 
     File.chmod!(pg_dir, 0o755)
     log(["[initialize] ", "dir permissions set"], :debug)
-
-    # Optimize mount options for PostgreSQL directory
-    if optimize_mount do
-      log(["[initialize] ", "optimizing mount options for ", pg_dir], :info)
-      Platform.Tools.Mount.remount_with_options(pg_dir, [])
-      log(["[initialize] ", "mount optimized"], :info)
-    end
 
     initialized?(opts)
     |> go_on(fn
@@ -409,10 +400,23 @@ defmodule Platform.Tools.Postgres do
   end
 
   defp set_permissions(path, uid, gid, mod) do
-    with {:ok, info} <- File.stat(path) do
-      if info.uid != uid, do: File.chown!(path, uid)
-      if info.gid != gid, do: File.chgrp!(path, gid)
-      if rem(info.mode, 0o1000) != mod, do: File.chmod!(path, mod)
+    with {:ok, info} <- File.stat(path),
+         change_uid? <- info.uid != uid,
+         change_gid? <- info.gid != gid,
+         change_mod? <- rem(info.mode, 0o1000) != mod,
+         true <- change_uid? || change_gid? || change_mod?,
+         log([path, " ", inspect(info), " -> ", inspect({uid, gid, mod})], :debug) do
+      track(change_uid?, fn -> File.chown!(path, uid) end)
+      track(change_gid?, fn -> File.chgrp!(path, gid) end)
+      track(change_mod?, fn -> File.chmod!(path, mod) end)
+    end
+  end
+
+  defp track(predicate, fun) do
+    if predicate do
+      :timer.tc(fun)
+      |> inspect()
+      |> log(:debug)
     end
   end
 

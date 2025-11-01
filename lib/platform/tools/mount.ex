@@ -9,51 +9,6 @@ defmodule Platform.Tools.Mount do
     mount([device |> Device.path(), path], mount_options)
   end
 
-  @doc """
-  Remount a directory with custom mount options using bind mount.
-  Uses bind mount to apply different mount options to a subdirectory.
-  
-  ## Options
-  - `:noatime` - Don't update access times (default: true)
-  - `:nodiratime` - Don't update directory access times (default: true)
-  - `:async` - Use async instead of sync (default: false, keep sync for safety)
-  
-  ## Examples
-  
-      # Optimize for database performance
-      Mount.remount_with_options("/mnt/usb/pg", noatime: true, nodiratime: true)
-      
-      # Use async for temporary data
-      Mount.remount_with_options("/tmp/cache", async: true)
-  """
-  def remount_with_options(dir, opts \\ []) do
-    # Build mount options based on provided options
-    opts_str =
-      [
-        if(Keyword.get(opts, :noatime, true), do: "noatime"),
-        if(Keyword.get(opts, :nodiratime, true), do: "nodiratime"),
-        if(Keyword.get(opts, :async, false), do: "async", else: "sync")
-      ]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(",")
-    
-    Logger.info("[platform] Remounting #{dir} with options: #{opts_str}")
-    
-    # Use bind mount to apply different options to subdirectory
-    # This is a standard Linux pattern - creates a second mount point for the same location
-    # with different mount options, without creating circular references
-    {_, status1} = System.cmd("mount", ["--bind", dir, dir])
-    {output, status2} = System.cmd("mount", ["-o", "remount,#{opts_str}", dir])
-    
-    if status1 != 0 or status2 != 0 do
-      Logger.warning("[platform] Failed to remount #{dir}: #{output}")
-      {:error, output}
-    else
-      Logger.info("[platform] Successfully remounted #{dir}")
-      :ok
-    end
-  end
-
   def unmount(device) do
     System.cmd("umount", ["-f", device |> Device.path()])
   end
