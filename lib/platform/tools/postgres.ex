@@ -19,8 +19,6 @@ defmodule Platform.Tools.Postgres do
     -c unix_socket_directories=/tmp/pg_run
   ]
 
-  @pg_run_dir "/tmp/pg_run"
-
   @doc """
   Initialize the PostgreSQL database with configurable options.
 
@@ -35,13 +33,17 @@ defmodule Platform.Tools.Postgres do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
 
+    log(["[intialize] pg_data_dir: ", pg_data_dir], :debug)
     File.mkdir_p!(pg_data_dir)
-    File.mkdir_p!(@pg_run_dir)
+    log(["[initialize] ", "dir created"], :debug)
 
-    [pg_data_dir, @pg_run_dir]
+    [pg_data_dir]
     |> ensure_dirs_permissions(get_postgres_uid(), get_postgres_gid())
 
+    log(["[initialize] ", "permissions set"], :debug)
+
     File.chmod!(pg_dir, 0o755)
+    log(["[initialize] ", "dir permissions set"], :debug)
 
     initialized?(opts)
     |> go_on(fn
