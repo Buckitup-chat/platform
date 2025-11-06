@@ -27,7 +27,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   end
 
   @impl true
-  def init([_device, path]) do
+  def init([_device, path, pg_opts]) do
     "Main Db Supervisor start" |> Logger.debug()
 
     full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()
@@ -41,7 +41,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
       Starter |> exit_takes(1000),
       {:stage, Copying, {Copier, task_in: task_supervisor} |> exit_takes(25_000)},
       MainReplicator,
-      Switcher |> exit_takes(1000)
+      {Switcher, pg_opts: pg_opts} |> exit_takes(1000)
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->

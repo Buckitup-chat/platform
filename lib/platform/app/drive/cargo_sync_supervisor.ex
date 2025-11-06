@@ -30,7 +30,7 @@ defmodule Platform.App.Drive.CargoSyncSupervisor do
   end
 
   @impl Supervisor
-  def init([device, path]) do
+  def init([device, path | _]) do
     "CargoSyncSupervisor start" |> Logger.info()
 
     type = "cargo_db"

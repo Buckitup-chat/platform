@@ -46,7 +46,6 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
         {:ok, set}, acc_set -> MapSet.union(acc_set, set)
         {:error, _}, acc -> acc
         {:exit, _}, acc -> acc
-          
       end)
       |> MapSet.union(summary_message_db_keys(cargo_user, room_identity_fn))
       |> MapSet.to_list()

@@ -74,10 +74,21 @@ defmodule Platform.Application do
          Logger.put_module_level(Tesla.Middleware.Logger, :error)
 
          System.cmd("modprobe", ["pwm-raspberrypi-poe"])
+
+         try do
+           mount_path = Application.get_env(:platform, :mount_path_media)
+           File.mkdir_p!(mount_path)
+           File.chmod!(mount_path, 0o755)
+         catch
+           t, e ->
+             require Logger
+             Logger.error(" [platform] error setting media: #{inspect(t)} #{inspect(e)}")
+         end
        end},
       Platform.Storage.DriveIndication,
       Platform.App.DeviceSupervisor,
-      Platform.App.ZeroTierSupervisor
+      Platform.App.ZeroTierSupervisor,
+      Platform.Internal.PgDb
     ]
   end
 

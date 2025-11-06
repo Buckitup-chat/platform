@@ -83,3 +83,10 @@ del_ip_alias:
 cover:
 	mix coveralls.html
 
+test:
+	MIX_TARGET=host MIX_ENV=test mix test $(filter-out $@,$(MAKECMDGOALS))
+
+# This rule prevents Make from trying to run arguments as targets
+%:
+	@:
+

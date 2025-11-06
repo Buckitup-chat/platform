@@ -26,10 +26,10 @@ defmodule Platform.Storage.Device do
     device
   end
 
-  def mount_on(device, path) do
+  def mount_on(device, path, mount_options \\ []) do
     File.mkdir_p!(path)
     Mount.unmount(path)
-    {_, 0} = Mount.mount_at_path(device, path)
+    {_, 0} = Mount.mount_at_path(device, path, mount_options)
 
     path
   end

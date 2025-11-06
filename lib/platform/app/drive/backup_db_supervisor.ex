@@ -22,7 +22,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
   end
 
   @impl true
-  def init([device, path]) do
+  def init([device, path | _]) do
     "Backup DB Supervisor start" |> Logger.info()
 
     type = "backup_db"

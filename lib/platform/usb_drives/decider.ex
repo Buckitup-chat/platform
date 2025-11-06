@@ -34,16 +34,28 @@ defmodule Platform.UsbDrives.Decider do
     next_opts = Keyword.fetch!(opts, :next)
     next_supervisor = Keyword.fetch!(next_opts, :under)
 
+    pg_port = Keyword.fetch!(opts, :pg_port)
+    pg_dir = Keyword.fetch!(opts, :pg_dir)
+    repo = Keyword.fetch!(opts, :repo)
+
     %{
       device: device,
       at: mount_path,
+      pg: %{
+        port: pg_port,
+        dir: pg_dir,
+        repo: repo
+      },
       next_supervisor: next_supervisor
     }
     |> then(&{:ok, &1, {:continue, :decide}})
   end
 
   @impl true
-  def handle_continue(:decide, %{device: device, at: path, next_supervisor: supervisor} = state) do
+  def handle_continue(
+        :decide,
+        %{device: device, at: path, pg: pg_opts, next_supervisor: supervisor} = state
+      ) do
     scenario = decide(path)
 
     if scenario != CargoSyncSupervisor do
@@ -51,7 +63,7 @@ defmodule Platform.UsbDrives.Decider do
     end
 
     if scenario do
-      start(scenario, supervisor, device, path)
+      start(scenario, supervisor, device, path, pg_opts)
     end
 
     {:noreply, state}
@@ -129,12 +141,10 @@ defmodule Platform.UsbDrives.Decider do
     |> Mount.mount_at_path(path)
   end
 
-  defp start(nil, _, _, _), do: :skip
-
-  defp start(scenario, supervisor, device, path) do
+  defp start(scenario, supervisor, device, path, pg_opts) do
     :ok =
       supervisor
-      |> DynamicSupervisor.start_child({scenario, [device, path]})
+      |> DynamicSupervisor.start_child({scenario, [device, path, pg_opts]})
       |> case do
         {:ok, _} ->
           :ok
