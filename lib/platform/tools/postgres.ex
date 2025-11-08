@@ -61,6 +61,23 @@ defmodule Platform.Tools.Postgres do
     File.mkdir_p!(pg_data_dir)
     log(["[initialize] ", "dir created"], :debug)
 
+
+    log(["[alt traversal]"], :debug)
+
+    {wrong_uid_list, 0} = System.cmd("find", [pg_data_dir | ~w[! -user postgres -print]])
+    log(["[alt traversal] wrong_uid_list: ", wrong_uid_list], :debug)
+
+    {wrong_gid_list, 0} = System.cmd("find", [pg_data_dir | ~w[! -group postgres -print]])
+    log(["[alt traversal] wrong_gid_list: ", wrong_gid_list], :debug)
+
+    {wrong_files, 0} = System.cmd("find", [pg_data_dir | ~w[-type f ! -perm 700 -print]])
+    log(["[alt traversal] wrong_files: ", wrong_files], :debug)
+
+    {wrong_dirs, 0} = System.cmd("find", [pg_data_dir | ~w[-type d ! -perm 700 -print]])
+    log(["[alt traversal] wrong_dirs: ", wrong_dirs], :debug)
+
+
+
     [pg_data_dir]
     |> ensure_dirs_permissions(get_postgres_uid(), get_postgres_gid())
 
