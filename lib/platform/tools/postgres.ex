@@ -408,16 +408,22 @@ defmodule Platform.Tools.Postgres do
   defp set_permissions(path, uid, gid, mod) do
     with {:ok, %{mode: f_mod, uid: f_uid, gid: f_gid}} <- File.stat(path),
          change_uid? <- f_uid != uid,
-         change_gid? <- false && f_gid != gid,
+         change_gid? <- f_gid != gid,
          change_mod? <- rem(f_mod, 0o1000) != mod,
          true <- change_uid? || change_gid? || change_mod?,
          log(
-           [path, " ", inspect({f_uid, f_gid, f_mod |> Integer.to_string(8)}), " -> ", inspect({uid, gid, mod |> Integer.to_string(8)})],
+           [
+             path,
+             " ",
+             inspect({f_uid, f_gid, f_mod |> Integer.to_string(8)}),
+             " -> ",
+             inspect({uid, gid, mod |> Integer.to_string(8)})
+           ],
            :debug
          ) do
-      track(change_uid?, fn -> File.chown!(path, uid) end, [path, "chown"])
-      # track(change_gid?, fn -> File.chgrp!(path, gid) end)
-      track(change_mod?, fn -> File.chmod!(path, mod) end, [path, "chmod"])
+      track(change_uid?, fn -> File.chown!(path, uid) end, [path, " own"])
+      track(change_gid?, fn -> File.chgrp!(path, gid) end, [path, " grp"])
+      track(change_mod?, fn -> File.chmod!(path, mod) end, [path, " mod"])
     end
   end
 

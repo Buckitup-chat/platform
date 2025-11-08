@@ -23,7 +23,9 @@ defmodule Platform.Internal.PgDb do
 
     [
       postgres_daemon_spec(),
-      {Task, fn -> setup_chat_database() end}
+      {Task, fn -> setup_chat_database() end} |> Supervisor.child_spec(id: make_ref()),
+      Chat.Repo,
+      {Task, fn -> Chat.RepoStarter.run_migrations() end} |> Supervisor.child_spec(id: make_ref())
     ]
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end
@@ -42,12 +44,12 @@ defmodule Platform.Internal.PgDb do
   end
 
   defp wait_for_db_ready do
-    1..10
+    1..30
     |> Enum.reduce_while({:error, :timeout}, fn _i, acc ->
       if Platform.Tools.Postgres.server_running?(pg_port: @pg_port) do
         {:halt, :ok}
       else
-        Process.sleep(2000)
+        Process.sleep(1000)
         {:cont, acc}
       end
     end)
