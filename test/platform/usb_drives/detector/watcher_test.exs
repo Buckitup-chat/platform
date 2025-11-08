@@ -1,7 +1,6 @@
 defmodule Platform.UsbDrives.Detector.WatcherTest do
   use ExUnit.Case, async: true
 
-  alias Platform.UsbDrives.Detector.Polling
   alias Platform.UsbDrives.Detector.State
   alias Platform.UsbDrives.Detector.Watcher
   import Rewire
@@ -20,7 +19,7 @@ defmodule Platform.UsbDrives.Detector.WatcherTest do
     def wildcard(_), do: ~w(/dev/sda /dev/sda1 /dev/sdb /dev/sd1)
   end
 
-  rewire(Polling, Path: PathStub, as: PollingMock)
+  rewire(Platform.UsbDrives.Detector.Polling, Path: PathStub, as: PollingMock)
   rewire(Watcher, Polling: PollingMock)
 
   test "new devices added" do
