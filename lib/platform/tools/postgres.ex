@@ -348,7 +348,6 @@ defmodule Platform.Tools.Postgres do
     daemon_name = Keyword.get(opts, :name, :postgres_daemon)
 
     pg_data_dir = Path.join(pg_dir, "data")
-    postgres_uid = get_postgres_uid()
 
     {MuonTrap.Daemon,
      [
@@ -360,7 +359,8 @@ defmodule Platform.Tools.Postgres do
        [
          stderr_to_stdout: true,
          log_output: :debug,
-         uid: postgres_uid,
+         uid: get_postgres_uid(),
+         gid: get_postgres_gid(),
          name: daemon_name
        ]
      ]}

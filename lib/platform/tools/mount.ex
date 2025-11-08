@@ -53,7 +53,7 @@ defmodule Platform.Tools.Mount do
 
     mount_opts =
       if uid && gid,
-        do: ["-o", "noatime,nodiratime,sync,uid=#{uid},gid=#{gid},umask=0027"],
+        do: ["-o", "noatime,nodiratime,sync,uid=#{uid},gid=#{gid},umask=0077,fmask=0177"],
         else: ["-o", "noatime,nodiratime,sync"]
 
     System.cmd("mount", Enum.concat(mount_opts, params))
