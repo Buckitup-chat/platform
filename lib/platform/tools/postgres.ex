@@ -70,7 +70,7 @@ defmodule Platform.Tools.Postgres do
     {wrong_gid_list, 0} = System.cmd("find", [pg_data_dir | ~w[! -group postgres -print]])
     log(["[alt traversal] wrong_gid_list: ", wrong_gid_list], :debug)
 
-    {wrong_files, 0} = System.cmd("find", [pg_data_dir | ~w[-type f ! -perm 700 -print]])
+    {wrong_files, 0} = System.cmd("find", [pg_data_dir | ~w[-type f ! -perm 600 -print]])
     log(["[alt traversal] wrong_files: ", wrong_files], :debug)
 
     {wrong_dirs, 0} = System.cmd("find", [pg_data_dir | ~w[-type d ! -perm 700 -print]])
