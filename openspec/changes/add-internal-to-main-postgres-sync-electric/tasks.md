@@ -1,0 +1,21 @@
+## 1. Implementation
+- [ ] 1.1 Review current storage flow and integration points
+  - Files: `lib/platform/storage/internal_to_main/*`, `lib/platform/storage/logic.ex`, supervision tree
+- [ ] 1.2 Define Postgres table scopes for sync (schemas, tables)
+  - Produce config structure and defaults
+- [ ] 1.3 Define Platform↔Chat ElectricSQL integration API (function calls; in-process)
+  - Input: `source_repo` (InternalDb), `target_repo` (MainDb), `schemas: [:users]` | `tables: [...]`
+  - Output: result/status and optional PID/ref for observability
+- [ ] 1.4 Implement in-process sync within `InternalToMain.Copier`
+  - Start immediately after bootstrap copy completes
+  - Stop/cleanup when copier stage completes
+- [ ] 1.5 Expose sync status for UX/observability
+  - Logger + Telemetry events; status flips to done when copier completes
+- [ ] 1.6 Configuration
+  - Feature flag to enable/disable sync; schema/table list configurable
+- [ ] 1.7 Tests
+  - Unit: lifecycle (start→finish inside copier), status transitions, error propagation
+  - Integration (mock ElectricSQL client): local-only path, idempotency, single-process execution
+- [ ] 1.8 Documentation
+  - README section + sample config (local-only; no network)
+  - Link to Chat-side requirements
