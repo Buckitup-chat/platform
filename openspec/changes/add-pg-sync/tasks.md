@@ -80,11 +80,12 @@
   - [x] Test status management (inactive, active, done, error)
   - [x] Test configuration (enabled?, schemas/1)
   - [x] 11 integration tests passing
-- [ ] 4.5 Integration tests for replication workflow
-  - [ ] Test internal→main replication during `:internal_to_main`
-  - [ ] Test main→internal replication during `:main`
-  - [ ] Test subscription disable/enable on mode transitions
-  - [ ] Test drive plug/unplug scenarios
+- [x] 4.5 Integration tests for replication workflow
+  - [x] Test internal→main replication during `:internal_to_main`
+  - [x] Test main→internal replication during `:main`
+  - [x] Test subscription disable/enable on mode transitions
+  - [x] Test drive plug/unplug scenarios
+  - [x] 6 integration tests passing (publication setup, bootstrap sync, mode transitions, data divergence)
 
 ## 5. Configuration and Documentation
 - [x] 5.1 Add configuration options to `config/config.exs`
