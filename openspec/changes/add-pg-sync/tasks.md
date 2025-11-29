@@ -33,10 +33,10 @@
   - [x] On exit (mode → `:main_to_internal`): disable main→internal subscription
 
 ## 3. PostgreSQL Setup
-- [ ] 3.1 Update `Platform.Storage.Pg.Initializer`
-  - [ ] Create replication user during `initdb` (if not exists)
-  - [ ] Grant replication privileges to replication user
-  - [ ] Update `pg_hba.conf` to allow replication connections
+- [x] 3.1 Update `Platform.Storage.Pg.Initializer`
+  - [x] Create replication user during `initdb` (if not exists)
+  - [x] Grant replication privileges to replication user
+  - [x] Update `pg_hba.conf` to allow replication connections
 - [x] 3.2 Add configuration for replication connection strings
   - [x] Internal PG connection string (host, port, user, password)
   - [x] Main PG connection string (host, port, user, password)

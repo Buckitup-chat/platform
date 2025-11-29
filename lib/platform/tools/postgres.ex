@@ -100,12 +100,116 @@ defmodule Platform.Tools.Postgres do
     |> go_on(fn
       {_, 0} ->
         ["PostgreSQL database initialized successfully"] |> log(:info)
-        :ok
+        setup_replication(opts)
 
       {output, _} ->
         ["PostgreSQL database initialization failed: ", output] |> log(:error)
         {:error, output}
     end)
+  end
+
+  @doc """
+  Configure pg_hba.conf for replication connections using the postgres superuser.
+  This should be called after PostgreSQL initialization.
+
+  ## Options
+  - `:pg_dir` - Base directory for PostgreSQL data (required)
+  - `:pg_port` - PostgreSQL port (default: 5432)
+
+  ## Returns
+  - `:ok` if replication setup was successful
+  - `{:error, reason}` if setup failed
+  """
+  def setup_replication(opts) do
+    pg_dir = Keyword.fetch!(opts, :pg_dir)
+    pg_port = Keyword.get(opts, :pg_port, 5432)
+    pg_data_dir = Path.join(pg_dir, "data")
+
+    ["Setting up replication configuration"] |> log(:info)
+
+    # Update pg_hba.conf to allow replication connections
+    hba_result = update_pg_hba_conf(pg_data_dir)
+
+    case hba_result do
+      :ok ->
+        # Start PostgreSQL temporarily if not running to reload config
+        was_running = server_running?(opts)
+
+        unless was_running do
+          case start(opts) do
+            :ok -> :ok
+            {:error, reason} -> {:error, "Failed to start PostgreSQL for config reload: #{reason}"}
+          end
+        end
+
+        # Reload PostgreSQL configuration
+        reload_result = run_sql("SELECT pg_reload_conf();", pg_port: pg_port)
+
+        # Stop PostgreSQL if we started it
+        unless was_running do
+          stop(opts)
+        end
+
+        case reload_result do
+          {:ok, _} ->
+            ["Replication configuration setup successfully"] |> log(:info)
+            :ok
+
+          {:error, reason} ->
+            ["Failed to reload PostgreSQL configuration: ", reason] |> log(:error)
+            {:error, "Failed to reload configuration: #{reason}"}
+        end
+
+      {:error, reason} ->
+        ["Failed to update pg_hba.conf: ", reason] |> log(:error)
+        {:error, "Failed to update pg_hba.conf: #{reason}"}
+    end
+  end
+
+  @doc """
+  Update pg_hba.conf to allow replication connections.
+
+  ## Parameters
+  - `pg_data_dir` - PostgreSQL data directory path
+
+  ## Returns
+  - `:ok` if pg_hba.conf was updated successfully
+  - `{:error, reason}` if update failed
+  """
+  def update_pg_hba_conf(pg_data_dir) do
+    hba_file = Path.join(pg_data_dir, "pg_hba.conf")
+
+    case File.read(hba_file) do
+      {:ok, content} ->
+        # Check if replication entry already exists
+        if String.contains?(content, "# Replication connections") do
+          ["pg_hba.conf already configured for replication"] |> log(:debug)
+          :ok
+        else
+          # Add replication entries for postgres superuser
+          replication_entries = """
+
+          # Replication connections
+          host    replication     #{@postgres_user}     127.0.0.1/32            trust
+          host    replication     #{@postgres_user}     ::1/128                 trust
+          local   replication     #{@postgres_user}                             trust
+          """
+
+          new_content = content <> replication_entries
+
+          case File.write(hba_file, new_content) do
+            :ok ->
+              ["pg_hba.conf updated for replication connections"] |> log(:info)
+              :ok
+
+            {:error, reason} ->
+              {:error, "Failed to write pg_hba.conf: #{inspect(reason)}"}
+          end
+        end
+
+      {:error, reason} ->
+        {:error, "Failed to read pg_hba.conf: #{inspect(reason)}"}
+    end
   end
 
   def make_accessible(path) do
@@ -408,6 +512,16 @@ defmodule Platform.Tools.Postgres do
   def get_postgres_gid do
     {gid_str, 0} = MuonTrap.cmd("id", ["-g", @postgres_user], stderr_to_stdout: true)
     String.trim(gid_str) |> String.to_integer()
+  end
+
+  @doc """
+  Get replication user credentials.
+
+  ## Returns
+  A keyword list with `:username` for the postgres superuser (no password needed with trust auth).
+  """
+  def replication_credentials do
+    [username: @postgres_user]
   end
 
   defp ensure_dirs_permissions([], _uid, _gid), do: :ok
