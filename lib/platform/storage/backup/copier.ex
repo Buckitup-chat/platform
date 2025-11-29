@@ -3,8 +3,7 @@ defmodule Platform.Storage.Backup.Copier do
   Syncs data between backup and current DB
   """
   use GracefulGenServer
-
-  require Logger
+  use OriginLog
 
   alias Chat.Db
   alias Chat.Db.{Common, Copying, Switching}
@@ -27,7 +26,7 @@ defmodule Platform.Storage.Backup.Copier do
 
   @impl true
   def on_msg(:start, %{task_in: tasks_name, continuous?: continuous?} = state) do
-    "[backup] Syncing " |> Logger.info()
+    log("syncing", :info)
 
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
@@ -70,7 +69,7 @@ defmodule Platform.Storage.Backup.Copier do
       Stopper.start_link(wait: 100, device: device)
     end
 
-    "[backup] Synced " |> Logger.info()
+    log("synced", :info)
     {:noreply, state}
   end
 

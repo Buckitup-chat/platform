@@ -2,10 +2,9 @@ defmodule Platform.App.Drive.BootSupervisor do
   @moduledoc "Starts drive booting (till be able to decide what to do next)"
 
   use Supervisor
+  use OriginLog
 
   import Platform
-
-  require Logger
 
   alias Platform.Storage.DriveIndicationStarter
   alias Platform.UsbDrives.Decider
@@ -23,7 +22,7 @@ defmodule Platform.App.Drive.BootSupervisor do
     |> supervision_tree()
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
-      "Platform.App.Drives.BootSupervisor init result #{inspect(res)}" |> Logger.debug()
+      log("init result #{inspect(res)}", :debug)
     end)
   end
 

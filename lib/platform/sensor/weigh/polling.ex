@@ -1,7 +1,7 @@
 defmodule Platform.Sensor.Weigh.Polling do
   @moduledoc "Weight sensor polling pipeline"
 
-  require Logger
+  use OriginLog
   alias Platform.Sensor.Weigh.Protocol
 
   defstruct [:proto, :msg, :error]
@@ -47,7 +47,6 @@ defmodule Platform.Sensor.Weigh.Polling do
   end
 
   defp log_error(error) do
-    "Error connecting to weight sensor: #{inspect(error, pretty: true)}"
-    |> Logger.warning()
+    log("Error connecting to weight sensor: #{inspect(error, pretty: true)}", :warning)
   end
 end

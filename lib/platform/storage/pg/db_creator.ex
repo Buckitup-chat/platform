@@ -4,8 +4,7 @@ defmodule Platform.Storage.Pg.DbCreator do
   Runs once to create the specified database if it doesn't exist.
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
-
-  require Logger
+  use OriginLog
 
   alias Platform.Tools.Postgres
 
@@ -43,7 +42,7 @@ defmodule Platform.Storage.Pg.DbCreator do
 
   def on_msg({ref, _result}, %{task_ref: ref, db_name: db_name} = state) do
     Process.demonitor(ref, [:flush])
-    Logger.info("Database '#{db_name}' ready, starting next stage")
+    log("Database '#{db_name}' ready, starting next stage", :info)
     send(self(), :db_ready)
     {:noreply, state}
   end

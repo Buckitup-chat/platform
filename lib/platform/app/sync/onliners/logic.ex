@@ -4,8 +4,7 @@ defmodule Platform.App.Sync.Onliners.Logic do
   """
 
   use GenServer
-
-  require Logger
+  use OriginLog
 
   alias Chat.Db.Scope.KeyScope
   alias Phoenix.PubSub
@@ -21,14 +20,14 @@ defmodule Platform.App.Sync.Onliners.Logic do
 
   @impl GenServer
   def init([target_db, tasks_name]) do
-    "Platform.App.Sync.Onliners.Logic start" |> Logger.info()
+    log("start", :info)
 
     {:ok, [target_db: target_db, tasks_name: tasks_name], {:continue, :start_sync}}
   end
 
   @impl GenServer
   def handle_continue(:start_sync, opts) do
-    "Platform.App.Sync.Onliners.Logic starting sync" |> Logger.info()
+    log("starting sync", :info)
 
     PubSub.subscribe(Chat.PubSub, @incoming_topic)
     PubSub.broadcast(Chat.PubSub, @outgoing_topic, "get_online_users_keys")
@@ -42,7 +41,7 @@ defmodule Platform.App.Sync.Onliners.Logic do
   end
 
   defp do_sync(opts, keys) do
-    "Platform.App.Sync.Onliners.Logic syncing" |> Logger.info()
+    log("syncing", :info)
 
     backup_keys = KeyScope.get_keys(Chat.Db.db(), keys)
     restoration_keys = KeyScope.get_keys(opts[:target_db], keys)

@@ -1,10 +1,9 @@
 defmodule Platform.App.Drive.CargoSyncSupervisor do
   @moduledoc "Cargo scenario"
   use Supervisor
+  use OriginLog
 
   import Platform
-
-  require Logger
 
   alias Chat.Db.MediaDbSupervisor
 
@@ -31,7 +30,7 @@ defmodule Platform.App.Drive.CargoSyncSupervisor do
 
   @impl Supervisor
   def init([device, path | _]) do
-    "CargoSyncSupervisor start" |> Logger.info()
+    log("start", :info)
 
     type = "cargo_db"
     full_path = [path, type, Chat.Db.version_path()] |> Path.join()

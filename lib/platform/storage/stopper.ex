@@ -3,7 +3,7 @@ defmodule Platform.Storage.Stopper do
   Awaits few seconds and finalizes copying
   """
 
-  require Logger
+  use OriginLog
 
   alias Platform.Leds
   alias Platform.UsbDrives.Drive
@@ -11,13 +11,13 @@ defmodule Platform.Storage.Stopper do
   @default_wait if(Application.compile_env(:platform, :target) == :host, do: 100, else: 5000)
 
   def start_link(opts \\ []) do
-    Logger.info("starting #{__MODULE__}")
+    log("starting", :info)
 
     wait = Keyword.get(opts, :wait, @default_wait)
 
     Task.Supervisor.async_nolink(Platform.TaskSupervisor, fn ->
       Leds.blink_dump()
-      Logger.info("backup finished. Stopping supervisor")
+      log("backup finished. Stopping supervisor", :info)
 
       Process.sleep(wait)
       Drive.terminate(opts[:device])

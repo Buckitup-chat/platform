@@ -1,7 +1,7 @@
 defmodule Platform.Log do
   @moduledoc "Helpers for unified logging"
 
-  require Logger
+  use OriginLog
 
   def fsck_warn(code, msg) do
     log(["[fsck] ", "(", inspect(code), ") ", msg], :warning)
@@ -11,7 +11,4 @@ defmodule Platform.Log do
     log(["[postgres] ", msg], level)
   end
 
-  defp log(msg, level) do
-    Logger.log(level, ["[platform] " | msg])
-  end
 end

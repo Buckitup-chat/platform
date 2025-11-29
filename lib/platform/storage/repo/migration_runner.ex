@@ -4,8 +4,7 @@ defmodule Platform.Storage.Repo.MigrationRunner do
   This is a one-time operation that runs migrations and then propagates to next stage.
   """
   use GracefulGenServer, timeout: :timer.minutes(3)
-
-  require Logger
+  use OriginLog
 
   @impl true
   def on_init(opts) do
@@ -29,7 +28,7 @@ defmodule Platform.Storage.Repo.MigrationRunner do
           task_supervisor: task_supervisor
         } = state
       ) do
-    Logger.info("Running migrations for repo #{inspect(repo_name)}")
+    log("Running migrations for repo #{inspect(repo_name)}", :info)
 
     %{ref: ref} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
@@ -48,10 +47,10 @@ defmodule Platform.Storage.Repo.MigrationRunner do
 
     case result do
       migrations when is_list(migrations) ->
-        Logger.info("Migrations completed for #{inspect(repo_name)}, starting next stage")
+        log("Migrations completed for #{inspect(repo_name)}, starting next stage", :info)
 
       error ->
-        Logger.warning("Migration task returned: #{inspect(error)}")
+        log("Migration task returned: #{inspect(error)}", :warning)
     end
 
     send(self(), :migrations_done)

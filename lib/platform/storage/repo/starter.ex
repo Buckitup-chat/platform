@@ -4,8 +4,7 @@ defmodule Platform.Storage.Repo.Starter do
   This is a long-running stage that keeps the repo alive and propagates to next stage.
   """
   use GracefulGenServer, timeout: :timer.minutes(3)
-
-  require Logger
+  use OriginLog
 
   @impl true
   def on_init(opts) do
@@ -31,14 +30,14 @@ defmodule Platform.Storage.Repo.Starter do
           next_supervisor: next_supervisor
         } = state
       ) do
-    Logger.info("Starting #{inspect(repo_name)} on port #{port}")
+    log("Starting #{inspect(repo_name)} on port #{port}", :info)
 
     {:ok, pid} =
       Application.get_env(:chat, Chat.Repo)
       |> Keyword.put(:port, port)
       |> repo_name.start_link()
 
-    Logger.info("Chat.Repo started successfully, starting next stage")
+    log("Chat.Repo started successfully, starting next stage", :info)
     Platform.start_next_stage(next_supervisor, next_specs)
 
     {:noreply, %{state | repo_pid: pid}}
@@ -46,7 +45,7 @@ defmodule Platform.Storage.Repo.Starter do
 
   @impl true
   def on_exit(_reason, %{repo_name: repo_name}) do
-    Logger.info("Repo starter stage exiting for #{inspect(repo_name)}")
+    log("Repo starter stage exiting for #{inspect(repo_name)}", :info)
     :ok
   end
 end

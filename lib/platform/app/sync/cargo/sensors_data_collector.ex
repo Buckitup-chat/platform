@@ -1,9 +1,8 @@
 defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
-  @moduledoc "Collects camera sensors data"
+  @moduledoc "Collects sensor data and writes it to the database"
 
+  use OriginLog
   use GracefulGenServer, name: __MODULE__
-
-  require Logger
 
   alias Chat.AdminRoom
   alias Chat.Db
@@ -134,6 +133,6 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   defp log_unwritten_keys(progress) do
     Copying.Progress.get_unwritten_keys(progress)
     |> inspect(pretty: true)
-    |> then(&Logger.warning(["[cargo] [sensor] unwritten keys: ", &1]))
+    |> then(&log(["unwritten keys: ", &1], :warning))
   end
 end

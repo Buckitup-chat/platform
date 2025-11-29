@@ -1,7 +1,7 @@
 defmodule Platform.Tools.PartEd do
   @moduledoc "parted wrapper"
 
-  require Logger
+  use OriginLog
 
   alias Platform.Tools.PartEd.Print
   alias Platform.Tools.Proto.Device
@@ -20,9 +20,7 @@ defmodule Platform.Tools.PartEd do
         end
 
       error ->
-        error
-        |> inspect(pretty: true)
-        |> Logger.notice()
+        log(inspect(error, pretty: true), :notice)
 
         0
     end

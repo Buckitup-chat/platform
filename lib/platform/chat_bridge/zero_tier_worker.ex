@@ -1,8 +1,8 @@
 defmodule Platform.ChatBridge.ZeroTierWorker do
-  @moduledoc "ZeroTier worker"
+  @moduledoc "ZeroTier CLI wrapper"
   # cmd "zerotier-cli -D/root/zt info"
 
-  require Logger
+  use OriginLog
   use GenServer
   import Tools.GenServerHelpers
 
@@ -48,7 +48,7 @@ defmodule Platform.ChatBridge.ZeroTierWorker do
     {out, code} = System.cmd(command, args)
 
     if code != 0 do
-      Logger.error("ZeroTier: #{out}")
+      log("ZeroTier: #{out}", :error)
       {:error, out}
     else
       {:ok, out}

@@ -4,8 +4,7 @@ defmodule Platform.Storage.Bouncer do
   """
 
   use GenServer
-
-  require Logger
+  use OriginLog
 
   alias Chat.Db.DbType
 
@@ -15,23 +14,24 @@ defmodule Platform.Storage.Bouncer do
 
   @impl true
   def init([db: db, type: type] = opts) do
-    Logger.info("starting #{__MODULE__} with opts #{inspect(opts)}")
+    log("starting with opts #{inspect(opts)}", :info)
 
     expected_type = determine_type(type)
 
     case DbType.get(db) do
       nil ->
-        Logger.info("[Bouncer] No DB type found. Using #{type} as #{expected_type}")
+        log("No DB type found. Using #{type} as #{expected_type}", :info)
         DbType.put(db, expected_type)
         {:ok, nil}
 
       ^expected_type ->
-        Logger.info("[Bouncer] Using #{type} as #{expected_type}")
+        log("Using #{type} as #{expected_type}", :info)
         {:ok, nil}
 
       type ->
-        Logger.warning(
-          "[Bouncer] Wrong DB type! Got #{type} from DB, but expected #{expected_type}"
+        log(
+          "Wrong DB type! Got #{type} from DB, but expected #{expected_type}",
+          :warning
         )
 
         {:error, nil}

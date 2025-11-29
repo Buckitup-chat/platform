@@ -3,10 +3,9 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
   Main DB device mount
   """
   use Supervisor
+  use OriginLog
 
   import Platform
-
-  require Logger
 
   alias Chat.Admin.BackupSettings
   alias Chat.AdminRoom
@@ -23,7 +22,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
 
   @impl true
   def init([device, path | _]) do
-    "Backup DB Supervisor start" |> Logger.info()
+    log("start", :info)
 
     type = "backup_db"
     full_path = [path, type, Chat.Db.version_path()] |> Path.join()
@@ -40,7 +39,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
     ]
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
-      "BackupDbSupervisor init result #{inspect(res)}" |> Logger.debug()
+      log("init result #{inspect(res)}", :debug)
     end)
   end
 end

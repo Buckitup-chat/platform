@@ -3,10 +3,9 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   Starts supervision tree for online sync.
   """
   use Supervisor
+  use OriginLog
 
   import Platform
-
-  require Logger
 
   alias Chat.Db.MediaDbSupervisor
   alias Platform.App.Sync.Onliners.ScopeProvider
@@ -26,7 +25,7 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
 
   @impl true
   def init([device, path | _]) do
-    "OnlinersSyncSupervisor start" |> Logger.info()
+    log("start", :info)
 
     type = "onliners_db"
     full_path = [path, type, Chat.Db.version_path()] |> Path.join()

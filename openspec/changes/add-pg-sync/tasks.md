@@ -1,18 +1,18 @@
 # Implementation Tasks
 
 ## 1. Core Modules Implementation
-- [x] 1.1 Create `Platform.Storage.Pg.ElectricSync` module for Electric Sync integration
+- [x] 1.1 Create `Platform.Tools.Postgres.ElectricSync` module for Electric Sync integration
   - [x] Wrap Electric Sync client for unidirectional sync
   - [x] Configure sync shapes for users table using public key as identifier
   - [x] Support configurable conflict resolution identifier per schema
   - [x] Handle Electric Sync connection lifecycle
 - [x] 1.2 Implement `Platform.Storage.Sync.run_local_sync/1` using Electric Sync
-  - [x] Determine sync direction based on mode (`:internal_to_main` or `:main`)
+  - [x] Determine sync direction based on mode (`:internal_to_main` or `:main_to_internal`)
   - [x] Iterate over configured schemas
   - [x] Call `ElectricSync` to perform unidirectional diff+copy
   - [x] Update status via `set_active/0`, `set_done/0`, `set_error/1`
   - [x] Log row counts and sync duration
-- [x] 1.4 Create `Platform.Storage.Pg.LogicalReplicator` module
+- [x] 1.4 Create `Platform.Tools.Postgres.LogicalReplicator` module
   - [x] Implement `create_publication/3` (repo, tables, publication_name)
   - [x] Implement `create_subscription/4` (repo, connection_string, publication_name, subscription_name)
   - [x] Implement `enable_subscription/2` and `disable_subscription/2`

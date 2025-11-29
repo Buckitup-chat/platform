@@ -1,9 +1,7 @@
 defmodule Platform.UsbDrives.Decider do
-  @moduledoc "Decides scenario"
+  @moduledoc "Decides which scenario to run"
 
-  use GenServer
-
-  require Logger
+  use OriginLog
 
   alias Platform.Tools.Mount
   alias Platform.Tools.Mkfs
@@ -122,21 +120,21 @@ defmodule Platform.UsbDrives.Decider do
       Process.sleep(1000)
       {output, code} = Mount.unmount("/dev/" <> device)
 
-      Logger.debug([
-        "[drive] [decider] Unmounting #{device}\n",
+      log([
+        "Unmounting #{device}\n",
         "exit code: #{code} \n",
         output
-      ])
+      ], :debug)
     end)
     |> tap(fn device ->
       Process.sleep(1000)
       {output, code} = Mkfs.f2fs(device)
 
-      Logger.info([
-        "[drive] [decider] F2FS optimization for #{device}\n",
+      log([
+        "F2FS optimization for #{device}\n",
         "exit code: #{code} \n",
         output
-      ])
+      ], :info)
     end)
     |> Mount.mount_at_path(path)
   end
@@ -150,10 +148,10 @@ defmodule Platform.UsbDrives.Decider do
           :ok
 
         error ->
-          Logger.error([
-            "[drive] [decider] Error staring scenario #{scenario}\n",
+          log([
+            "Error staring scenario #{scenario}\n",
             inspect(error, pretty: true)
-          ])
+          ], :error)
 
           error
       end

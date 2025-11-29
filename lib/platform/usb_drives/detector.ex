@@ -1,7 +1,7 @@
 defmodule Platform.UsbDrives.Detector do
   @moduledoc "Drive detector side effects"
 
-  require Logger
+  use OriginLog
 
   alias Platform.App.Drive.BootSupervisor
   alias Platform.Storage.DriveIndication
@@ -35,10 +35,10 @@ defmodule Platform.UsbDrives.Detector do
   end
 
   def log_added(devices) do
-    Logger.debug("[drive detector] added: " <> Enum.join(devices, ", "))
+    log("added: " <> Enum.join(devices, ", "), :debug)
   end
 
   def log_removed(devices) do
-    Logger.debug("[drive detector] removed: " <> Enum.join(devices, ", "))
+    log("removed: " <> Enum.join(devices, ", "), :debug)
   end
 end

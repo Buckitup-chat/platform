@@ -4,8 +4,7 @@ defmodule Platform.Storage.Pg.Initializer do
   Runs once to set up the PostgreSQL data directory and configuration.
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
-
-  require Logger
+  use OriginLog
 
   alias Platform.Tools.Postgres
 
@@ -52,7 +51,7 @@ defmodule Platform.Storage.Pg.Initializer do
   end
 
   def on_msg(:initialized, %{next_specs: next_specs, next_supervisor: next_supervisor} = state) do
-    Logger.info("PostgreSQL initialized, starting next stage")
+    log("PostgreSQL initialized, starting next stage", :info)
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
   end

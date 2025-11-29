@@ -3,8 +3,7 @@ defmodule Platform.Emulator.Drive.Mounter do
   Does nothing, but tree building
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
-
-  require Logger
+  use OriginLog
 
   @impl true
   def on_init(opts) do
@@ -30,6 +29,6 @@ defmodule Platform.Emulator.Drive.Mounter do
 
   @impl true
   def on_exit(reason, %{path: path, task_supervisor: _task_supervisor}) do
-    "mount cleanup #{path} #{inspect(reason)}" |> Logger.warning()
+    log("mount cleanup #{path} #{inspect(reason)}", :warning)
   end
 end

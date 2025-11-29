@@ -1,9 +1,8 @@
 defmodule Platform.App.Drive.UsbDriveDumpSupervisor do
   @moduledoc "Usb drive dump scenario"
   use Supervisor
+  use OriginLog
   import Platform
-
-  require Logger
 
   alias Platform.App.Sync.UsbDriveDump.Completer
   alias Platform.App.Sync.UsbDriveDump.Dumper
@@ -20,7 +19,7 @@ defmodule Platform.App.Drive.UsbDriveDumpSupervisor do
 
   @impl Supervisor
   def init([_device, path | _]) do
-    "UsbDriveDumpSupervisor start" |> Logger.info()
+    log("start", :info)
 
     full_path = [path, "DCIM"] |> Path.join()
     tasks = Tasks
@@ -34,7 +33,7 @@ defmodule Platform.App.Drive.UsbDriveDumpSupervisor do
     |> prepare_stages(Platform.App.Drive.UsbDriveDumpStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
-      "UsbDriveDumpSupervisor init result #{inspect(res)}" |> Logger.debug()
+      log("init result #{inspect(res)}", :debug)
     end)
   end
 end

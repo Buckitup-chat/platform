@@ -3,10 +3,9 @@ defmodule Platform.App.DeviceSupervisor do
   Handles Main and Backup database supervision trees
   """
   use Supervisor
+  use OriginLog
 
   import Platform
-
-  require Logger
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg,
@@ -18,7 +17,7 @@ defmodule Platform.App.DeviceSupervisor do
 
   @impl true
   def init(_init_arg) do
-    "Device Supervisor start" |> Logger.debug()
+    log("start", :debug)
 
     children =
       [

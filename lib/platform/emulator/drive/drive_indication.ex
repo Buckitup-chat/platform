@@ -4,7 +4,7 @@ defmodule Platform.Emulator.Drive.DriveIndication do
   alias Platform.Storage.DriveIndication, as: IndicationServer
 
   use GracefulGenServer, name: IndicationServer
-  require Logger
+  use OriginLog
 
   @blink_interval 500
 
@@ -29,25 +29,25 @@ defmodule Platform.Emulator.Drive.DriveIndication do
       red_pin_mode: :off,
       green_pin_mode: :off
     }
-    |> tap(fn _ -> Logger.debug("[DriveIndication] started.") end)
+    |> tap(fn _ -> log("started", :debug) end)
   end
 
   @impl true
   def handle_cast(:drive_init, state) do
     {:noreply, %{state | red_pin_mode: :on, green_pin_mode: :on}}
-    |> tap(fn _ -> Logger.debug("[DriveIndication] drive initialized.") end)
+    |> tap(fn _ -> log("drive initialized", :debug) end)
   end
 
   @impl true
   def handle_cast(:drive_accepted, state) do
     {:noreply, %{state | red_pin_mode: :on, green_pin_mode: :off}}
-    |> tap(fn _ -> Logger.debug("[DriveIndication] drive accepted.") end)
+    |> tap(fn _ -> log("drive accepted", :debug) end)
   end
 
   @impl true
   def handle_cast(:drive_complete, state) do
     {:noreply, %{state | red_pin_mode: :off, green_pin_mode: :on}}
-    |> tap(fn _ -> Logger.debug("[DriveIndication] drive complete.") end)
+    |> tap(fn _ -> log("drive complete", :debug) end)
   end
 
   @impl true
@@ -55,13 +55,13 @@ defmodule Platform.Emulator.Drive.DriveIndication do
     Process.send_after(self(), :blink_red, @blink_interval)
 
     {:noreply, %{state | red_pin_mode: :blink, green_pin_mode: :off}}
-    |> tap(fn _ -> Logger.debug("[DriveIndication] drive refused.") end)
+    |> tap(fn _ -> log("drive refused", :debug) end)
   end
 
   @impl true
   def handle_cast(:drive_reset, state) do
     {:noreply, %{state | red_pin_mode: :off, green_pin_mode: :off}}
-    |> tap(fn _ -> Logger.debug("[DriveIndication] drive reset.") end)
+    |> tap(fn _ -> log("drive reset", :debug) end)
   end
 
   @impl true
@@ -87,6 +87,6 @@ defmodule Platform.Emulator.Drive.DriveIndication do
 
   @impl true
   def on_exit(_reason, _state) do
-    Logger.debug("[DriveIndication] drive reset. shutting down")
+    log("drive reset. shutting down", :debug)
   end
 end

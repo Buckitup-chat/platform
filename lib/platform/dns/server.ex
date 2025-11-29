@@ -2,8 +2,7 @@ defmodule Platform.Dns.Server do
   @moduledoc "DnsServer to inject our domain"
 
   use GenServer
-
-  require Logger
+  use OriginLog
 
   @doc """
   Start DNS.Server` server.
@@ -108,20 +107,20 @@ defmodule Platform.Dns.Server do
   end
 
   defp log_send_error(send_error, data) do
-    Logger.warning([
-      "[Dns.Server] sending response error: ",
+    log([
+      "sending response error: ",
       inspect(send_error),
       " on: ",
       data |> format_data() |> inspect()
-    ])
+    ], :warning)
   end
 
   defp log_error(err, data) do
-    Logger.warning([
-      "[Dns.Server] error: ",
+    log([
+      "error: ",
       inspect(err),
       " on: ",
       data |> format_data() |> inspect()
-    ])
+    ], :warning)
   end
 end

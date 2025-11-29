@@ -2,8 +2,7 @@ defmodule Platform.Storage.MainReplicator do
   @moduledoc "GenServer to replicate main to internal every 5min or so"
 
   use GenServer
-
-  require Logger
+  use OriginLog
 
   alias Platform.Storage.Logic
 
@@ -25,7 +24,7 @@ defmodule Platform.Storage.MainReplicator do
     {:noreply, schedule()}
   rescue
     e ->
-      Logger.warning(" [platform] error replicating: #{inspect(e)}")
+      log("error replicating: #{inspect(e)}", :warning)
       {:noreply, schedule()}
   end
 

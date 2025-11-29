@@ -3,14 +3,13 @@ defmodule Platform.Storage.Copier do
   Copies data from the target db to current db and vice versa
 
   Required options:
-    - target: db_pid 
+    - target: db_pid
     - task_in: Task.Supervisor
-    - get_db_keys_from: GenServer that returns {backup_keys, restoration_keys} on :db_keys call 
+    - get_db_keys_from: GenServer that returns {backup_keys, restoration_keys} on :db_keys call
     - next: [under: DynamicSupervisor, run: supervisor_children]
   """
   use GracefulGenServer
-
-  require Logger
+  use OriginLog
 
   alias Chat.Db
   alias Chat.Db.Copying
@@ -21,7 +20,7 @@ defmodule Platform.Storage.Copier do
 
   @impl true
   def on_init(opts) do
-    "Copier start" |> Logger.info()
+    log("start", :info)
 
     next = Keyword.fetch!(opts, :next)
     Process.send_after(self(), :start, 10)
@@ -45,7 +44,7 @@ defmodule Platform.Storage.Copier do
           db_keys_provider: db_keys_provider
         } = state
       ) do
-    "[media] Syncing " |> Logger.info()
+    log("syncing", :info)
 
     {backup_keys, restoration_keys} = GenServer.call(db_keys_provider, :db_keys)
 
@@ -70,12 +69,12 @@ defmodule Platform.Storage.Copier do
   end
 
   def on_msg(:copied, %{next_run: next_spec, next_under: next_supervisor} = state) do
-    "[media] Synced " |> Logger.info()
+    log("synced", :info)
 
     Platform.start_next_stage(next_supervisor, next_spec)
     |> case do
       {:ok, _} -> :ok
-      {:error, error} -> Logger.error(inspect(error, pretty: true))
+      {:error, error} -> log(inspect(error, pretty: true), :error)
     end
 
     {:noreply, state}

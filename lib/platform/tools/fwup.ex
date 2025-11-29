@@ -1,7 +1,7 @@
 defmodule Platform.Tools.Fwup do
   @moduledoc "fwup tasks"
 
-  require Logger
+  use OriginLog
 
   @firmware_source_path "/data/platform.fw"
 
@@ -10,14 +10,15 @@ defmodule Platform.Tools.Fwup do
 
     case run_upgrade() do
       {_, 0} ->
-        Logger.debug("[Platform.Tools.Fwup] firmware upgrade succeeded.")
+        log("firmware upgrade succeeded", :debug)
 
         schedule_source_cleanup_and_reboot()
         :ok
 
       {output, status} ->
-        Logger.debug(
-          "[Platform.Tools.Fwup] firmware upgrade failed with status #{status}. Error output: #{output}."
+        log(
+          "firmware upgrade failed with status #{status}. Error output: #{output}",
+          :debug
         )
 
         schedule_source_cleanup()

@@ -4,8 +4,7 @@ defmodule Platform.App.Sync.UsbDriveDump.Dumper do
   """
 
   use GracefulGenServer
-
-  require Logger
+  use OriginLog
 
   alias Chat.Sync.{UsbDriveDumpFile, UsbDriveDumpRoom, UsbDriveFileDumper}
   alias Platform.Leds
@@ -32,7 +31,7 @@ defmodule Platform.App.Sync.UsbDriveDump.Dumper do
           task_supervisor: tasks_name
         } = state
       ) do
-    "Platform.App.Sync.UsbDriveDump.Logic dumping started" |> Logger.info()
+    log("dumping started", :info)
 
     UsbDriveDumpRoom.dump()
 
@@ -61,7 +60,7 @@ defmodule Platform.App.Sync.UsbDriveDump.Dumper do
 
         UsbDriveDumpRoom.mark_successful()
 
-        "Platform.App.Sync.UsbDriveDump.Logic dumping finished" |> Logger.info()
+        log("dumping finished", :info)
         Leds.blink_done()
       end)
 

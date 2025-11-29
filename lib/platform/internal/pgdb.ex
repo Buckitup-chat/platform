@@ -4,8 +4,7 @@ defmodule Platform.Internal.PgDb do
   Handles initialization, startup, and monitoring of PostgreSQL server.
   """
   use Supervisor
-
-  require Logger
+  use OriginLog
 
   @db_name Application.compile_env(:chat, Chat.Repo, database: "chat")[:database]
   @pg_port Application.compile_env(:chat, :pg_port, 5432)
@@ -17,9 +16,9 @@ defmodule Platform.Internal.PgDb do
 
   @impl true
   def init(_args) do
-    Logger.info("Starting PostgreSQL supervisor")
+    log("Starting PostgreSQL supervisor", :info)
     Platform.Tools.Postgres.initialize(pg_dir: @pg_dir)
-    Logger.info("PostgreSQL initialized successfully")
+    log("PostgreSQL initialized successfully", :info)
 
     [
       postgres_daemon_spec(),

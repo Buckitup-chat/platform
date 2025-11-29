@@ -3,8 +3,7 @@ defmodule Platform.Storage.Mounter do
   Mounts on start, unmount on terminate
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
-
-  require Logger
+  use OriginLog
 
   alias Platform.Storage.Device
   alias Platform.Tools.Mount
@@ -56,7 +55,7 @@ defmodule Platform.Storage.Mounter do
 
   @impl true
   def on_exit(reason, %{path: path, task_supervisor: task_supervisor}) do
-    "mount cleanup #{path} #{inspect(reason)}" |> Logger.warning()
+    log("mount cleanup #{path} #{inspect(reason)}", :warning)
 
     Task.Supervisor.start_child(task_supervisor, fn ->
       Process.sleep(2000)

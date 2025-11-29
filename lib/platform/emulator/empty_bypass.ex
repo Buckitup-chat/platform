@@ -5,8 +5,7 @@ defmodule Platform.Emulator.EmptyBypass do
   Used in emulated environment to skip steps and stages that aren't needed.
   """
   use GracefulGenServer, timeout: :timer.seconds(5)
-
-  require Logger
+  use OriginLog
 
   @impl true
   def on_init(opts) do
@@ -21,7 +20,7 @@ defmodule Platform.Emulator.EmptyBypass do
 
   @impl true
   def on_msg(:skip, %{next_specs: next_specs, next_supervisor: next_supervisor} = state) do
-    Logger.debug("EmptyBypass: skipping to next stage")
+    log("skipping to next stage", :debug)
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
   end

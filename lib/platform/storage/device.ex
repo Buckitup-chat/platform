@@ -2,7 +2,7 @@ defmodule Platform.Storage.Device do
   @moduledoc """
   Device level operations
   """
-  require Logger
+  use OriginLog
 
   alias Chat.Db.Maintenance
   alias Platform.Leds
@@ -21,7 +21,7 @@ defmodule Platform.Storage.Device do
     end
 
     Leds.blink_done()
-    Logger.info("[platform] #{device} health checked")
+    log("#{device} health checked", :info)
 
     device
   end

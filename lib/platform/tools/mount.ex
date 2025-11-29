@@ -1,7 +1,7 @@
 defmodule Platform.Tools.Mount do
-  @moduledoc "mount wrapper"
+  @moduledoc "mount/unmount wrapper"
 
-  require Logger
+  use OriginLog
   alias Platform.Tools.Proto.Device
 
   def mount_at_path(device, path, mount_options \\ []) do
@@ -60,6 +60,6 @@ defmodule Platform.Tools.Mount do
   end
 
   defp log_mounting(device, path) do
-    Logger.info("[platform] Mounting #{device |> Device.path()} at #{path}")
+    log("Mounting #{device |> Device.path()} at #{path}", :info)
   end
 end

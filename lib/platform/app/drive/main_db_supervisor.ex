@@ -3,7 +3,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   Main DB device mount
   """
   use Supervisor
-  require Logger
+  use OriginLog
 
   import Platform
 
@@ -28,7 +28,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
 
   @impl true
   def init([_device, path, pg_opts]) do
-    "Main Db Supervisor start" |> Logger.debug()
+    log("start", :debug)
 
     full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()
     task_supervisor = Platform.App.Drive.MainDbSupervisor.Tasks
@@ -47,7 +47,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
     |> tap(fn specs ->
       specs
       |> calc_exit_time()
-      |> then(&Logger.debug("MainDbSupervisor exit time #{inspect(&1)}"))
+      |> then(&log("exit time #{inspect(&1)}", :debug))
     end)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end

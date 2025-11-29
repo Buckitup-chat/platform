@@ -5,8 +5,7 @@ defmodule Platform.Storage.Pg.Daemon do
   then starts the next stage.
   """
   use GracefulGenServer, timeout: :timer.minutes(3)
-
-  require Logger
+  use OriginLog
 
   alias Platform.Tools.Postgres
 
@@ -59,17 +58,17 @@ defmodule Platform.Storage.Pg.Daemon do
     end)
     |> Task.await(:timer.minutes(2))
 
-    Logger.info("PostgreSQL daemon ready on port #{pg_port}, starting next stage")
+    log("PostgreSQL daemon ready on port #{pg_port}, starting next stage", :info)
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
   end
 
   @impl true
   def on_exit(reason, %{pg_port: pg_port, daemon_pid: daemon_pid}) do
-    Logger.warning("PostgreSQL daemon stage exiting: #{inspect(reason)}")
+    log("PostgreSQL daemon stage exiting: #{inspect(reason)}", :warning)
 
     if daemon_pid && Process.alive?(daemon_pid) do
-      Logger.info("Stopping PostgreSQL daemon on port #{pg_port}")
+      log("Stopping PostgreSQL daemon on port #{pg_port}", :info)
     end
 
     :ok
@@ -86,7 +85,7 @@ defmodule Platform.Storage.Pg.Daemon do
   defp wait_for_postgres_ready(pg_port, attempts \\ 10) do
     cond do
       attempts <= 0 ->
-        Logger.error("PostgreSQL failed to start after 10 attempts")
+        log("PostgreSQL failed to start after 10 attempts", :error)
         {:error, :timeout}
 
       Postgres.server_running?(pg_port: pg_port) ->
