@@ -24,7 +24,9 @@ defmodule Platform.Internal.PgDb do
       postgres_daemon_spec(),
       {Task, fn -> setup_chat_database() end} |> Supervisor.child_spec(id: make_ref()),
       Chat.Repo,
-      {Task, fn -> Chat.RepoStarter.run_migrations() end} |> Supervisor.child_spec(id: make_ref())
+      {Task, fn -> Chat.RepoStarter.run_migrations() end} |> Supervisor.child_spec(id: make_ref()),
+      # Start Chat.InternalRepo - a named instance of Chat.Repo for internal PG sync
+      {Chat.Repo, [name: Chat.InternalRepo]}
     ]
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
   end

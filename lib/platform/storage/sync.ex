@@ -56,8 +56,8 @@ defmodule Platform.Storage.Sync do
 
     log("local in-process sync start source=#{inspect(source)} target=#{inspect(target)} schemas=#{inspect(schemas)}", :info)
 
-    # Perform unidirectional diff+copy using ElectricSync
-    case Platform.Tools.Postgres.ElectricSync.sync(
+    # Perform unidirectional diff+copy using BatchSync
+    case Platform.Tools.Postgres.BatchSync.sync(
            source_repo: source,
            target_repo: target,
            schemas: schemas

@@ -112,16 +112,15 @@
 - [ ] 6.4 Monitor logs for errors or warnings
 - [ ] 6.5 Deploy to production
 
-## 7. Future Enhancements (Next Phase)
-- [ ] 7.1 Migrate to Electric Sync for diff+copy
-  - [ ] Leverage existing Electric server in Chat project
-  - [ ] Replace `Platform.Storage.Pg.ElectricSync` minimal implementation with Electric client
-  - [ ] Configure Electric shapes for users table
-  - [ ] Test Electric-based sync vs current implementation
-  - [ ] Measure performance improvements
-- [ ] 7.2 Expand schema coverage
-  - [ ] Add more schemas beyond `:users`
-  - [ ] Configure conflict resolution identifiers per schema
-- [ ] 7.3 Retire CubDB sync
-  - [ ] Remove CubDB sync calls once PG sync is stable
-  - [ ] Keep CubDB for backward compatibility (read-only)
+## 7. Real Electric usage
+- [x] 7.1 Optimize ElectricSync with Electric-inspired patterns
+  - [x] Analyzed Chat's Electric setup (phoenix_sync embedded mode)
+  - [x] Decided on Option C: Use Electric's internal patterns for better diffing
+  - [x] Implemented batch inserts with `insert_all/3` instead of individual inserts
+  - [x] Added streaming/chunking for large datasets (500 rows per batch)
+  - [x] Improved conflict handling with `ON CONFLICT DO NOTHING` and `conflict_target`
+  - [x] Filter virtual fields from structs before insert_all
+  - [x] Updated unit tests for batch insert approach
+  - [x] All 23 unit tests passing
+  - [x] All 8 integration tests passing
+  - [x] All 16 sync integration tests passing

@@ -1,7 +1,7 @@
-defmodule Platform.Tools.Postgres.ElectricSyncTest do
+defmodule Platform.Tools.Postgres.BatchSyncTest do
   use ExUnit.Case, async: true
 
-  alias Platform.Tools.Postgres.ElectricSync
+  alias Platform.Tools.Postgres.BatchSync
 
   @moduletag :capture_log
 
@@ -80,6 +80,22 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       end
     end
 
+    # Batch insert for optimized sync
+    def insert_all(schema_module, entries, opts \\ []) do
+      test_pid = Process.get(:test_pid)
+      send(test_pid, {:target_repo_insert_all, schema_module, entries, opts})
+
+      # Simulate successful batch insert
+      case Process.get(:insert_result, :ok) do
+        :ok ->
+          {length(entries), nil}
+
+        :error ->
+          raise Postgrex.Error, message: "insert_all failed"
+      end
+    end
+
+    # Keep insert for backward compatibility with any other tests
     def insert(changeset, opts \\ []) do
       test_pid = Process.get(:test_pid)
       send(test_pid, {:target_repo_insert, changeset, opts})
@@ -108,7 +124,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
   describe "sync/1 - basic functionality" do
     test "syncs users schema from source to target" do
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -125,7 +141,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:source_data, :with_missing)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -136,7 +152,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
 
     test "handles multiple schemas" do
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users, :other_schema]
@@ -150,7 +166,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
 
     test "uses default schemas when not provided" do
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock
         )
@@ -169,7 +185,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:source_data, :full_users)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -178,8 +194,8 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       assert {:ok, stats} = result
       assert stats[:users] == 1
 
-      # Verify insert was called
-      assert_received {:target_repo_insert, _changeset, opts}
+      # Verify batch insert was called with on_conflict: :nothing
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
       assert opts[:on_conflict] == :nothing
     end
 
@@ -190,7 +206,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:source_data, :full_users)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -205,7 +221,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:target_data, :same_as_source)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -215,7 +231,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       assert stats[:users] == 0
 
       # Verify no insert was called
-      refute_received {:target_repo_insert, _, _}
+      refute_received {:target_repo_insert_all, _, _, _}
     end
 
     test "handles empty source" do
@@ -223,7 +239,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:target_data, :default)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -238,7 +254,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:target_data, :empty)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -255,7 +271,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:target_data, :empty)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -270,7 +286,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
 
     test "skips unsupported schemas with warning" do
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:unsupported_schema]
@@ -283,7 +299,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
 
   describe "sync/1 - connection lifecycle" do
     test "queries both source and target repos" do
-      ElectricSync.sync(
+      BatchSync.sync(
         source_repo: SourceRepoMock,
         target_repo: TargetRepoMock,
         schemas: [:users]
@@ -297,8 +313,8 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
     test "handles repo query failures gracefully" do
       # This would require mocking repo.all to raise
       # For now, we verify the rescue clause exists in the implementation
-      assert Code.ensure_loaded?(ElectricSync)
-      assert function_exported?(ElectricSync, :sync, 1)
+      assert Code.ensure_loaded?(BatchSync)
+      assert function_exported?(BatchSync, :sync, 1)
     end
   end
 
@@ -307,14 +323,14 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:source_data, :full_users)
       Process.put(:target_data, :empty)
 
-      ElectricSync.sync(
+      BatchSync.sync(
         source_repo: SourceRepoMock,
         target_repo: TargetRepoMock,
         schemas: [:users]
       )
 
-      # Verify insert uses on_conflict: :nothing
-      assert_received {:target_repo_insert, _changeset, opts}
+      # Verify batch insert uses on_conflict: :nothing
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
       assert opts[:on_conflict] == :nothing
     end
 
@@ -323,7 +339,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:target_data, :empty)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -341,7 +357,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:target_data, :empty)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -357,7 +373,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       # Logging is tested via @moduletag :capture_log
       # The actual log output would be captured in integration tests
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -368,7 +384,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
 
     test "logs sync completion with stats and duration" do
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -383,7 +399,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:source_data, :with_missing)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
@@ -399,7 +415,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       Process.put(:source_data, :with_missing)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users, :other_schema]
@@ -411,7 +427,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
 
     test "returns error when source_repo is missing" do
       assert_raise KeyError, fn ->
-        ElectricSync.sync(
+        BatchSync.sync(
           target_repo: TargetRepoMock,
           schemas: [:users]
         )
@@ -420,7 +436,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
 
     test "returns error when target_repo is missing" do
       assert_raise KeyError, fn ->
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           schemas: [:users]
         )
@@ -433,7 +449,7 @@ defmodule Platform.Tools.Postgres.ElectricSyncTest do
       start_time = System.monotonic_time(:millisecond)
 
       result =
-        ElectricSync.sync(
+        BatchSync.sync(
           source_repo: SourceRepoMock,
           target_repo: TargetRepoMock,
           schemas: [:users]
