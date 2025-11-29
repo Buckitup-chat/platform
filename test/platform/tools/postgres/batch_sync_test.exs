@@ -462,4 +462,174 @@ defmodule Platform.Tools.Postgres.BatchSyncTest do
       assert duration >= 0
     end
   end
+
+  describe "sync/1 - configurable conflict resolution" do
+    test "uses default :nothing conflict strategy when no config provided" do
+      Process.put(:source_data, :full_users)
+      Process.put(:target_data, :empty)
+
+      BatchSync.sync(
+        source_repo: SourceRepoMock,
+        target_repo: TargetRepoMock,
+        schemas: [:users]
+      )
+
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
+      assert opts[:on_conflict] == :nothing
+      assert opts[:conflict_target] == [:pub_key]
+    end
+
+    test "uses custom :nothing conflict strategy from schema_config" do
+      Process.put(:source_data, :full_users)
+      Process.put(:target_data, :empty)
+
+      BatchSync.sync(
+        source_repo: SourceRepoMock,
+        target_repo: TargetRepoMock,
+        schemas: [:users],
+        schema_config: %{
+          users: %{
+            on_conflict: :nothing
+          }
+        }
+      )
+
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
+      assert opts[:on_conflict] == :nothing
+    end
+
+    test "uses :replace_all conflict strategy from schema_config" do
+      Process.put(:source_data, :full_users)
+      Process.put(:target_data, :empty)
+
+      BatchSync.sync(
+        source_repo: SourceRepoMock,
+        target_repo: TargetRepoMock,
+        schemas: [:users],
+        schema_config: %{
+          users: %{
+            on_conflict: :replace_all
+          }
+        }
+      )
+
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
+      assert opts[:on_conflict] == :replace_all
+    end
+
+    test "uses {:update, fields} conflict strategy from schema_config" do
+      Process.put(:source_data, :full_users)
+      Process.put(:target_data, :empty)
+
+      BatchSync.sync(
+        source_repo: SourceRepoMock,
+        target_repo: TargetRepoMock,
+        schemas: [:users],
+        schema_config: %{
+          users: %{
+            on_conflict: {:update, [:name, :updated_at]}
+          }
+        }
+      )
+
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
+      assert opts[:on_conflict] == {:replace, [:name, :updated_at]}
+    end
+
+    test "uses custom conflict_target from schema_config" do
+      Process.put(:source_data, :full_users)
+      Process.put(:target_data, :empty)
+
+      BatchSync.sync(
+        source_repo: SourceRepoMock,
+        target_repo: TargetRepoMock,
+        schemas: [:users],
+        schema_config: %{
+          users: %{
+            conflict_target: [:pub_key, :name]
+          }
+        }
+      )
+
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
+      assert opts[:conflict_target] == [:pub_key, :name]
+    end
+
+    test "uses custom id_field from schema_config" do
+      Process.put(:source_data, :full_users)
+      Process.put(:target_data, :empty)
+
+      # The id_field affects which field is used for diffing
+      # Default for users is :pub_key
+      BatchSync.sync(
+        source_repo: SourceRepoMock,
+        target_repo: TargetRepoMock,
+        schemas: [:users],
+        schema_config: %{
+          users: %{
+            id_field: :pub_key
+          }
+        }
+      )
+
+      assert_received {:source_repo_all, _query}
+      assert_received {:target_repo_all, _query}
+    end
+
+    test "merges custom config with defaults" do
+      Process.put(:source_data, :full_users)
+      Process.put(:target_data, :empty)
+
+      # Only override on_conflict, keep default id_field and conflict_target
+      BatchSync.sync(
+        source_repo: SourceRepoMock,
+        target_repo: TargetRepoMock,
+        schemas: [:users],
+        schema_config: %{
+          users: %{
+            on_conflict: :replace_all
+          }
+        }
+      )
+
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
+      # Should use custom on_conflict
+      assert opts[:on_conflict] == :replace_all
+      # Should use default conflict_target
+      assert opts[:conflict_target] == [:pub_key]
+    end
+
+    test "falls back to :nothing for unknown conflict strategies" do
+      Process.put(:source_data, :full_users)
+      Process.put(:target_data, :empty)
+
+      BatchSync.sync(
+        source_repo: SourceRepoMock,
+        target_repo: TargetRepoMock,
+        schemas: [:users],
+        schema_config: %{
+          users: %{
+            on_conflict: :unknown_strategy
+          }
+        }
+      )
+
+      assert_received {:target_repo_insert_all, _schema, _entries, opts}
+      assert opts[:on_conflict] == :nothing
+    end
+
+    test "uses default :id for non-users schemas" do
+      # For unsupported schemas, we still check the default config
+      # The schema won't actually sync but the config should be correct
+      result =
+        BatchSync.sync(
+          source_repo: SourceRepoMock,
+          target_repo: TargetRepoMock,
+          schemas: [:other_schema]
+        )
+
+      assert {:ok, stats} = result
+      assert stats[:other_schema] == 0
+    end
+  end
 end

@@ -26,11 +26,18 @@ defmodule Platform.Tools.Postgres.BatchSync do
 
   @type repo :: module()
   @type schema :: atom()
+  @type conflict_strategy :: :nothing | :replace_all | {:update, [atom()]}
+  @type schema_config :: %{
+          id_field: atom(),
+          conflict_target: [atom()],
+          on_conflict: conflict_strategy()
+        }
   @type sync_opts :: [
           source_repo: repo(),
           target_repo: repo(),
           schemas: [schema()],
-          batch_size: pos_integer()
+          batch_size: pos_integer(),
+          schema_config: %{schema() => schema_config()}
         ]
 
   @doc """
@@ -49,6 +56,24 @@ defmodule Platform.Tools.Postgres.BatchSync do
   - `:target_repo` - Target Ecto repo (required)
   - `:schemas` - List of schema atoms to sync (default: `[:users]`)
   - `:batch_size` - Number of rows per batch insert (default: #{@batch_size})
+  - `:schema_config` - Per-schema configuration map (optional)
+
+  ## Schema Configuration
+
+  Each schema can have custom conflict resolution:
+
+      %{
+        users: %{
+          id_field: :pub_key,
+          conflict_target: [:pub_key],
+          on_conflict: :nothing  # or :replace_all or {:update, [:name, :updated_at]}
+        }
+      }
+
+  Conflict strategies:
+  - `:nothing` - Skip conflicting rows (CRDT-like, default)
+  - `:replace_all` - Replace entire row on conflict
+  - `{:update, fields}` - Update only specified fields on conflict
   """
   @spec sync(sync_opts()) :: {:ok, map()} | {:error, term()}
   def sync(opts) do
@@ -56,6 +81,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
     target_repo = Keyword.fetch!(opts, :target_repo)
     schemas = Keyword.get(opts, :schemas, [:users])
     batch_size = Keyword.get(opts, :batch_size, @batch_size)
+    schema_config = Keyword.get(opts, :schema_config, %{})
 
     log(
       "starting sync source=#{inspect(source_repo)} target=#{inspect(target_repo)} schemas=#{inspect(schemas)}",
@@ -66,7 +92,9 @@ defmodule Platform.Tools.Postgres.BatchSync do
 
     result =
       Enum.reduce_while(schemas, {:ok, %{}}, fn schema, {:ok, acc} ->
-        case sync_schema(source_repo, target_repo, schema, batch_size) do
+        config = get_schema_config(schema, schema_config)
+
+        case sync_schema(source_repo, target_repo, schema, batch_size, config) do
           {:ok, count} ->
             {:cont, {:ok, Map.put(acc, schema, count)}}
 
@@ -99,19 +127,41 @@ defmodule Platform.Tools.Postgres.BatchSync do
   end
 
   # Sync a single schema from source to target
-  defp sync_schema(source_repo, target_repo, :users, batch_size) do
-    # For users table, use pub_key as the identifier
-    sync_table(source_repo, target_repo, Chat.Data.Schemas.User, :pub_key, batch_size)
+  defp sync_schema(source_repo, target_repo, :users, batch_size, config) do
+    sync_table(source_repo, target_repo, Chat.Data.Schemas.User, batch_size, config)
   end
 
-  defp sync_schema(_source_repo, _target_repo, schema, _batch_size) do
+  defp sync_schema(_source_repo, _target_repo, schema, _batch_size, _config) do
     log("schema #{schema} not yet supported, skipping", :warning)
     {:ok, 0}
   end
 
+  # Get schema configuration with defaults
+  defp get_schema_config(:users, custom_config) do
+    default = %{
+      id_field: :pub_key,
+      conflict_target: [:pub_key],
+      on_conflict: :nothing
+    }
+
+    Map.merge(default, Map.get(custom_config, :users, %{}))
+  end
+
+  defp get_schema_config(schema, custom_config) do
+    default = %{
+      id_field: :id,
+      conflict_target: [:id],
+      on_conflict: :nothing
+    }
+
+    Map.merge(default, Map.get(custom_config, schema, %{}))
+  end
+
   # Generic table sync using a specific identifier field
-  defp sync_table(source_repo, target_repo, schema_module, id_field, batch_size) do
+  defp sync_table(source_repo, target_repo, schema_module, batch_size, config) do
     import Ecto.Query
+
+    id_field = config.id_field
 
     # Get all IDs from source
     source_ids =
@@ -141,7 +191,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
       |> MapSet.to_list()
       |> Stream.chunk_every(batch_size)
       |> Enum.reduce_while({:ok, 0}, fn batch_ids, {:ok, total} ->
-        case sync_batch(source_repo, target_repo, schema_module, id_field, batch_ids) do
+        case sync_batch(source_repo, target_repo, schema_module, batch_ids, config) do
           {:ok, count} ->
             {:cont, {:ok, total + count}}
 
@@ -161,8 +211,10 @@ defmodule Platform.Tools.Postgres.BatchSync do
   end
 
   # Sync a batch of rows
-  defp sync_batch(source_repo, target_repo, schema_module, id_field, batch_ids) do
+  defp sync_batch(source_repo, target_repo, schema_module, batch_ids, config) do
     import Ecto.Query
+
+    id_field = config.id_field
 
     # Fetch full rows from source for this batch
     rows =
@@ -184,9 +236,8 @@ defmodule Platform.Tools.Postgres.BatchSync do
         |> maybe_add_timestamps(schema_module)
       end)
 
-    # Batch insert with ON CONFLICT DO NOTHING
-    # This is the CRDT-like behavior: existing rows are preserved
-    case insert_all_safe(target_repo, schema_module, entries) do
+    # Batch insert with configurable conflict resolution
+    case insert_all_safe(target_repo, schema_module, entries, config) do
       {:ok, count} ->
         {:ok, count}
 
@@ -201,20 +252,15 @@ defmodule Platform.Tools.Postgres.BatchSync do
   end
 
   # Safe wrapper for insert_all that handles conflicts
-  defp insert_all_safe(_repo, _schema_module, entries) when entries == [] do
+  defp insert_all_safe(_repo, _schema_module, entries, _config) when entries == [] do
     {:ok, 0}
   end
 
-  defp insert_all_safe(repo, schema_module, entries) do
-    # Use insert_all with on_conflict: :nothing for CRDT-like behavior
-    # conflict_target specifies which columns to check for conflicts
-    {count, _} =
-      repo.insert_all(
-        schema_module,
-        entries,
-        on_conflict: :nothing,
-        conflict_target: conflict_target(schema_module)
-      )
+  defp insert_all_safe(repo, schema_module, entries, config) do
+    # Build insert options based on conflict strategy
+    opts = build_insert_opts(config)
+
+    {count, _} = repo.insert_all(schema_module, entries, opts)
 
     {:ok, count}
   rescue
@@ -225,9 +271,28 @@ defmodule Platform.Tools.Postgres.BatchSync do
       {:error, e}
   end
 
-  # Get the conflict target (primary key) for a schema
-  defp conflict_target(Chat.Data.Schemas.User), do: [:pub_key]
-  defp conflict_target(_schema), do: [:id]
+  # Build insert_all options based on conflict configuration
+  defp build_insert_opts(config) do
+    base_opts = [conflict_target: config.conflict_target]
+
+    case config.on_conflict do
+      :nothing ->
+        # CRDT-like: skip conflicting rows
+        Keyword.put(base_opts, :on_conflict, :nothing)
+
+      :replace_all ->
+        # Replace entire row on conflict
+        Keyword.put(base_opts, :on_conflict, :replace_all)
+
+      {:update, fields} when is_list(fields) ->
+        # Update only specified fields on conflict
+        Keyword.put(base_opts, :on_conflict, {:replace, fields})
+
+      _ ->
+        # Default to :nothing for unknown strategies
+        Keyword.put(base_opts, :on_conflict, :nothing)
+    end
+  end
 
   # Add timestamps if the schema has them but they're nil
   defp maybe_add_timestamps(attrs, schema_module) do
