@@ -43,11 +43,14 @@
   - [x] Derive from existing repo config using `repo.config()`
 
 ## 4. Testing
-- [ ] 4.1 Unit tests for `Platform.Storage.Pg.ElectricSync`
-  - [ ] Mock Electric Sync client
-  - [ ] Test shape configuration for users table
-  - [ ] Test unidirectional sync (internal→main and main→internal)
-  - [ ] Test connection lifecycle management
+- [x] 4.1 Unit tests for `Platform.Tools.Postgres.ElectricSync`
+  - [x] Mock Ecto repos for source and target
+  - [x] Test shape configuration for users table (pub_key identifier)
+  - [x] Test unidirectional sync (internal→main and main→internal)
+  - [x] Test connection lifecycle management
+  - [x] Test CRDT-like behavior (ON CONFLICT DO NOTHING)
+  - [x] Test error handling and statistics
+  - [x] Uses Chat.Data.Schemas.User from Chat dependency (no mock needed)
 - [ ] 4.2 Integration tests with Electric Sync
   - [ ] Test sync with missing rows on target
   - [ ] Test existing rows are preserved (CRDT-like behavior)

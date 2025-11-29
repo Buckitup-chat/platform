@@ -81,8 +81,8 @@ defmodule Platform.Tools.Postgres.ElectricSync do
 
   # Sync a single schema from source to target
   defp sync_schema(source_repo, target_repo, :users) do
-    # For users table, use public_key as the identifier
-    sync_table(source_repo, target_repo, Chat.User, :public_key)
+    # For users table, use pub_key as the identifier
+    sync_table(source_repo, target_repo, Chat.Data.Schemas.User, :pub_key)
   end
 
   defp sync_schema(_source_repo, _target_repo, schema) do
