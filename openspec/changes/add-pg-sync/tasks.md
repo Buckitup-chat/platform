@@ -51,21 +51,35 @@
   - [x] Test CRDT-like behavior (ON CONFLICT DO NOTHING)
   - [x] Test error handling and statistics
   - [x] Uses Chat.Data.Schemas.User from Chat dependency (no mock needed)
-- [ ] 4.2 Integration tests with Electric Sync
-  - [ ] Test sync with missing rows on target
-  - [ ] Test existing rows are preserved (CRDT-like behavior)
-  - [ ] Test sync with empty target
-  - [ ] Test sync direction based on mode
-- [ ] 4.3 Unit tests for `Platform.Storage.Pg.LogicalReplicator`
-  - [ ] Mock SQL execution via `Platform.Tools.Postgres`
-  - [ ] Test publication creation
-  - [ ] Test subscription creation/enable/disable
-  - [ ] Test lag checking
-- [ ] 4.4 Integration tests for `Platform.Storage.Sync`
-  - [ ] Test full sync flow with `:users` schema
-  - [ ] Test sync with diverged data
-  - [ ] Test sync with empty target
-  - [ ] Test error handling and status updates
+- [x] 4.2 Integration tests with Electric Sync
+  - [x] Test sync with missing rows on target
+  - [x] Test existing rows are preserved (CRDT-like behavior)
+  - [x] Test sync with empty target
+  - [x] Test sync direction based on mode (internal→main and main→internal)
+  - [x] Test partial sync (some rows already exist)
+  - [x] Test binary pub_key handling
+  - [x] Test statistics reporting
+  - [x] Created test repos (InternalRepo, MainRepo)
+  - [x] Created DatabaseHelper for setup/teardown
+  - [x] 8 integration tests passing
+- [x] 4.3 Unit tests for `Platform.Tools.Postgres.LogicalReplicator`
+  - [x] Mock Ecto repo for SQL execution
+  - [x] Test publication creation with idempotency
+  - [x] Test subscription creation with options (copy_data, enabled)
+  - [x] Test enable/disable subscription
+  - [x] Test lag checking via pg_stat_subscription
+  - [x] Test error handling for all operations
+- [x] 4.4 Integration tests for `Platform.Storage.Sync`
+  - [x] Test full sync flow with `:users` schema
+  - [x] Test sync with diverged data
+  - [x] Test sync with empty target
+  - [x] Test error handling and status updates
+  - [x] Test missing repo error handling
+  - [x] Test default schemas
+  - [x] Test large dataset sync (100 users)
+  - [x] Test status management (inactive, active, done, error)
+  - [x] Test configuration (enabled?, schemas/1)
+  - [x] 11 integration tests passing
 - [ ] 4.5 Integration tests for replication workflow
   - [ ] Test internal→main replication during `:internal_to_main`
   - [ ] Test main→internal replication during `:main`
