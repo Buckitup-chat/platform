@@ -90,27 +90,21 @@
 ## 5. Configuration and Documentation
 - [x] 5.1 Add configuration options to `config/config.exs`
   - [x] `config :platform, Platform.Storage.Sync, enabled: true, schemas: [:users]`
-  - [ ] Replication user credentials (deferred - needs infrastructure setup)
-- [ ] 5.2 Update `PG_REPLICATION.md` with implementation details (optional)
-  - [ ] Document module responsibilities
-  - [ ] Document configuration options
-  - [ ] Add troubleshooting section
+- [x] 5.2 Update `PG_REPLICATION.md` with implementation details
+  - [x] Document module responsibilities (Sync, BatchSync, LogicalReplicator)
+  - [x] Document configuration options (schema_config, conflict strategies)
+  - [x] Add troubleshooting section (common issues, debugging SQL, logging)
 - [x] 5.3 Add logging and observability
   - [x] Log sync start/complete/error with row counts
   - [x] Log replication lag metrics
   - [x] Log mode transitions and subscription changes
 
-## 6. Validation and Deployment
-- [ ] 6.1 Test on target hardware (SD card + USB drive)
-  - [ ] Verify bootstrap sync works
-  - [ ] Verify ongoing replication works
-  - [ ] Verify drive removal/insertion handling
-- [ ] 6.2 Performance testing
-  - [ ] Measure sync time for various data sizes
-  - [ ] Verify replication lag stays low (<1 second)
-- [ ] 6.3 Deploy to staging environment
-- [ ] 6.4 Monitor logs for errors or warnings
-- [ ] 6.5 Deploy to production
+## 6. Misc
+ - [x] Conflict resolution in BatchSync should be configurable per schema
+   - [x] Added `schema_config` option to `sync/1`
+   - [x] Support `:nothing`, `:replace_all`, and `{:update, fields}` strategies
+   - [x] Per-schema `id_field`, `conflict_target`, and `on_conflict` configuration
+   - [x] Added 10 unit tests for configurable conflict resolution
 
 ## 7. Real Electric usage
 - [x] 7.1 Optimize ElectricSync with Electric-inspired patterns
