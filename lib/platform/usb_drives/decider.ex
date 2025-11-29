@@ -1,6 +1,7 @@
 defmodule Platform.UsbDrives.Decider do
   @moduledoc "Decides which scenario to run"
 
+  use GenServer
   use OriginLog
 
   alias Platform.Tools.Mount
