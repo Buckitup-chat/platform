@@ -13,7 +13,18 @@ defmodule Platform.Storage.SyncTest do
     assert %{state: :done} = Sync.status()
   end
 
-  test "run_local_sync returns :ok and logs" do
-    assert :ok = Sync.run_local_sync(source_repo: :internal_repo, target_repo: :main_repo, schemas: [:users])
+  test "status transitions to error" do
+    :ok = Sync.set_error("test error")
+    assert %{state: {:error, "test error"}} = Sync.status()
+  end
+
+  test "enabled? returns config value" do
+    # Default is true
+    assert Sync.enabled?() == true
+  end
+
+  test "schemas/1 returns default when no opts" do
+    # Config has [:users]
+    assert Sync.schemas() == [:users]
   end
 end

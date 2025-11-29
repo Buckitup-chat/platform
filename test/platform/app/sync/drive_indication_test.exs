@@ -3,6 +3,9 @@ defmodule Platform.App.Sync.DriveIndicationTest do
   alias Circuits.GPIO
   alias Platform.Storage.DriveIndication
 
+  # These tests require actual GPIO hardware, skip in test environment
+  @moduletag :skip
+
   setup do
     {:ok, _pid} = GenServer.start_link(DriveIndication, [], name: DriveIndication)
 
