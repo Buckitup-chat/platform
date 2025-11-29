@@ -15,7 +15,11 @@ defmodule Platform.Storage.Sync do
   @spec schemas(keyword()) :: [atom() | String.t()]
   def schemas(opts \\ []) do
     default = Keyword.get(opts, :default, [:users])
-    config() |> Keyword.get(:schemas, default)
+    # If schemas is configured, use it; otherwise use the provided default
+    case config() |> Keyword.get(:schemas) do
+      nil -> default
+      configured -> configured
+    end
   end
 
   @spec status() :: %{state: state}
@@ -63,6 +67,7 @@ defmodule Platform.Storage.Sync do
         :ok
 
       {:error, reason} = error ->
+        set_error(reason)
         log("sync failed reason=#{inspect(reason)}", :error)
         error
     end

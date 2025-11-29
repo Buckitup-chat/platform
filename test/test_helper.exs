@@ -16,6 +16,14 @@ Logger.put_application_level(:chat, :error)
 IO.puts("\n=== Setting up PostgreSQL integration test databases ===")
 Platform.Test.DatabaseHelper.setup_databases()
 
+# Start test repos for integration tests
+{:ok, _} = Platform.Test.InternalRepo.start_link()
+{:ok, _} = Platform.Test.MainRepo.start_link()
+
+# Set sandbox mode for test isolation
+Ecto.Adapters.SQL.Sandbox.mode(Platform.Test.InternalRepo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(Platform.Test.MainRepo, :manual)
+
 # Cleanup on exit
 System.at_exit(fn _status ->
   IO.puts("\n=== Cleaning up PostgreSQL integration test databases ===")

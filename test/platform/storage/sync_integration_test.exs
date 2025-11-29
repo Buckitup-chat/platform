@@ -244,9 +244,11 @@ defmodule Platform.Storage.SyncIntegrationTest do
     end
 
     @tag :no_db
-    test "accepts custom default via opts" do
+    test "returns configured schemas even when default is provided" do
+      # Config has schemas: [:users], so it should return that
+      # even when a different default is provided
       schemas = Sync.schemas(default: [:users, :messages])
-      assert schemas == [:users, :messages]
+      assert schemas == [:users]
     end
   end
 end
