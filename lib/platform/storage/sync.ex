@@ -1,7 +1,7 @@
 defmodule Platform.Storage.Sync do
   @moduledoc "Storage sync (local, in-process) lifecycle and status"
 
-  require Logger
+  use OriginLog
 
   @key {__MODULE__, :status}
 
@@ -26,21 +26,21 @@ defmodule Platform.Storage.Sync do
   @spec set_active() :: :ok
   def set_active do
     :persistent_term.put(@key, :active)
-    Logger.info("[storage.sync] state=active")
+    log("state=active", :info)
     :ok
   end
 
   @spec set_done() :: :ok
   def set_done do
     :persistent_term.put(@key, :done)
-    Logger.info("[storage.sync] state=done")
+    log("state=done", :info)
     :ok
   end
 
   @spec set_error(term()) :: :ok
   def set_error(reason) do
     :persistent_term.put(@key, {:error, reason})
-    Logger.error("[storage.sync] state=error reason=#{inspect(reason)}")
+    log("state=error reason=#{inspect(reason)}", :error)
     :ok
   end
 
@@ -50,11 +50,22 @@ defmodule Platform.Storage.Sync do
     target = Keyword.get(opts, :target_repo)
     schemas = Keyword.get(opts, :schemas, schemas())
 
-    Logger.info("[storage.sync] local in-process sync start source=#{inspect(source)} target=#{inspect(target)} schemas=#{inspect(schemas)}")
+    log("local in-process sync start source=#{inspect(source)} target=#{inspect(target)} schemas=#{inspect(schemas)}", :info)
 
-    # Placeholder: Real row-level sync is provided by Chat/ElectricSQL.
-    # The bootstrap copy has already completed at this point.
-    :ok
+    # Perform unidirectional diff+copy using ElectricSync
+    case Platform.Tools.Postgres.ElectricSync.sync(
+           source_repo: source,
+           target_repo: target,
+           schemas: schemas
+         ) do
+      {:ok, stats} ->
+        log("sync complete stats=#{inspect(stats)}", :info)
+        :ok
+
+      {:error, reason} = error ->
+        log("sync failed reason=#{inspect(reason)}", :error)
+        error
+    end
   rescue
     e ->
       set_error(e)

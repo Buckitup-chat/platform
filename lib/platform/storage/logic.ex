@@ -1,11 +1,12 @@
 defmodule Platform.Storage.Logic do
   @moduledoc "Storage logic"
 
-  require Logger
+  use OriginLog
 
   alias Chat.Db.Common
   alias Chat.Db.Copying
   alias Chat.Db.Switching
+  alias Platform.Tools.Postgres.LogicalReplicator
 
   def replicate_main_to_internal do
     case get_db_mode() do
@@ -32,25 +33,55 @@ defmodule Platform.Storage.Logic do
     backup = Chat.Db.BackupDb
 
     set_db_flag(replication: true)
-    "[platform] [storage] Replicating to internal" |> Logger.info()
+    log("Replicating to internal", :info)
+
+    # Check PG replication lag if enabled
+    check_pg_replication_lag()
 
     case Process.whereis(backup) do
       nil ->
-        Logger.warning("setting mirror: #{inspect(internal)}")
+        log("setting mirror: #{inspect(internal)}", :debug)
         Switching.mirror(main, internal)
         Copying.await_copied(main, internal)
 
       _pid ->
-        Logger.warning("setting mirrors: #{inspect([internal, backup])}")
+        log("setting mirrors: #{inspect([internal, backup])}", :debug)
         Switching.mirror(main, [internal, backup])
         Copying.await_copied(main, internal)
         # TODO: continious backup need a way for new changes
         # Copying.await_copied(main, backup)
     end
 
-    "[platform] [storage] Replicated to internal" |> Logger.info()
+    log("Replicated to internal", :info)
     set_db_flag(replication: false)
   end
+
+  # Check PostgreSQL logical replication lag
+  defp check_pg_replication_lag do
+    if Platform.Storage.Sync.enabled?() do
+      # Check lag for internal_from_main subscription
+      case LogicalReplicator.check_replication_lag(
+             Chat.InternalRepo,
+             "internal_from_main"
+           ) do
+        {:ok, lag_bytes} ->
+          log("PG replication lag=#{lag_bytes} bytes", :debug)
+
+          # If lag is high (>1MB), optionally run a light sync
+          if lag_bytes > 1_048_576 do
+            log("High PG replication lag detected, consider manual sync", :warning)
+          end
+
+        {:error, :subscription_not_found} ->
+          log("PG subscription not found, skipping lag check", :debug)
+
+        {:error, reason} ->
+          log("Failed to check PG replication lag: #{inspect(reason)}", :error)
+      end
+    end
+  end
+
+
 
   # DB functions
 

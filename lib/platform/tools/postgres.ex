@@ -327,6 +327,26 @@ defmodule Platform.Tools.Postgres do
   end
 
   @doc """
+  Build a PostgreSQL connection string from an Ecto repo configuration.
+
+  ## Parameters
+  - `repo` - An Ecto repository module
+
+  ## Returns
+  A connection string in the format: "host=... port=... dbname=... user=... password=..."
+  """
+  def build_connection_string(repo) do
+    config = repo.config()
+    host = Keyword.get(config, :hostname, "localhost")
+    port = Keyword.get(config, :port, 5432)
+    database = Keyword.get(config, :database, "chat")
+    username = Keyword.get(config, :username, "postgres")
+    password = Keyword.get(config, :password, "")
+
+    "host=#{host} port=#{port} dbname=#{database} user=#{username} password=#{password}"
+  end
+
+  @doc """
   Ensure a database exists, creating it if necessary.
 
   ## Options
