@@ -527,29 +527,29 @@ defmodule Platform.Tools.Postgres do
   defp ensure_dirs_permissions([], _uid, _gid), do: :ok
 
   defp ensure_dirs_permissions(dirs, uid, gid) when is_list(dirs) do
-    # Process directories in parallel
+    # Process directories sequentially to avoid issues during init
     dirs
-    |> Task.async_stream(
-      fn dir ->
-        set_permissions(dir, uid, gid, 0o700)
+    |> Enum.flat_map(fn dir ->
+      set_permissions(dir, uid, gid, 0o700)
 
-        {:ok, filelist} = File.ls(dir)
+      case File.ls(dir) do
+        {:ok, filelist} ->
+          Enum.reduce(filelist, [], fn file_or_dir, acc ->
+            path = Path.join(dir, file_or_dir)
 
-        Enum.reduce(filelist, [], fn file_or_dir, acc ->
-          path = Path.join(dir, file_or_dir)
+            if File.dir?(path) do
+              [path | acc]
+            else
+              set_permissions(path, uid, gid, 0o600)
+              acc
+            end
+          end)
 
-          if File.dir?(path) do
-            [path | acc]
-          else
-            set_permissions(path, uid, gid, 0o600)
-            acc
-          end
-        end)
-      end,
-      max_concurrency: System.schedulers_online(),
-      timeout: :infinity
-    )
-    |> Enum.reduce([], fn {:ok, subdirs}, acc -> subdirs ++ acc end)
+        {:error, reason} ->
+          log(["Failed to list directory ", dir, ": ", inspect(reason)], :error)
+          []
+      end
+    end)
     |> ensure_dirs_permissions(uid, gid)
   end
 
