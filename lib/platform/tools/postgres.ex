@@ -132,32 +132,20 @@ defmodule Platform.Tools.Postgres do
 
     case hba_result do
       :ok ->
-        # Start PostgreSQL temporarily if not running to reload config
-        was_running = server_running?(opts)
+        if server_running?(opts) do
+          # Reload PostgreSQL configuration if running
+          case run_sql("SELECT pg_reload_conf();", pg_port: pg_port) do
+            {:ok, _} ->
+              ["Replication configuration setup successfully"] |> log(:info)
+              :ok
 
-        unless was_running do
-          case start(opts) do
-            :ok -> :ok
-            {:error, reason} -> {:error, "Failed to start PostgreSQL for config reload: #{reason}"}
+            {:error, reason} ->
+              ["Failed to reload PostgreSQL configuration: ", reason] |> log(:error)
+              {:error, "Failed to reload configuration: #{reason}"}
           end
-        end
-
-        # Reload PostgreSQL configuration
-        reload_result = run_sql("SELECT pg_reload_conf();", pg_port: pg_port)
-
-        # Stop PostgreSQL if we started it
-        unless was_running do
-          stop(opts)
-        end
-
-        case reload_result do
-          {:ok, _} ->
-            ["Replication configuration setup successfully"] |> log(:info)
-            :ok
-
-          {:error, reason} ->
-            ["Failed to reload PostgreSQL configuration: ", reason] |> log(:error)
-            {:error, "Failed to reload configuration: #{reason}"}
+        else
+          ["Replication configuration set (will apply on next start)"] |> log(:info)
+          :ok
         end
 
       {:error, reason} ->
