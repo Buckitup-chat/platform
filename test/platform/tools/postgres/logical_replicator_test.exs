@@ -97,12 +97,16 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       )
 
       assert :ok = result
-      assert_received {:repo_query, sql}
-      assert sql =~ "CREATE SUBSCRIPTION my_subscription"
-      assert sql =~ "CONNECTION 'host=localhost port=5432 dbname=chat user=replicator password=secret'"
-      assert sql =~ "PUBLICATION source_publication"
-      assert sql =~ "copy_data = false"
-      assert sql =~ "enabled = true"
+      assert_received {:repo_query, exists_sql}
+      assert exists_sql =~ "FROM pg_subscription"
+      assert exists_sql =~ "subname = 'my_subscription'"
+
+      assert_received {:repo_query, create_sql}
+      assert create_sql =~ "CREATE SUBSCRIPTION my_subscription"
+      assert create_sql =~ "CONNECTION 'host=localhost port=5432 dbname=chat user=replicator password=secret'"
+      assert create_sql =~ "PUBLICATION source_publication"
+      assert create_sql =~ "copy_data = false"
+      assert create_sql =~ "enabled = true"
     end
 
     test "creates subscription with copy_data enabled" do
@@ -115,8 +119,9 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       )
 
       assert :ok = result
-      assert_received {:repo_query, sql}
-      assert sql =~ "copy_data = true"
+      assert_received {:repo_query, _exists_sql}
+      assert_received {:repo_query, create_sql}
+      assert create_sql =~ "copy_data = true"
     end
 
     test "creates subscription with enabled false" do
@@ -129,8 +134,9 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       )
 
       assert :ok = result
-      assert_received {:repo_query, sql}
-      assert sql =~ "enabled = false"
+      assert_received {:repo_query, _exists_sql}
+      assert_received {:repo_query, create_sql}
+      assert create_sql =~ "enabled = false"
     end
 
     test "creates subscription with both options" do
@@ -144,9 +150,10 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       )
 
       assert :ok = result
-      assert_received {:repo_query, sql}
-      assert sql =~ "copy_data = true"
-      assert sql =~ "enabled = false"
+      assert_received {:repo_query, _exists_sql}
+      assert_received {:repo_query, create_sql}
+      assert create_sql =~ "copy_data = true"
+      assert create_sql =~ "enabled = false"
     end
 
     test "returns error when query fails" do
@@ -162,7 +169,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       assert {:error, :query_failed} = result
     end
 
-    test "uses DO $$ block for idempotency" do
+    test "checks for existing subscription before creating" do
       LogicalReplicator.create_subscription(
         RepoMock,
         "host=localhost port=5432 dbname=chat user=replicator",
@@ -170,10 +177,12 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
         "my_subscription"
       )
 
-      assert_received {:repo_query, sql}
-      assert sql =~ "DO $$"
-      assert sql =~ "IF NOT EXISTS"
-      assert sql =~ "END $$"
+      assert_received {:repo_query, exists_sql}
+      assert exists_sql =~ "FROM pg_subscription"
+      assert exists_sql =~ "subname = 'my_subscription'"
+
+      assert_received {:repo_query, create_sql}
+      assert create_sql =~ "CREATE SUBSCRIPTION my_subscription"
     end
   end
 

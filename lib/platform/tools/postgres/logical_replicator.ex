@@ -89,25 +89,34 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
     copy_data = Keyword.get(opts, :copy_data, false)
     enabled = Keyword.get(opts, :enabled, true)
 
-    sql = """
-    DO $$
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM pg_subscription WHERE subname = '#{subscription_name}') THEN
+    exists_sql = """
+    SELECT 1 FROM pg_subscription WHERE subname = '#{subscription_name}' LIMIT 1
+    """
+
+    case repo.query(exists_sql) do
+      {:ok, %{rows: [_ | _]}} ->
+        :ok
+
+      {:ok, %{rows: []}} ->
+        create_sql = """
         CREATE SUBSCRIPTION #{subscription_name}
         CONNECTION '#{connection_string}'
         PUBLICATION #{publication_name}
         WITH (copy_data = #{copy_data}, enabled = #{enabled});
-      END IF;
-    END $$;
-    """
+        """
 
-    case repo.query(sql) do
-      {:ok, _} ->
-        log("created subscription name=#{subscription_name} publication=#{publication_name} copy_data=#{copy_data} enabled=#{enabled}", :info)
-        :ok
+        case repo.query(create_sql) do
+          {:ok, _} ->
+            log("created subscription name=#{subscription_name} publication=#{publication_name} copy_data=#{copy_data} enabled=#{enabled}", :info)
+            :ok
+
+          {:error, reason} = error ->
+            log("failed to create subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+            error
+        end
 
       {:error, reason} = error ->
-        log("failed to create subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+        log("failed to check existing subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
         error
     end
   end
