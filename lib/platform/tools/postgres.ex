@@ -460,6 +460,37 @@ defmodule Platform.Tools.Postgres do
     end
   end
 
+  def cleanup_old_server(pg_dir) do
+    pg_data_dir = Path.join(pg_dir, "data")
+
+    ["Attempting to stop any existing PostgreSQL server for ", pg_data_dir]
+    |> log(:info)
+
+    {output, status} =
+      run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast"], as_postgres_user: true)
+
+    if status == 0 do
+      ["Existing PostgreSQL server stopped before daemon start"] |> log(:info)
+    else
+      ["pg_ctl stop exited with status ", to_string(status), ": ", output]
+      |> log(:warning)
+    end
+
+    if File.exists?("/usr/bin/lsipc") do
+      {ipc_output, ipc_status} = MuonTrap.cmd("/usr/bin/lsipc", ["-m"], stderr_to_stdout: true)
+
+      [
+        "lsipc -m exited with status ",
+        to_string(ipc_status),
+        ":\n",
+        ipc_output
+      ]
+      |> log(:debug)
+    end
+
+    :ok
+  end
+
   @doc """
   Create a daemon specification for running PostgreSQL server under supervision.
 

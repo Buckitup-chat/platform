@@ -30,6 +30,8 @@ defmodule Platform.Storage.Pg.Daemon do
         :start,
         %{pg_dir: pg_dir, pg_port: pg_port, daemon_name: daemon_name} = state
       ) do
+    Postgres.cleanup_old_server(pg_dir)
+
     daemon_spec = Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)
 
     [pg_dir, "data", "postmaster.pid"]
