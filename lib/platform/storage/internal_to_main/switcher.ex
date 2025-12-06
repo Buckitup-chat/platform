@@ -38,6 +38,14 @@ defmodule Platform.Storage.InternalToMain.Switcher do
         # Disable internal→main subscription on main repo
         _ = LogicalReplicator.disable_subscription(main_repo, "main_from_internal")
 
+        # Sync existing users from main→internal before setting up replication
+        # This ensures any users created on USB before this session are copied
+        _ = Platform.Storage.Sync.run_local_sync(
+          source_repo: main_repo,
+          target_repo: Chat.InternalRepo,
+          schemas: Platform.Storage.Sync.schemas()
+        )
+
         # Create publication on main for main→internal
         _ = LogicalReplicator.create_publication(main_repo, ["users"], "main_to_internal")
 
