@@ -17,13 +17,12 @@ defmodule Platform.Internal.PgDb do
   @impl true
   def init(_args) do
     log("Starting PostgreSQL supervisor", :info)
+    Platform.Tools.Postgres.initialize(pg_dir: @pg_dir)
+    log("PostgreSQL initialized successfully", :info)
 
     [
-      tasked(fn ->
-        Platform.Tools.Postgres.initialize(pg_dir: @pg_dir)
-        log("PostgreSQL initialized successfully", :info)
-      end),
       postgres_daemon_spec(),
+      tasked(fn -> log("PostgreSQL daemon started ??", :info) end),
       tasked(fn -> setup_chat_database(Chat.Repo) end),
       Chat.Repo,
       tasked(fn -> Chat.RepoStarter.run_migrations(Chat.Repo) end),
