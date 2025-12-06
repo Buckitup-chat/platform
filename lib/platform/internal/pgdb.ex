@@ -22,11 +22,23 @@ defmodule Platform.Internal.PgDb do
 
     [
       postgres_daemon_spec(),
-      {Task, fn -> setup_chat_database() end} |> Supervisor.child_spec(id: make_ref()),
+      # Ensure database exists for Chat.Repo
+      {Task, fn -> setup_chat_database(Chat.Repo) end} |> Supervisor.child_spec(id: make_ref()),
       Chat.Repo,
-      {Task, fn -> Chat.RepoStarter.run_migrations() end} |> Supervisor.child_spec(id: make_ref()),
+      # Run migrations for Chat.Repo
+      {Task, fn -> Chat.RepoStarter.run_migrations(Chat.Repo) end}
+      |> Supervisor.child_spec(id: make_ref()),
+
+      # Ensure database exists for Chat.InternalRepo (may share DB, but safe to ensure)
+      {Task, fn -> setup_chat_database(Chat.InternalRepo) end}
+      |> Supervisor.child_spec(id: make_ref()),
+
       # Start Chat.InternalRepo for internal PG sync
-      Chat.InternalRepo
+      Chat.InternalRepo,
+
+      # Run migrations for Chat.InternalRepo
+      {Task, fn -> Chat.RepoStarter.run_migrations(Chat.InternalRepo) end}
+      |> Supervisor.child_spec(id: make_ref())
     ]
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)
   end
@@ -39,9 +51,14 @@ defmodule Platform.Internal.PgDb do
     )
   end
 
-  defp setup_chat_database do
-    if wait_for_db_ready() == :ok,
-      do: Platform.Tools.Postgres.create_database(@db_name, pg_port: @pg_port)
+  defp setup_chat_database(repo) do
+    db_name =
+      repo.config()
+      |> Keyword.get(:database, @db_name)
+
+    if wait_for_db_ready() == :ok do
+      _ = Platform.Tools.Postgres.ensure_db_exists(db_name, pg_port: @pg_port)
+    end
   end
 
   defp wait_for_db_ready do
