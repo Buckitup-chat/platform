@@ -11,34 +11,30 @@ defmodule Platform.Internal.PgDb do
   @pg_dir "/root/pg"
 
   def start_link(args) do
-    Supervisor.start_link(__MODULE__, args, name: __MODULE__)
+    Supervisor.start_link(__MODULE__, args, name: __MODULE__, timeout: :timer.minutes(1))
   end
 
   @impl true
   def init(_args) do
     log("Starting PostgreSQL supervisor", :info)
-    Platform.Tools.Postgres.initialize(pg_dir: @pg_dir)
-    log("PostgreSQL initialized successfully", :info)
 
     [
+      tasked(fn ->
+        Platform.Tools.Postgres.initialize(pg_dir: @pg_dir)
+        log("PostgreSQL initialized successfully", :info)
+      end),
       postgres_daemon_spec(),
-      # Ensure database exists for Chat.Repo
-      {Task, fn -> setup_chat_database(Chat.Repo) end} |> Supervisor.child_spec(id: make_ref()),
+      tasked(fn -> setup_chat_database(Chat.Repo) end),
       Chat.Repo,
-      # Run migrations for Chat.Repo
-      {Task, fn -> Chat.RepoStarter.run_migrations(Chat.Repo) end}
-      |> Supervisor.child_spec(id: make_ref()),
+      tasked(fn -> Chat.RepoStarter.run_migrations(Chat.Repo) end),
 
       # Ensure database exists for Chat.InternalRepo (may share DB, but safe to ensure)
-      {Task, fn -> setup_chat_database(Chat.InternalRepo) end}
-      |> Supervisor.child_spec(id: make_ref()),
+      tasked(fn -> setup_chat_database(Chat.InternalRepo) end),
 
       # Start Chat.InternalRepo for internal PG sync
       Chat.InternalRepo,
 
-      # Run migrations for Chat.InternalRepo
-      {Task, fn -> Chat.RepoStarter.run_migrations(Chat.InternalRepo) end}
-      |> Supervisor.child_spec(id: make_ref())
+      tasked(fn -> Chat.RepoStarter.run_migrations(Chat.InternalRepo) end)
     ]
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)
   end
@@ -71,5 +67,9 @@ defmodule Platform.Internal.PgDb do
         {:cont, acc}
       end
     end)
+  end
+
+  defp tasked(action) do
+    {Task, action} |> Supervisor.child_spec(id: make_ref())
   end
 end
