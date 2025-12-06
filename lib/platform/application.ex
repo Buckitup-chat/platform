@@ -96,7 +96,8 @@ defmodule Platform.Application do
        end},
       Platform.Storage.DriveIndication,
       Platform.App.DeviceSupervisor,
-      Platform.Internal.PgDb,
+      Platform.App.DatabaseSupervisor,
+      # Platform.Internal.PgDb,
       Platform.App.ZeroTierSupervisor
     ]
   end
