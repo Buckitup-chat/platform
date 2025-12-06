@@ -423,14 +423,17 @@ defmodule Platform.Tools.Postgres do
 
   ## Parameters
   - `repo` - An Ecto repository module
+  - `opts` - Optional keyword list with overrides:
+    - `:port` - Override the port from repo config (useful for dynamically started repos)
 
   ## Returns
   A connection string in the format: "host=... port=... dbname=... user=... password=..."
   """
-  def build_connection_string(repo) do
+  def build_connection_string(repo, opts \\ []) do
     config = repo.config()
     host = Keyword.get(config, :hostname, "localhost")
-    port = Keyword.get(config, :port, 5432)
+    # Allow port override for dynamically started repos
+    port = Keyword.get(opts, :port) || Keyword.get(config, :port, 5432)
     database = Keyword.get(config, :database, "chat")
     username = Keyword.get(config, :username, "postgres")
     password = Keyword.get(config, :password, "")

@@ -33,7 +33,8 @@ defmodule Platform.Storage.InternalToMain.Switcher do
       with pg_opts <- Keyword.get(args, :pg_opts),
            false <- is_nil(pg_opts),
            main_repo <- Map.get(pg_opts, :repo),
-           false <- is_nil(main_repo) do
+           false <- is_nil(main_repo),
+           main_port <- Map.get(pg_opts, :port) do
         # Disable internal→main subscription on main repo
         _ = LogicalReplicator.disable_subscription(main_repo, "main_from_internal")
 
@@ -41,19 +42,25 @@ defmodule Platform.Storage.InternalToMain.Switcher do
         _ = LogicalReplicator.create_publication(main_repo, ["users"], "main_to_internal")
 
         # Create subscription on internal for main→internal
-        conn_string = Platform.Tools.Postgres.build_connection_string(main_repo)
+        # Use port from pg_opts since repo.config() may have compile-time port
+        conn_string = Platform.Tools.Postgres.build_connection_string(main_repo, port: main_port)
 
-        _ =
-          LogicalReplicator.create_subscription(
-            Chat.InternalRepo,
-            conn_string,
-            "main_to_internal",
-            "internal_from_main",
-            copy_data: false,
-            enabled: true
-          )
+        case LogicalReplicator.create_subscription(
+               Chat.InternalRepo,
+               conn_string,
+               "main_to_internal",
+               "internal_from_main",
+               copy_data: false,
+               enabled: true
+             ) do
+          :ok ->
+            # Ensure subscription is enabled (in case it already existed but was disabled)
+            _ = LogicalReplicator.enable_subscription(Chat.InternalRepo, "internal_from_main")
+            log("PG replication switched to main→internal", :info)
 
-        log("PG replication switched to main→internal", :info)
+          {:error, reason} ->
+            log("Failed to create internal_from_main subscription: #{inspect(reason)}", :error)
+        end
       else
         _ ->
           log("PG replication not configured, skipping", :debug)
@@ -61,13 +68,23 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     end
   end
 
-  # Disable main→internal replication when exiting :main mode
-  defp disable_pg_replication(_state) do
+  # Disable main→internal replication when exiting :main mode and restore internal→main
+  defp disable_pg_replication(state) do
     if Platform.Storage.Sync.enabled?() do
       # Disable main→internal subscription on internal repo
       _ = LogicalReplicator.disable_subscription(Chat.InternalRepo, "internal_from_main")
 
-      log("PG replication disabled", :info)
+      # Re-enable internal→main subscription on main repo (if available)
+      with pg_opts <- Keyword.get(state, :pg_opts),
+           false <- is_nil(pg_opts),
+           main_repo <- Map.get(pg_opts, :repo),
+           false <- is_nil(main_repo) do
+        _ = LogicalReplicator.enable_subscription(main_repo, "main_from_internal")
+        log("PG replication restored to internal→main", :info)
+      else
+        _ ->
+          log("PG replication disabled (main repo not available)", :info)
+      end
     end
   end
 

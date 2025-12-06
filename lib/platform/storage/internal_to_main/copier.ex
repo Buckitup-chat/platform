@@ -111,6 +111,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
              copy_data: false,
              enabled: true
            ) do
+      # Ensure subscription is enabled (in case it already existed but was disabled)
+      _ = LogicalReplicator.enable_subscription(target_repo, "main_from_internal")
       log("logical replication setup complete", :info)
     else
       {:error, reason} ->
