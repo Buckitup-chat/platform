@@ -52,8 +52,10 @@ defmodule Platform.Internal.PgDb do
       repo.config()
       |> Keyword.get(:database, @db_name)
 
-    if wait_for_db_ready() == :ok do
-      _ = Platform.Tools.Postgres.ensure_db_exists(db_name, pg_port: @pg_port)
+    log("Setting up database: #{db_name}", :info)
+    case wait_for_db_ready() do
+      :ok -> Platform.Tools.Postgres.ensure_db_exists(db_name, pg_port: @pg_port)
+      x -> log("PostgreSQL not ready: #{inspect(x)}", :error)
     end
   end
 

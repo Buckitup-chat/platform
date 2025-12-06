@@ -25,6 +25,9 @@ platform*.img
 image.old.zip
 image*.zip
 
+# Build cache
+.chat_compiled
+
 #IDEA
 .idea/
 *.iml

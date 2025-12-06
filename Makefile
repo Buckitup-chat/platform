@@ -12,7 +12,19 @@ nothing:
 check:
 	mix compile --warnings-as-errors
 
+chat_commit := $(shell cd ../chat && git rev-parse HEAD)
+
 prepare_chat:
+	@if [ ! -f .chat_compiled ] || [ "$$(cat .chat_compiled)" != "$(chat_commit)" ]; then \
+		echo "Chat changed, recompiling..."; \
+		(cd ../chat && MIX_ENV=prod make firmware); \
+		MIX_ENV=prod mix deps.compile chat --force; \
+		echo "$(chat_commit)" > .chat_compiled; \
+	else \
+		echo "Chat unchanged, skipping recompile"; \
+	fi
+
+prepare_chat_old:
 	(cd ../chat && MIX_ENV=prod make firmware)
 	# Run MIX_ENV=prod MIX_TARGET=bktp_rpi4 mix compile
 	# first if the following command fails
