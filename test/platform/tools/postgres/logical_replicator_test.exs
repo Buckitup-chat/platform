@@ -247,6 +247,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       assert_received {:repo_query, sql}
       assert sql =~ "pg_stat_subscription"
       assert sql =~ "subname = 'my_subscription'"
+      assert sql =~ "pg_wal_lsn_diff(latest_end_lsn, received_lsn)"
     end
 
     test "returns zero lag when no lag" do
@@ -282,7 +283,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       assert {:error, :query_failed} = result
     end
 
-    test "uses pg_wal_lsn_diff for lag calculation" do
+    test "uses pg_wal_lsn_diff with latest_end_lsn and received_lsn" do
       Process.put(:query_result, {:lag, 2048})
 
       LogicalReplicator.check_replication_lag(
@@ -291,9 +292,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       )
 
       assert_received {:repo_query, sql}
-      assert sql =~ "pg_wal_lsn_diff(sent_lsn, write_lsn)"
-      assert sql =~ "pg_wal_lsn_diff(write_lsn, flush_lsn)"
-      assert sql =~ "pg_wal_lsn_diff(flush_lsn, replay_lsn)"
+      assert sql =~ "pg_wal_lsn_diff(latest_end_lsn, received_lsn)"
       assert sql =~ "COALESCE"
     end
 
