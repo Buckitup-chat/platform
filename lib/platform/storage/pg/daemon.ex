@@ -55,14 +55,30 @@ defmodule Platform.Storage.Pg.Daemon do
           next_supervisor: next_supervisor
         } = state
       ) do
-    Task.Supervisor.async_nolink(task_supervisor, fn ->
-      wait_for_postgres_ready(pg_port)
-    end)
-    |> Task.await(:timer.minutes(2))
+    result =
+      Task.Supervisor.async_nolink(task_supervisor, fn ->
+        wait_for_postgres_ready(pg_port)
+      end)
+      |> Task.await(:timer.minutes(2))
 
-    log("PostgreSQL daemon ready on port #{pg_port}, starting next stage", :info)
-    Platform.start_next_stage(next_supervisor, next_specs)
-    {:noreply, state}
+    case result do
+      :ok ->
+        # Final health check before proceeding - verify PostgreSQL is actually accepting connections
+        if Postgres.server_running?(pg_port: pg_port) do
+          log("PostgreSQL daemon ready on port #{pg_port}, starting next stage", :info)
+          Platform.start_next_stage(next_supervisor, next_specs)
+          {:noreply, state}
+        else
+          log("PostgreSQL health check failed after wait - retrying in 10s", :warning)
+          Process.send_after(self(), :wait_for_ready, :timer.seconds(10))
+          {:noreply, state}
+        end
+
+      {:error, reason} ->
+        log("PostgreSQL failed to become ready: #{inspect(reason)} - retrying in 10s", :warning)
+        Process.send_after(self(), :wait_for_ready, :timer.seconds(10))
+        {:noreply, state}
+    end
   end
 
   @impl true
@@ -91,9 +107,11 @@ defmodule Platform.Storage.Pg.Daemon do
         {:error, :timeout}
 
       Postgres.server_running?(pg_port: pg_port) ->
+        log("PostgreSQL responding on port #{pg_port}", :debug)
         :ok
 
       true ->
+        log("Waiting for PostgreSQL on port #{pg_port} (#{attempts} attempts remaining)", :debug)
         Process.sleep(2000)
         wait_for_postgres_ready(pg_port, attempts - 1)
     end

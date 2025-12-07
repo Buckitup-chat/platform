@@ -9,7 +9,7 @@ defmodule Platform.Tools.Postgres do
   @pg_minimal_settings ~w[
     -c shared_buffers=400kB
     -c max_connections=15
-    -c dynamic_shared_memory_type=mmap
+    -c dynamic_shared_memory_type=posix
     -c max_prepared_transactions=0
     -c max_locks_per_transaction=32
     -c max_files_per_process=64
@@ -489,6 +489,65 @@ defmodule Platform.Tools.Postgres do
         ipc_output
       ]
       |> log(:debug)
+    end
+
+    # Clean up stale shared memory for this data directory
+    cleanup_stale_shared_memory(pg_data_dir)
+
+    :ok
+  end
+
+  @doc """
+  Clean up stale shared memory segments associated with a PostgreSQL data directory.
+  This prevents "pre-existing shared memory block is still in use" errors when
+  a previous PostgreSQL instance crashed or was killed without proper cleanup.
+
+  ## Parameters
+  - `pg_data_dir` - PostgreSQL data directory path
+  """
+  def cleanup_stale_shared_memory(pg_data_dir) do
+    if File.exists?("/usr/bin/ipcs") && File.exists?("/usr/bin/ipcrm") do
+      # Find shared memory segments owned by postgres user that reference this data dir
+      {ipcs_output, 0} = MuonTrap.cmd("/usr/bin/ipcs", ["-m"], stderr_to_stdout: true)
+
+      # Parse ipcs output to find segments that might be stale
+      # Look for segments owned by postgres that have 0 attached processes
+      stale_segments =
+        ipcs_output
+        |> String.split("\n")
+        |> Enum.filter(fn line ->
+          # Match lines with shared memory info (key, shmid, owner, perms, bytes, nattch)
+          String.contains?(line, "postgres") && String.match?(line, ~r/^0x/)
+        end)
+        |> Enum.map(fn line ->
+          # Extract shmid (second column)
+          case String.split(line, ~r/\s+/, trim: true) do
+            [_key, shmid | _rest] -> shmid
+            _ -> nil
+          end
+        end)
+        |> Enum.reject(&is_nil/1)
+
+      # Only remove segments if the postmaster.pid doesn't exist (server not running)
+      postmaster_pid_file = Path.join(pg_data_dir, "postmaster.pid")
+
+      if !File.exists?(postmaster_pid_file) && stale_segments != [] do
+        ["Found potentially stale shared memory segments: ", inspect(stale_segments)]
+        |> log(:debug)
+
+        # Try to remove each stale segment
+        Enum.each(stale_segments, fn shmid ->
+          {rm_output, rm_status} =
+            MuonTrap.cmd("/usr/bin/ipcrm", ["-m", shmid], stderr_to_stdout: true)
+
+          if rm_status == 0 do
+            ["Removed stale shared memory segment: ", shmid] |> log(:info)
+          else
+            ["Could not remove shared memory segment ", shmid, ": ", rm_output]
+            |> log(:debug)
+          end
+        end)
+      end
     end
 
     :ok
