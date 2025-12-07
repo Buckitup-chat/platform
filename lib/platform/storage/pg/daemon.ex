@@ -9,6 +9,10 @@ defmodule Platform.Storage.Pg.Daemon do
 
   alias Platform.Tools.Postgres
 
+  # Increased from 10 to 30 attempts (60 seconds total) for slow SD cards
+  @max_startup_attempts 30
+  @startup_check_interval_ms 2000
+
   @impl true
   def on_init(opts) do
     next = opts |> Keyword.fetch!(:next)
@@ -20,7 +24,8 @@ defmodule Platform.Storage.Pg.Daemon do
       task_supervisor: opts |> Keyword.fetch!(:task_in),
       next_specs: next |> Keyword.fetch!(:run),
       next_supervisor: next |> Keyword.fetch!(:under),
-      daemon_pid: nil
+      daemon_pid: nil,
+      daemon_restart_count: 0
     }
     |> tap(fn _ -> send(self(), :start) end)
   end
@@ -30,6 +35,9 @@ defmodule Platform.Storage.Pg.Daemon do
         :start,
         %{pg_dir: pg_dir, pg_port: pg_port, daemon_name: daemon_name} = state
       ) do
+    # Capture any PostgreSQL crash logs before cleanup
+    capture_pg_crash_logs(pg_dir)
+
     Postgres.cleanup_old_server(pg_dir)
 
     daemon_spec = Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)
@@ -43,6 +51,44 @@ defmodule Platform.Storage.Pg.Daemon do
     send(self(), :wait_for_ready)
 
     {:noreply, %{state | daemon_pid: pid}}
+  end
+
+  # Handle daemon EXIT - restart if crashed (intercept before GracefulGenServer stops us)
+  @impl GracefulGenServer
+  def on_msg(
+        {:EXIT, daemon_pid, reason},
+        %{daemon_pid: daemon_pid, daemon_restart_count: restart_count, pg_dir: pg_dir} = state
+      )
+      when restart_count < 3 do
+    log(
+      "PostgreSQL daemon crashed with reason: #{inspect(reason)}, restarting (attempt #{restart_count + 1}/3)",
+      :warning
+    )
+
+    # Capture crash logs before restart
+    capture_pg_crash_logs(pg_dir)
+
+    # Schedule restart after a brief delay
+    Process.send_after(self(), :start, :timer.seconds(2))
+
+    {:noreply, %{state | daemon_pid: nil, daemon_restart_count: restart_count + 1}}
+  end
+
+  def on_msg(
+        {:EXIT, daemon_pid, reason},
+        %{daemon_pid: daemon_pid, daemon_restart_count: restart_count} = state
+      ) do
+    log(
+      "PostgreSQL daemon crashed with reason: #{inspect(reason)} after #{restart_count} restarts, giving up",
+      :error
+    )
+
+    {:stop, {:daemon_crashed, reason}, state}
+  end
+
+  # Ignore EXIT from other linked processes (not our daemon)
+  def on_msg({:EXIT, _other_pid, _reason}, state) do
+    {:noreply, state}
   end
 
   @impl GracefulGenServer
@@ -100,10 +146,10 @@ defmodule Platform.Storage.Pg.Daemon do
     end
   end
 
-  defp wait_for_postgres_ready(pg_port, attempts \\ 10) do
+  defp wait_for_postgres_ready(pg_port, attempts \\ @max_startup_attempts) do
     cond do
       attempts <= 0 ->
-        log("PostgreSQL failed to start after 10 attempts", :error)
+        log("PostgreSQL failed to start after #{@max_startup_attempts} attempts", :error)
         {:error, :timeout}
 
       Postgres.server_running?(pg_port: pg_port) ->
@@ -112,8 +158,60 @@ defmodule Platform.Storage.Pg.Daemon do
 
       true ->
         log("Waiting for PostgreSQL on port #{pg_port} (#{attempts} attempts remaining)", :debug)
-        Process.sleep(2000)
+        Process.sleep(@startup_check_interval_ms)
         wait_for_postgres_ready(pg_port, attempts - 1)
     end
+  end
+
+  # Capture PostgreSQL crash logs for debugging
+  defp capture_pg_crash_logs(pg_dir) do
+    pg_data_dir = Path.join(pg_dir, "data")
+    log_dir = Path.join(pg_data_dir, "log")
+
+    # Check for PostgreSQL log files
+    if File.dir?(log_dir) do
+      case File.ls(log_dir) do
+        {:ok, files} when files != [] ->
+          files
+          |> Enum.sort(:desc)
+          |> Enum.take(1)
+          |> Enum.each(fn file ->
+            log_path = Path.join(log_dir, file)
+
+            case File.read(log_path) do
+              {:ok, content} ->
+                # Get last 50 lines of log
+                lines =
+                  content
+                  |> String.split("\n")
+                  |> Enum.take(-50)
+                  |> Enum.join("\n")
+
+                log("PostgreSQL log (#{file}):\n#{lines}", :warning)
+
+              {:error, reason} ->
+                log("Could not read PostgreSQL log #{file}: #{inspect(reason)}", :debug)
+            end
+          end)
+
+        _ ->
+          :ok
+      end
+    end
+
+    # Check for postmaster.pid to understand crash state
+    postmaster_pid_file = Path.join(pg_data_dir, "postmaster.pid")
+
+    if File.exists?(postmaster_pid_file) do
+      case File.read(postmaster_pid_file) do
+        {:ok, content} ->
+          log("Stale postmaster.pid found:\n#{content}", :warning)
+
+        _ ->
+          :ok
+      end
+    end
+
+    :ok
   end
 end
