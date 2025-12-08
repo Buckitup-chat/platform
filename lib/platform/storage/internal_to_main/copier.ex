@@ -109,9 +109,10 @@ defmodule Platform.Storage.InternalToMain.Copier do
              "internal_to_main",
              "main_from_internal",
              copy_data: false,
-             enabled: true
+             enabled: false  # Create disabled, enable after ensuring slot
            ) do
-      # Ensure subscription is enabled (in case it already existed but was disabled)
+      # Ensure slot exists on source before enabling subscription
+      _ = LogicalReplicator.ensure_slot_on_source(source_repo, "main_from_internal")
       _ = LogicalReplicator.enable_subscription(target_repo, "main_from_internal")
       log("logical replication setup complete", :info)
     else

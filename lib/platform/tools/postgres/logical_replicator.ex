@@ -169,88 +169,73 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
   end
 
   @doc """
-  Enables a subscription.
+  Ensures a replication slot exists on the source repo.
 
-  If the replication slot is missing (e.g., source DB was reinitialized),
-  this will attempt to refresh the subscription to recreate the slot.
+  This should be called BEFORE enabling a subscription to ensure the slot
+  exists on the source database. If the slot already exists, this is a no-op.
 
   ## Example
 
+      ensure_slot_on_source(Chat.InternalRepo, "main_from_internal")
+  """
+  @spec ensure_slot_on_source(repo(), String.t()) :: :ok | {:error, term()}
+  def ensure_slot_on_source(source_repo, slot_name) do
+    # Check if slot exists
+    check_sql = """
+    SELECT 1 FROM pg_replication_slots WHERE slot_name = '#{slot_name}'
+    """
+
+    case source_repo.query(check_sql) do
+      {:ok, %{rows: [_ | _]}} ->
+        log("slot=#{slot_name} already exists on source", :debug)
+        :ok
+
+      {:ok, %{rows: []}} ->
+        # Create the slot
+        create_sql = """
+        SELECT pg_create_logical_replication_slot('#{slot_name}', 'pgoutput')
+        """
+
+        case source_repo.query(create_sql) do
+          {:ok, _} ->
+            log("created slot=#{slot_name} on source", :info)
+            :ok
+
+          {:error, reason} = error ->
+            log("failed to create slot=#{slot_name} on source reason=#{inspect(reason)}", :error)
+            error
+        end
+
+      {:error, reason} = error ->
+        log("failed to check slot=#{slot_name} on source reason=#{inspect(reason)}", :error)
+        error
+    end
+  end
+
+  @doc """
+  Enables a subscription.
+
+  Note: Before calling this, you should call `ensure_slot_on_source/2` on the
+  source repo to ensure the replication slot exists.
+
+  ## Example
+
+      # First ensure slot exists on source
+      ensure_slot_on_source(Chat.InternalRepo, "main_from_internal")
+      # Then enable subscription on target
       enable_subscription(Chat.MainRepo, "main_from_internal")
   """
   @spec enable_subscription(repo(), subscription_name()) :: :ok | {:error, term()}
   def enable_subscription(repo, subscription_name) do
-    # First, ensure the slot exists by refreshing if needed
-    case ensure_slot_exists(repo, subscription_name) do
-      :ok ->
-        sql = "ALTER SUBSCRIPTION #{subscription_name} ENABLE"
+    sql = "ALTER SUBSCRIPTION #{subscription_name} ENABLE"
 
-        case repo.query(sql) do
-          {:ok, _} ->
-            log("enabled subscription name=#{subscription_name}", :info)
-            :ok
-
-          {:error, reason} = error ->
-            log("failed to enable subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
-            error
-        end
-
-      {:error, _} = error ->
-        error
-    end
-  end
-
-  # Ensures the replication slot exists on the source, recreating if needed
-  # This is called BEFORE enabling, so we use SET (slot_name = ...) approach
-  # which works on disabled subscriptions
-  defp ensure_slot_exists(repo, subscription_name) do
-    # Check if slot exists by querying subscription's slot name
-    check_sql = """
-    SELECT subslotname, subenabled FROM pg_subscription WHERE subname = '#{subscription_name}'
-    """
-
-    case repo.query(check_sql) do
-      {:ok, %{rows: [[slot_name, _enabled]]}} when not is_nil(slot_name) ->
-        # Subscription has a slot configured - verify it exists on source
-        # by trying to drop and recreate (this works even when disabled)
-        verify_or_recreate_slot(repo, subscription_name, slot_name)
-
-      {:ok, %{rows: [[nil, _enabled]]}} ->
-        # No slot configured (subscription created with create_slot=false)
+    case repo.query(sql) do
+      {:ok, _} ->
+        log("enabled subscription name=#{subscription_name}", :info)
         :ok
 
-      {:ok, %{rows: []}} ->
-        {:error, :subscription_not_found}
-
       {:error, reason} = error ->
-        log("failed to check subscription slot name=#{subscription_name} reason=#{inspect(reason)}", :error)
-        error
-    end
-  end
-
-  # Verify slot exists or recreate it - works on disabled subscriptions
-  defp verify_or_recreate_slot(repo, subscription_name, slot_name) do
-    # The safest approach: drop slot reference and recreate
-    # SET (slot_name = NONE) drops the slot on source if it exists
-    # SET (slot_name = 'name') creates a new slot on source
-    # This works regardless of subscription enabled state
-    drop_sql = "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = NONE)"
-    create_sql = "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = '#{slot_name}')"
-
-    case repo.query(drop_sql) do
-      {:ok, _} ->
-        case repo.query(create_sql) do
-          {:ok, _} ->
-            log("verified/recreated slot=#{slot_name} for subscription=#{subscription_name}", :debug)
-            :ok
-
-          {:error, reason} = error ->
-            log("failed to create slot=#{slot_name} subscription=#{subscription_name} reason=#{inspect(reason)}", :error)
-            error
-        end
-
-      {:error, reason} = error ->
-        log("failed to drop slot reference subscription=#{subscription_name} reason=#{inspect(reason)}", :error)
+        log("failed to enable subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
         error
     end
   end

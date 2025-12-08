@@ -59,10 +59,11 @@ defmodule Platform.Storage.InternalToMain.Switcher do
                "main_to_internal",
                "internal_from_main",
                copy_data: false,
-               enabled: true
+               enabled: false  # Create disabled, enable after ensuring slot
              ) do
           :ok ->
-            # Ensure subscription is enabled (in case it already existed but was disabled)
+            # Ensure slot exists on source (main) before enabling subscription
+            _ = LogicalReplicator.ensure_slot_on_source(main_repo, "internal_from_main")
             _ = LogicalReplicator.enable_subscription(Chat.InternalRepo, "internal_from_main")
             log("PG replication switched to main→internal", :info)
 
@@ -87,6 +88,8 @@ defmodule Platform.Storage.InternalToMain.Switcher do
            false <- is_nil(pg_opts),
            main_repo <- Map.get(pg_opts, :repo),
            false <- is_nil(main_repo) do
+        # Ensure slot exists on source (internal) before enabling subscription
+        _ = LogicalReplicator.ensure_slot_on_source(Chat.InternalRepo, "main_from_internal")
         _ = LogicalReplicator.enable_subscription(main_repo, "main_from_internal")
         log("PG replication restored to internal→main", :info)
       else
