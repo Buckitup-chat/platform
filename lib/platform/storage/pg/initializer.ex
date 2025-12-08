@@ -44,10 +44,22 @@ defmodule Platform.Storage.Pg.Initializer do
     {:noreply, %{state | task_ref: ref}}
   end
 
-  def on_msg({ref, _result}, %{task_ref: ref} = state) do
+  def on_msg({ref, :ok}, %{task_ref: ref} = state) do
     Process.demonitor(ref, [:flush])
     send(self(), :initialized)
     {:noreply, state}
+  end
+
+  def on_msg({ref, {:error, reason}}, %{task_ref: ref} = state) do
+    Process.demonitor(ref, [:flush])
+    log("PostgreSQL initialization failed: #{inspect(reason)}", :error)
+    {:stop, {:init_failed, reason}, state}
+  end
+
+  # Handle task crash (e.g., :epipe from initdb)
+  def on_msg({:DOWN, ref, :process, _pid, reason}, %{task_ref: ref} = state) do
+    log("PostgreSQL initialization task crashed: #{inspect(reason)}", :error)
+    {:stop, {:init_task_crashed, reason}, state}
   end
 
   def on_msg(:initialized, %{next_specs: next_specs, next_supervisor: next_supervisor} = state) do

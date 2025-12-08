@@ -35,22 +35,28 @@ defmodule Platform.Storage.Pg.Daemon do
         :start,
         %{pg_dir: pg_dir, pg_port: pg_port, daemon_name: daemon_name} = state
       ) do
-    # Capture any PostgreSQL crash logs before cleanup
-    capture_pg_crash_logs(pg_dir)
+    # Verify PostgreSQL was initialized before attempting to start
+    unless Postgres.initialized?(pg_dir: pg_dir) do
+      log("PostgreSQL data directory not initialized at #{pg_dir}/data - cannot start daemon", :error)
+      {:stop, :not_initialized, state}
+    else
+      # Capture any PostgreSQL crash logs before cleanup
+      capture_pg_crash_logs(pg_dir)
 
-    Postgres.cleanup_old_server(pg_dir)
+      Postgres.cleanup_old_server(pg_dir)
 
-    daemon_spec = Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)
+      daemon_spec = Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)
 
-    [pg_dir, "data", "postmaster.pid"]
-    |> Path.join()
-    |> File.rm()
+      [pg_dir, "data", "postmaster.pid"]
+      |> Path.join()
+      |> File.rm()
 
-    {:ok, pid} = start_daemon(daemon_spec)
+      {:ok, pid} = start_daemon(daemon_spec)
 
-    send(self(), :wait_for_ready)
+      send(self(), :wait_for_ready)
 
-    {:noreply, %{state | daemon_pid: pid}}
+      {:noreply, %{state | daemon_pid: pid}}
+    end
   end
 
   # Handle daemon EXIT - restart if crashed (intercept before GracefulGenServer stops us)
