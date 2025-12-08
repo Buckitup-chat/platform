@@ -90,6 +90,8 @@ defmodule Platform.Tools.Postgres do
         :ok
 
       false ->
+        cleanup_stale_shared_memory(pg_data_dir)
+
         args =
           ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++
             @pg_minimal_settings
@@ -498,6 +500,89 @@ defmodule Platform.Tools.Postgres do
   end
 
   @doc """
+  Clean up stale POSIX shared memory segments left by crashed PostgreSQL processes.
+  These are files in /dev/shm with names like "PostgreSQL.XXXXXXX".
+
+  Only removes segments that are not currently in use by any process.
+  Uses `lsof` to check if the file is open by any process.
+  """
+  def cleanup_posix_shared_memory do
+    shm_dir = "/dev/shm"
+
+    if File.dir?(shm_dir) do
+      case File.ls(shm_dir) do
+        {:ok, files} ->
+          postgres_shm_files =
+            files
+            |> Enum.filter(&String.starts_with?(&1, "PostgreSQL."))
+
+          if postgres_shm_files != [] do
+            ["Found POSIX shared memory files: ", inspect(postgres_shm_files)]
+            |> log(:debug)
+
+            Enum.each(postgres_shm_files, fn file ->
+              path = Path.join(shm_dir, file)
+
+              if shm_file_in_use?(path) do
+                ["POSIX shm in use, skipping: ", path] |> log(:debug)
+              else
+                case File.rm(path) do
+                  :ok ->
+                    ["Removed stale POSIX shm: ", path] |> log(:info)
+
+                  {:error, reason} ->
+                    ["Could not remove POSIX shm ", path, ": ", inspect(reason)] |> log(:warning)
+                end
+              end
+            end)
+          end
+
+        {:error, reason} ->
+          ["Could not list /dev/shm: ", inspect(reason)] |> log(:debug)
+      end
+    end
+
+    :ok
+  end
+
+  # Check if a shared memory file is currently in use by any process
+  # Uses /proc/*/fd to find open file descriptors pointing to the path
+  defp shm_file_in_use?(path) do
+    case File.ls("/proc") do
+      {:ok, entries} ->
+        entries
+        |> Enum.filter(&numeric_string?/1)
+        |> Enum.any?(fn pid ->
+          fd_dir = "/proc/#{pid}/fd"
+
+          case File.ls(fd_dir) do
+            {:ok, fds} ->
+              Enum.any?(fds, fn fd ->
+                case File.read_link(Path.join(fd_dir, fd)) do
+                  {:ok, target} -> target == path
+                  _ -> false
+                end
+              end)
+
+            _ ->
+              false
+          end
+        end)
+
+      _ ->
+        # If we can't read /proc, be conservative and assume in use
+        true
+    end
+  end
+
+  defp numeric_string?(str) do
+    case Integer.parse(str) do
+      {_, ""} -> true
+      _ -> false
+    end
+  end
+
+  @doc """
   Clean up stale shared memory segments associated with a PostgreSQL data directory.
   This prevents "pre-existing shared memory block is still in use" errors when
   a previous PostgreSQL instance crashed or was killed without proper cleanup.
@@ -506,6 +591,10 @@ defmodule Platform.Tools.Postgres do
   - `pg_data_dir` - PostgreSQL data directory path
   """
   def cleanup_stale_shared_memory(pg_data_dir) do
+    # Clean up POSIX shared memory segments in /dev/shm
+    cleanup_posix_shared_memory()
+
+    # Clean up System V shared memory segments
     if File.exists?("/usr/bin/ipcs") && File.exists?("/usr/bin/ipcrm") do
       # Find shared memory segments owned by postgres user that reference this data dir
       {ipcs_output, 0} = MuonTrap.cmd("/usr/bin/ipcs", ["-m"], stderr_to_stdout: true)
