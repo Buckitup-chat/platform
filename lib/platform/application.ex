@@ -54,6 +54,11 @@ defmodule Platform.Application do
          File.mkdir_p!(pg_run_dir)
          Platform.Tools.Postgres.make_accessible(pg_run_dir)
 
+         # Mount dedicated tmpfs for PostgreSQL shared memory (needs ~1MB per instance)
+         # Default /dev/shm on devtmpfs is only 1MB total, insufficient for PostgreSQL
+         File.mkdir_p!("/dev/shm")
+         System.cmd("mount", ["-t", "tmpfs", "-o", "size=16M", "tmpfs", "/dev/shm"])
+
          [
            "vm.dirty_expire_centisecs=300",
            "vm.dirty_writeback_centisecs=50",
