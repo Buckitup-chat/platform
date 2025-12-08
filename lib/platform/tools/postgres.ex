@@ -504,12 +504,14 @@ defmodule Platform.Tools.Postgres do
   These are files in /dev/shm with names like "PostgreSQL.XXXXXXX".
 
   Only removes segments that are not currently in use by any process.
-  Uses `lsof` to check if the file is open by any process.
   """
   def cleanup_posix_shared_memory do
     shm_dir = "/dev/shm"
 
     if File.dir?(shm_dir) do
+      # Log /dev/shm usage for diagnostics
+      log_shm_usage()
+
       case File.ls(shm_dir) do
         {:ok, files} ->
           postgres_shm_files =
@@ -522,9 +524,11 @@ defmodule Platform.Tools.Postgres do
 
             Enum.each(postgres_shm_files, fn file ->
               path = Path.join(shm_dir, file)
+              {in_use, holder_pids} = shm_file_in_use_with_pids(path)
 
-              if shm_file_in_use?(path) do
-                ["POSIX shm in use, skipping: ", path] |> log(:debug)
+              if in_use do
+                ["POSIX shm in use by pids ", inspect(holder_pids), ", skipping: ", path]
+                |> log(:debug)
               else
                 case File.rm(path) do
                   :ok ->
@@ -537,6 +541,9 @@ defmodule Platform.Tools.Postgres do
             end)
           end
 
+          # Log usage after cleanup
+          log_shm_usage()
+
         {:error, reason} ->
           ["Could not list /dev/shm: ", inspect(reason)] |> log(:debug)
       end
@@ -545,34 +552,61 @@ defmodule Platform.Tools.Postgres do
     :ok
   end
 
+  defp log_shm_usage do
+    case System.cmd("df", ["-h", "/dev/shm"], stderr_to_stdout: true) do
+      {output, 0} ->
+        ["/dev/shm usage:\n", output] |> log(:debug)
+
+      _ ->
+        :ok
+    end
+  end
+
   # Check if a shared memory file is currently in use by any process
-  # Uses /proc/*/fd to find open file descriptors pointing to the path
-  defp shm_file_in_use?(path) do
+  # Returns {true, pids} if in use, {false, []} otherwise
+  # Checks both /proc/*/fd and /proc/*/maps for memory-mapped files
+  defp shm_file_in_use_with_pids(path) do
     case File.ls("/proc") do
       {:ok, entries} ->
-        entries
-        |> Enum.filter(&numeric_string?/1)
-        |> Enum.any?(fn pid ->
-          fd_dir = "/proc/#{pid}/fd"
+        pids =
+          entries
+          |> Enum.filter(&numeric_string?/1)
+          |> Enum.filter(fn pid -> process_uses_shm?(pid, path) end)
 
-          case File.ls(fd_dir) do
-            {:ok, fds} ->
-              Enum.any?(fds, fn fd ->
-                case File.read_link(Path.join(fd_dir, fd)) do
-                  {:ok, target} -> target == path
-                  _ -> false
-                end
-              end)
-
-            _ ->
-              false
-          end
-        end)
+        {pids != [], pids}
 
       _ ->
         # If we can't read /proc, be conservative and assume in use
-        true
+        {true, ["unknown"]}
     end
+  end
+
+  defp process_uses_shm?(pid, path) do
+    # Check file descriptors
+    fd_dir = "/proc/#{pid}/fd"
+    fd_match =
+      case File.ls(fd_dir) do
+        {:ok, fds} ->
+          Enum.any?(fds, fn fd ->
+            case File.read_link(Path.join(fd_dir, fd)) do
+              {:ok, target} -> target == path
+              _ -> false
+            end
+          end)
+
+        _ ->
+          false
+      end
+
+    # Also check memory maps for mmap'd shm
+    maps_file = "/proc/#{pid}/maps"
+    maps_match =
+      case File.read(maps_file) do
+        {:ok, content} -> String.contains?(content, path)
+        _ -> false
+      end
+
+    fd_match || maps_match
   end
 
   defp numeric_string?(str) do
