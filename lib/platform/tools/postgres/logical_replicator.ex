@@ -98,6 +98,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
         :ok
 
       {:ok, %{rows: []}} ->
+        # First try to create with slot - if slot exists, create without and set slot after
         create_sql = """
         CREATE SUBSCRIPTION #{subscription_name}
         CONNECTION '#{connection_string}'
@@ -110,6 +111,15 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
             log("created subscription name=#{subscription_name} publication=#{publication_name} copy_data=#{copy_data} enabled=#{enabled}", :info)
             :ok
 
+          {:error, %{postgres: %{message: msg}} = reason} = error ->
+            if String.contains?(msg || "", "already exists") do
+              # Slot exists on source - create subscription without slot, then attach
+              create_without_slot(repo, connection_string, publication_name, subscription_name, copy_data, enabled)
+            else
+              log("failed to create subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+              error
+            end
+
           {:error, reason} = error ->
             log("failed to create subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
             error
@@ -117,6 +127,43 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
 
       {:error, reason} = error ->
         log("failed to check existing subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+        error
+    end
+  end
+
+  # Create subscription without auto-creating slot, then attach to existing slot
+  defp create_without_slot(repo, connection_string, publication_name, subscription_name, copy_data, enabled) do
+    # Create subscription with create_slot=false
+    create_sql = """
+    CREATE SUBSCRIPTION #{subscription_name}
+    CONNECTION '#{connection_string}'
+    PUBLICATION #{publication_name}
+    WITH (copy_data = #{copy_data}, enabled = false, create_slot = false);
+    """
+
+    case repo.query(create_sql) do
+      {:ok, _} ->
+        # Now set the slot name to use the existing slot
+        set_slot_sql = "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = '#{subscription_name}')"
+
+        case repo.query(set_slot_sql) do
+          {:ok, _} ->
+            # Enable if requested
+            if enabled do
+              enable_sql = "ALTER SUBSCRIPTION #{subscription_name} ENABLE"
+              repo.query(enable_sql)
+            end
+
+            log("created subscription name=#{subscription_name} (reused existing slot)", :info)
+            :ok
+
+          {:error, reason} = error ->
+            log("failed to set slot for subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+            error
+        end
+
+      {:error, reason} = error ->
+        log("failed to create subscription without slot name=#{subscription_name} reason=#{inspect(reason)}", :error)
         error
     end
   end
@@ -153,42 +200,22 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
     end
   end
 
-  # Ensures the replication slot exists on the source, refreshing if needed
+  # Ensures the replication slot exists on the source, recreating if needed
+  # This is called BEFORE enabling, so we use SET (slot_name = ...) approach
+  # which works on disabled subscriptions
   defp ensure_slot_exists(repo, subscription_name) do
     # Check if slot exists by querying subscription's slot name
     check_sql = """
-    SELECT subslotname FROM pg_subscription WHERE subname = '#{subscription_name}'
+    SELECT subslotname, subenabled FROM pg_subscription WHERE subname = '#{subscription_name}'
     """
 
     case repo.query(check_sql) do
-      {:ok, %{rows: [[slot_name]]}} when not is_nil(slot_name) ->
-        # Subscription has a slot configured, try to refresh to ensure it exists on source
-        # REFRESH SUBSCRIPTION will create the slot if missing
-        refresh_sql = "ALTER SUBSCRIPTION #{subscription_name} REFRESH PUBLICATION WITH (copy_data = false)"
+      {:ok, %{rows: [[slot_name, _enabled]]}} when not is_nil(slot_name) ->
+        # Subscription has a slot configured - verify it exists on source
+        # by trying to drop and recreate (this works even when disabled)
+        verify_or_recreate_slot(repo, subscription_name, slot_name)
 
-        case repo.query(refresh_sql) do
-          {:ok, _} ->
-            log("refreshed subscription name=#{subscription_name} slot=#{slot_name}", :debug)
-            :ok
-
-          {:error, %{postgres: %{code: :undefined_object}}} ->
-            # Slot doesn't exist on source - need to drop and recreate subscription
-            log("slot missing for subscription=#{subscription_name}, will recreate", :warning)
-            recreate_slot(repo, subscription_name)
-
-          {:error, reason} ->
-            # Other error during refresh - might be slot missing
-            if slot_missing_error?(reason) do
-              log("slot missing for subscription=#{subscription_name}, will recreate", :warning)
-              recreate_slot(repo, subscription_name)
-            else
-              log("refresh failed subscription=#{subscription_name} reason=#{inspect(reason)}", :debug)
-              # Non-fatal, try to enable anyway
-              :ok
-            end
-        end
-
-      {:ok, %{rows: [[nil]]}} ->
+      {:ok, %{rows: [[nil, _enabled]]}} ->
         # No slot configured (subscription created with create_slot=false)
         :ok
 
@@ -201,25 +228,29 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
     end
   end
 
-  defp slot_missing_error?(%{postgres: %{message: msg}}) when is_binary(msg) do
-    String.contains?(msg, "replication slot") and String.contains?(msg, "does not exist")
-  end
-  defp slot_missing_error?(_), do: false
+  # Verify slot exists or recreate it - works on disabled subscriptions
+  defp verify_or_recreate_slot(repo, subscription_name, slot_name) do
+    # The safest approach: drop slot reference and recreate
+    # SET (slot_name = NONE) drops the slot on source if it exists
+    # SET (slot_name = 'name') creates a new slot on source
+    # This works regardless of subscription enabled state
+    drop_sql = "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = NONE)"
+    create_sql = "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = '#{slot_name}')"
 
-  # Recreate the slot by altering subscription to drop and recreate it
-  defp recreate_slot(repo, subscription_name) do
-    # Drop the old slot reference and create a new one
-    # This is the safest way to recover from a missing slot
-    drop_slot_sql = "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = NONE)"
-    create_slot_sql = "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = '#{subscription_name}')"
+    case repo.query(drop_sql) do
+      {:ok, _} ->
+        case repo.query(create_sql) do
+          {:ok, _} ->
+            log("verified/recreated slot=#{slot_name} for subscription=#{subscription_name}", :debug)
+            :ok
 
-    with {:ok, _} <- repo.query(drop_slot_sql),
-         {:ok, _} <- repo.query(create_slot_sql) do
-      log("recreated slot for subscription=#{subscription_name}", :info)
-      :ok
-    else
+          {:error, reason} = error ->
+            log("failed to create slot=#{slot_name} subscription=#{subscription_name} reason=#{inspect(reason)}", :error)
+            error
+        end
+
       {:error, reason} = error ->
-        log("failed to recreate slot subscription=#{subscription_name} reason=#{inspect(reason)}", :error)
+        log("failed to drop slot reference subscription=#{subscription_name} reason=#{inspect(reason)}", :error)
         error
     end
   end
