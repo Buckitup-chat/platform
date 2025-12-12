@@ -3,6 +3,7 @@ defmodule Platform.Tools.Postgres do
   Configurable PostgreSQL tools that wrap Platform.PgDb functionality.
   All configuration is passed as options rather than using hardcoded values.
   """
+  alias Platform.Tools.Postgres.{Permissions, SharedMemory}
   @postgres_user "postgres"
   @pg_host "localhost"
 
@@ -76,7 +77,7 @@ defmodule Platform.Tools.Postgres do
     log(["[alt traversal] wrong_dirs: ", wrong_dirs], :debug)
 
     [pg_data_dir]
-    |> ensure_dirs_permissions(get_postgres_uid(), get_postgres_gid())
+    |> Permissions.ensure_dirs(Permissions.get_uid(), Permissions.get_gid())
 
     log(["[initialize] ", "permissions set"], :debug)
 
@@ -90,7 +91,7 @@ defmodule Platform.Tools.Postgres do
         :ok
 
       false ->
-        cleanup_stale_shared_memory(pg_data_dir)
+        SharedMemory.cleanup_stale(pg_data_dir)
 
         args =
           ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++
@@ -202,12 +203,7 @@ defmodule Platform.Tools.Postgres do
     end
   end
 
-  def make_accessible(path) do
-    uid = get_postgres_uid()
-    gid = get_postgres_gid()
-
-    [path] |> ensure_dirs_permissions(uid, gid)
-  end
+  defdelegate make_accessible(path), to: Permissions
 
   @doc """
   Check if PostgreSQL is already initialized.
@@ -493,190 +489,13 @@ defmodule Platform.Tools.Postgres do
       |> log(:debug)
     end
 
-    # Clean up stale shared memory for this data directory
-    cleanup_stale_shared_memory(pg_data_dir)
+    SharedMemory.cleanup_stale(pg_data_dir)
 
     :ok
   end
 
-  @doc """
-  Clean up stale POSIX shared memory segments left by crashed PostgreSQL processes.
-  These are files in /dev/shm with names like "PostgreSQL.XXXXXXX".
-
-  Only removes segments that are not currently in use by any process.
-  """
-  def cleanup_posix_shared_memory do
-    shm_dir = "/dev/shm"
-
-    if File.dir?(shm_dir) do
-      # Log /dev/shm usage for diagnostics
-      log_shm_usage()
-
-      case File.ls(shm_dir) do
-        {:ok, files} ->
-          postgres_shm_files =
-            files
-            |> Enum.filter(&String.starts_with?(&1, "PostgreSQL."))
-
-          if postgres_shm_files != [] do
-            ["Found POSIX shared memory files: ", inspect(postgres_shm_files)]
-            |> log(:debug)
-
-            Enum.each(postgres_shm_files, fn file ->
-              path = Path.join(shm_dir, file)
-              {in_use, holder_pids} = shm_file_in_use_with_pids(path)
-
-              if in_use do
-                ["POSIX shm in use by pids ", inspect(holder_pids), ", skipping: ", path]
-                |> log(:debug)
-              else
-                case File.rm(path) do
-                  :ok ->
-                    ["Removed stale POSIX shm: ", path] |> log(:info)
-
-                  {:error, reason} ->
-                    ["Could not remove POSIX shm ", path, ": ", inspect(reason)] |> log(:warning)
-                end
-              end
-            end)
-          end
-
-          # Log usage after cleanup
-          log_shm_usage()
-
-        {:error, reason} ->
-          ["Could not list /dev/shm: ", inspect(reason)] |> log(:debug)
-      end
-    end
-
-    :ok
-  end
-
-  defp log_shm_usage do
-    case System.cmd("df", ["-h", "/dev/shm"], stderr_to_stdout: true) do
-      {output, 0} ->
-        ["/dev/shm usage:\n", output] |> log(:debug)
-
-      _ ->
-        :ok
-    end
-  end
-
-  # Check if a shared memory file is currently in use by any process
-  # Returns {true, pids} if in use, {false, []} otherwise
-  # Checks both /proc/*/fd and /proc/*/maps for memory-mapped files
-  defp shm_file_in_use_with_pids(path) do
-    case File.ls("/proc") do
-      {:ok, entries} ->
-        pids =
-          entries
-          |> Enum.filter(&numeric_string?/1)
-          |> Enum.filter(fn pid -> process_uses_shm?(pid, path) end)
-
-        {pids != [], pids}
-
-      _ ->
-        # If we can't read /proc, be conservative and assume in use
-        {true, ["unknown"]}
-    end
-  end
-
-  defp process_uses_shm?(pid, path) do
-    # Check file descriptors
-    fd_dir = "/proc/#{pid}/fd"
-
-    fd_match =
-      case File.ls(fd_dir) do
-        {:ok, fds} ->
-          Enum.any?(fds, fn fd ->
-            case File.read_link(Path.join(fd_dir, fd)) do
-              {:ok, target} -> target == path
-              _ -> false
-            end
-          end)
-
-        _ ->
-          false
-      end
-
-    # Also check memory maps for mmap'd shm
-    maps_file = "/proc/#{pid}/maps"
-
-    maps_match =
-      case File.read(maps_file) do
-        {:ok, content} -> String.contains?(content, path)
-        _ -> false
-      end
-
-    fd_match || maps_match
-  end
-
-  defp numeric_string?(str) do
-    case Integer.parse(str) do
-      {_, ""} -> true
-      _ -> false
-    end
-  end
-
-  @doc """
-  Clean up stale shared memory segments associated with a PostgreSQL data directory.
-  This prevents "pre-existing shared memory block is still in use" errors when
-  a previous PostgreSQL instance crashed or was killed without proper cleanup.
-
-  ## Parameters
-  - `pg_data_dir` - PostgreSQL data directory path
-  """
-  def cleanup_stale_shared_memory(pg_data_dir) do
-    # Clean up POSIX shared memory segments in /dev/shm
-    cleanup_posix_shared_memory()
-
-    # Clean up System V shared memory segments
-    if File.exists?("/usr/bin/ipcs") && File.exists?("/usr/bin/ipcrm") do
-      # Find shared memory segments owned by postgres user that reference this data dir
-      {ipcs_output, 0} = MuonTrap.cmd("/usr/bin/ipcs", ["-m"], stderr_to_stdout: true)
-
-      # Parse ipcs output to find segments that might be stale
-      # Look for segments owned by postgres that have 0 attached processes
-      stale_segments =
-        ipcs_output
-        |> String.split("\n")
-        |> Enum.filter(fn line ->
-          # Match lines with shared memory info (key, shmid, owner, perms, bytes, nattch)
-          String.contains?(line, "postgres") && String.match?(line, ~r/^0x/)
-        end)
-        |> Enum.map(fn line ->
-          # Extract shmid (second column)
-          case String.split(line, ~r/\s+/, trim: true) do
-            [_key, shmid | _rest] -> shmid
-            _ -> nil
-          end
-        end)
-        |> Enum.reject(&is_nil/1)
-
-      # Only remove segments if the postmaster.pid doesn't exist (server not running)
-      postmaster_pid_file = Path.join(pg_data_dir, "postmaster.pid")
-
-      if !File.exists?(postmaster_pid_file) && stale_segments != [] do
-        ["Found potentially stale shared memory segments: ", inspect(stale_segments)]
-        |> log(:debug)
-
-        # Try to remove each stale segment
-        Enum.each(stale_segments, fn shmid ->
-          {rm_output, rm_status} =
-            MuonTrap.cmd("/usr/bin/ipcrm", ["-m", shmid], stderr_to_stdout: true)
-
-          if rm_status == 0 do
-            ["Removed stale shared memory segment: ", shmid] |> log(:info)
-          else
-            ["Could not remove shared memory segment ", shmid, ": ", rm_output]
-            |> log(:debug)
-          end
-        end)
-      end
-    end
-
-    :ok
-  end
+  defdelegate cleanup_stale_shared_memory(pg_data_dir), to: SharedMemory, as: :cleanup_stale
+  defdelegate cleanup_posix_shared_memory(), to: SharedMemory, as: :cleanup_posix
 
   @doc """
   Create a daemon specification for running PostgreSQL server under supervision.
@@ -710,15 +529,8 @@ defmodule Platform.Tools.Postgres do
      ]}
   end
 
-  def get_postgres_uid do
-    {uid_str, 0} = MuonTrap.cmd("id", ["-u", @postgres_user], stderr_to_stdout: true)
-    String.trim(uid_str) |> String.to_integer()
-  end
-
-  def get_postgres_gid do
-    {gid_str, 0} = MuonTrap.cmd("id", ["-g", @postgres_user], stderr_to_stdout: true)
-    String.trim(gid_str) |> String.to_integer()
-  end
+  defdelegate get_postgres_uid(), to: Permissions, as: :get_uid
+  defdelegate get_postgres_gid(), to: Permissions, as: :get_gid
 
   @doc """
   Get replication user credentials.
@@ -728,64 +540,6 @@ defmodule Platform.Tools.Postgres do
   """
   def replication_credentials do
     [username: @postgres_user]
-  end
-
-  defp ensure_dirs_permissions([], _uid, _gid), do: :ok
-
-  defp ensure_dirs_permissions(dirs, uid, gid) when is_list(dirs) do
-    # Process directories sequentially to avoid issues during init
-    dirs
-    |> Enum.flat_map(fn dir ->
-      set_permissions(dir, uid, gid, 0o700)
-
-      case File.ls(dir) do
-        {:ok, filelist} ->
-          Enum.reduce(filelist, [], fn file_or_dir, acc ->
-            path = Path.join(dir, file_or_dir)
-
-            if File.dir?(path) do
-              [path | acc]
-            else
-              set_permissions(path, uid, gid, 0o600)
-              acc
-            end
-          end)
-
-        {:error, reason} ->
-          log(["Failed to list directory ", dir, ": ", inspect(reason)], :error)
-          []
-      end
-    end)
-    |> ensure_dirs_permissions(uid, gid)
-  end
-
-  defp set_permissions(path, uid, gid, mod) do
-    with {:ok, %{mode: f_mod, uid: f_uid, gid: f_gid}} <- File.stat(path),
-         change_uid? <- f_uid != uid,
-         change_gid? <- f_gid != gid,
-         change_mod? <- rem(f_mod, 0o1000) != mod,
-         true <- change_uid? || change_gid? || change_mod?,
-         log(
-           [
-             path,
-             " ",
-             inspect({f_uid, f_gid, f_mod |> Integer.to_string(8)}),
-             " -> ",
-             inspect({uid, gid, mod |> Integer.to_string(8)})
-           ],
-           :debug
-         ) do
-      track(change_uid?, fn -> File.chown!(path, uid) end, [path, " own"])
-      track(change_gid?, fn -> File.chgrp!(path, gid) end, [path, " grp"])
-      track(change_mod?, fn -> File.chmod!(path, mod) end, [path, " mod"])
-    end
-  end
-
-  defp track(predicate, fun, msg) do
-    if predicate do
-      :timer.tc(fun)
-      log([msg], :debug)
-    end
   end
 
   defp run_pg(tool, args, opts \\ []) do
