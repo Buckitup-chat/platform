@@ -584,6 +584,7 @@ defmodule Platform.Tools.Postgres do
   defp process_uses_shm?(pid, path) do
     # Check file descriptors
     fd_dir = "/proc/#{pid}/fd"
+
     fd_match =
       case File.ls(fd_dir) do
         {:ok, fds} ->
@@ -600,6 +601,7 @@ defmodule Platform.Tools.Postgres do
 
     # Also check memory maps for mmap'd shm
     maps_file = "/proc/#{pid}/maps"
+
     maps_match =
       case File.read(maps_file) do
         {:ok, content} -> String.contains?(content, path)

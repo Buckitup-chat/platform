@@ -49,7 +49,6 @@ config :chat, :db_write_logging, true
 
 # PostgreSQL synchronization configuration
 config :platform, Platform.Storage.Sync,
-  enabled: true,
   schemas: [:users]
 
 # PostgreSQL configuration

@@ -10,5 +10,4 @@ defmodule Platform.Log do
   def postgres_log(msg, level \\ :info) do
     log(["[postgres] ", msg], level)
   end
-
 end

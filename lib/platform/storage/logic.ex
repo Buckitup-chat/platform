@@ -58,30 +58,26 @@ defmodule Platform.Storage.Logic do
 
   # Check PostgreSQL logical replication lag
   defp check_pg_replication_lag do
-    if Platform.Storage.Sync.enabled?() do
-      # Check lag for internal_from_main subscription
-      case LogicalReplicator.check_replication_lag(
-             Chat.InternalRepo,
-             "internal_from_main"
-           ) do
-        {:ok, lag_bytes} ->
-          log("PG replication lag=#{lag_bytes} bytes", :debug)
+    # Check lag for internal_from_main subscription
+    case LogicalReplicator.check_replication_lag(
+           Chat.InternalRepo,
+           "internal_from_main"
+         ) do
+      {:ok, lag_bytes} ->
+        log("PG replication lag=#{lag_bytes} bytes", :debug)
 
-          # If lag is high (>1MB), optionally run a light sync
-          if lag_bytes > 1_048_576 do
-            log("High PG replication lag detected, consider manual sync", :warning)
-          end
+        # If lag is high (>1MB), optionally run a light sync
+        if lag_bytes > 1_048_576 do
+          log("High PG replication lag detected, consider manual sync", :warning)
+        end
 
-        {:error, :subscription_not_found} ->
-          log("PG subscription not found, skipping lag check", :debug)
+      {:error, :subscription_not_found} ->
+        log("PG subscription not found, skipping lag check", :debug)
 
-        {:error, reason} ->
-          log("Failed to check PG replication lag: #{inspect(reason)}", :error)
-      end
+      {:error, reason} ->
+        log("Failed to check PG replication lag: #{inspect(reason)}", :error)
     end
   end
-
-
 
   # DB functions
 

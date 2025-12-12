@@ -107,20 +107,26 @@ defmodule Platform.Dns.Server do
   end
 
   defp log_send_error(send_error, data) do
-    log([
-      "sending response error: ",
-      inspect(send_error),
-      " on: ",
-      data |> format_data() |> inspect()
-    ], :warning)
+    log(
+      [
+        "sending response error: ",
+        inspect(send_error),
+        " on: ",
+        data |> format_data() |> inspect()
+      ],
+      :warning
+    )
   end
 
   defp log_error(err, data) do
-    log([
-      "error: ",
-      inspect(err),
-      " on: ",
-      data |> format_data() |> inspect()
-    ], :warning)
+    log(
+      [
+        "error: ",
+        inspect(err),
+        " on: ",
+        data |> format_data() |> inspect()
+      ],
+      :warning
+    )
   end
 end

@@ -39,7 +39,8 @@ defmodule Platform.App.Drive.MainDbSupervisor do
       {Chat.Db.MainDbSupervisor, full_path} |> exit_takes(20_000),
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       Starter |> exit_takes(1000),
-      {:stage, Copying, {Copier, task_in: task_supervisor, pg_opts: pg_opts} |> exit_takes(25_000)},
+      {:stage, Copying,
+       {Copier, task_in: task_supervisor, pg_opts: pg_opts} |> exit_takes(25_000)},
       MainReplicator,
       {Switcher, pg_opts: pg_opts} |> exit_takes(1000)
     ]

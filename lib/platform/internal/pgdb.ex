@@ -32,7 +32,6 @@ defmodule Platform.Internal.PgDb do
 
       # Start Chat.InternalRepo for internal PG sync
       Chat.InternalRepo,
-
       tasked(fn -> Chat.RepoStarter.run_migrations(Chat.InternalRepo) end)
     ]
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)
@@ -52,6 +51,7 @@ defmodule Platform.Internal.PgDb do
       |> Keyword.get(:database, @db_name)
 
     log("Setting up database: #{db_name}", :info)
+
     case wait_for_db_ready() do
       :ok -> Platform.Tools.Postgres.ensure_db_exists(db_name, pg_port: @pg_port)
       x -> log("PostgreSQL not ready: #{inspect(x)}", :error)

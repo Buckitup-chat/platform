@@ -121,21 +121,27 @@ defmodule Platform.UsbDrives.Decider do
       Process.sleep(1000)
       {output, code} = Mount.unmount("/dev/" <> device)
 
-      log([
-        "Unmounting #{device}\n",
-        "exit code: #{code} \n",
-        output
-      ], :debug)
+      log(
+        [
+          "Unmounting #{device}\n",
+          "exit code: #{code} \n",
+          output
+        ],
+        :debug
+      )
     end)
     |> tap(fn device ->
       Process.sleep(1000)
       {output, code} = Mkfs.f2fs(device)
 
-      log([
-        "F2FS optimization for #{device}\n",
-        "exit code: #{code} \n",
-        output
-      ], :info)
+      log(
+        [
+          "F2FS optimization for #{device}\n",
+          "exit code: #{code} \n",
+          output
+        ],
+        :info
+      )
     end)
     |> Mount.mount_at_path(path)
   end
@@ -149,10 +155,13 @@ defmodule Platform.UsbDrives.Decider do
           :ok
 
         error ->
-          log([
-            "Error staring scenario #{scenario}\n",
-            inspect(error, pretty: true)
-          ], :error)
+          log(
+            [
+              "Error staring scenario #{scenario}\n",
+              inspect(error, pretty: true)
+            ],
+            :error
+          )
 
           error
       end

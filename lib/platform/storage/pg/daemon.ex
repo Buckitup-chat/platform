@@ -37,7 +37,11 @@ defmodule Platform.Storage.Pg.Daemon do
       ) do
     # Verify PostgreSQL was initialized before attempting to start
     unless Postgres.initialized?(pg_dir: pg_dir) do
-      log("PostgreSQL data directory not initialized at #{pg_dir}/data - cannot start daemon", :error)
+      log(
+        "PostgreSQL data directory not initialized at #{pg_dir}/data - cannot start daemon",
+        :error
+      )
+
       {:stop, :not_initialized, state}
     else
       # Capture any PostgreSQL crash logs before cleanup

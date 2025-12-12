@@ -43,19 +43,27 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
         # Start local in-process sync after bootstrap copy completes
         source_repo = Chat.InternalRepo
-        target_repo = case pg_opts do
-          nil -> nil
-          opts -> Map.get(opts, :repo)
-        end
 
-        if Sync.enabled?() and not is_nil(target_repo) do
+        target_repo =
+          case pg_opts do
+            nil -> nil
+            opts -> Map.get(opts, :repo)
+          end
+
+        if is_nil(target_repo) do
+          log("skipping local sync target_repo_present?=false", :debug)
+        else
           Sync.set_active()
-          _ = Sync.run_local_sync(source_repo: source_repo, target_repo: target_repo, schemas: Sync.schemas())
+
+          _ =
+            Sync.run_local_sync(
+              source_repo: source_repo,
+              target_repo: target_repo,
+              schemas: Sync.schemas()
+            )
 
           # After sync completes, set up logical replication (internal → main)
           setup_logical_replication(source_repo, target_repo)
-        else
-          log("skipping local sync enabled?=#{Sync.enabled?()} target_repo_present?=#{not is_nil(target_repo)}", :debug)
         end
 
         Switching.set_default(main)
@@ -98,7 +106,6 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
   # Private helper to set up logical replication after sync
   defp setup_logical_replication(source_repo, target_repo) do
-
     conn_string = Postgres.build_connection_string(source_repo)
 
     with :ok <- LogicalReplicator.create_publication(source_repo, ["users"], "internal_to_main"),
@@ -109,7 +116,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
              "internal_to_main",
              "main_from_internal",
              copy_data: false,
-             enabled: false  # Create disabled, enable after ensuring slot
+             # Create disabled, enable after ensuring slot
+             enabled: false
            ) do
       # Ensure slot exists on source before enabling subscription
       _ = LogicalReplicator.ensure_slot_on_source(source_repo, "main_from_internal")
@@ -120,5 +128,4 @@ defmodule Platform.Storage.InternalToMain.Copier do
         log("failed to setup replication: #{inspect(reason)}", :error)
     end
   end
-
 end

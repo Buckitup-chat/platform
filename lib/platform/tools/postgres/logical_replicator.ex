@@ -48,7 +48,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
         :ok
 
       {:error, reason} = error ->
-        log("failed to create publication name=#{publication_name} reason=#{inspect(reason)}", :error)
+        log(
+          "failed to create publication name=#{publication_name} reason=#{inspect(reason)}",
+          :error
+        )
+
         error
     end
   end
@@ -108,31 +112,61 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
 
         case repo.query(create_sql) do
           {:ok, _} ->
-            log("created subscription name=#{subscription_name} publication=#{publication_name} copy_data=#{copy_data} enabled=#{enabled}", :info)
+            log(
+              "created subscription name=#{subscription_name} publication=#{publication_name} copy_data=#{copy_data} enabled=#{enabled}",
+              :info
+            )
+
             :ok
 
           {:error, %{postgres: %{message: msg}} = reason} = error ->
             if String.contains?(msg || "", "already exists") do
               # Slot exists on source - create subscription without slot, then attach
-              create_without_slot(repo, connection_string, publication_name, subscription_name, copy_data, enabled)
+              create_without_slot(
+                repo,
+                connection_string,
+                publication_name,
+                subscription_name,
+                copy_data,
+                enabled
+              )
             else
-              log("failed to create subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+              log(
+                "failed to create subscription name=#{subscription_name} reason=#{inspect(reason)}",
+                :error
+              )
+
               error
             end
 
           {:error, reason} = error ->
-            log("failed to create subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+            log(
+              "failed to create subscription name=#{subscription_name} reason=#{inspect(reason)}",
+              :error
+            )
+
             error
         end
 
       {:error, reason} = error ->
-        log("failed to check existing subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+        log(
+          "failed to check existing subscription name=#{subscription_name} reason=#{inspect(reason)}",
+          :error
+        )
+
         error
     end
   end
 
   # Create subscription without auto-creating slot, then attach to existing slot
-  defp create_without_slot(repo, connection_string, publication_name, subscription_name, copy_data, enabled) do
+  defp create_without_slot(
+         repo,
+         connection_string,
+         publication_name,
+         subscription_name,
+         copy_data,
+         enabled
+       ) do
     # Create subscription with create_slot=false
     create_sql = """
     CREATE SUBSCRIPTION #{subscription_name}
@@ -144,7 +178,8 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
     case repo.query(create_sql) do
       {:ok, _} ->
         # Now set the slot name to use the existing slot
-        set_slot_sql = "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = '#{subscription_name}')"
+        set_slot_sql =
+          "ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = '#{subscription_name}')"
 
         case repo.query(set_slot_sql) do
           {:ok, _} ->
@@ -158,12 +193,20 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
             :ok
 
           {:error, reason} = error ->
-            log("failed to set slot for subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+            log(
+              "failed to set slot for subscription name=#{subscription_name} reason=#{inspect(reason)}",
+              :error
+            )
+
             error
         end
 
       {:error, reason} = error ->
-        log("failed to create subscription without slot name=#{subscription_name} reason=#{inspect(reason)}", :error)
+        log(
+          "failed to create subscription without slot name=#{subscription_name} reason=#{inspect(reason)}",
+          :error
+        )
+
         error
     end
   end
@@ -235,7 +278,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
         :ok
 
       {:error, reason} = error ->
-        log("failed to enable subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+        log(
+          "failed to enable subscription name=#{subscription_name} reason=#{inspect(reason)}",
+          :error
+        )
+
         error
     end
   end
@@ -257,7 +304,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
         :ok
 
       {:error, reason} = error ->
-        log("failed to disable subscription name=#{subscription_name} reason=#{inspect(reason)}", :error)
+        log(
+          "failed to disable subscription name=#{subscription_name} reason=#{inspect(reason)}",
+          :error
+        )
+
         error
     end
   end
@@ -295,9 +346,12 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
         {:error, :subscription_not_found}
 
       {:error, reason} = error ->
-        log("failed to check lag subscription=#{subscription_name} reason=#{inspect(reason)}", :error)
+        log(
+          "failed to check lag subscription=#{subscription_name} reason=#{inspect(reason)}",
+          :error
+        )
+
         error
     end
   end
-
 end

@@ -7,11 +7,6 @@ defmodule Platform.Storage.Sync do
 
   @type state :: :inactive | :active | :done | {:error, term()}
 
-  @spec enabled?() :: boolean()
-  def enabled? do
-    config() |> Keyword.get(:enabled, true)
-  end
-
   @spec schemas(keyword()) :: [atom() | String.t()]
   def schemas(opts \\ []) do
     default = Keyword.get(opts, :default, [:users])
@@ -54,7 +49,10 @@ defmodule Platform.Storage.Sync do
     target = Keyword.get(opts, :target_repo)
     schemas = Keyword.get(opts, :schemas, schemas())
 
-    log("local in-process sync start source=#{inspect(source)} target=#{inspect(target)} schemas=#{inspect(schemas)}", :info)
+    log(
+      "local in-process sync start source=#{inspect(source)} target=#{inspect(target)} schemas=#{inspect(schemas)}",
+      :info
+    )
 
     # Perform unidirectional diff+copy using BatchSync
     case Platform.Tools.Postgres.BatchSync.sync(
