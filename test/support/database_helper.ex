@@ -121,11 +121,16 @@ defmodule Platform.Test.DatabaseHelper do
     case System.cmd(
            "psql",
            [
-             "-h", hostname,
-             "-p", to_string(port),
-             "-U", username,
-             "-d", "postgres",
-             "-c", "CREATE DATABASE #{db_name}"
+             "-h",
+             hostname,
+             "-p",
+             to_string(port),
+             "-U",
+             username,
+             "-d",
+             "postgres",
+             "-c",
+             "CREATE DATABASE #{db_name}"
            ],
            env: env,
            stderr_to_stdout: true
@@ -153,11 +158,16 @@ defmodule Platform.Test.DatabaseHelper do
     case System.cmd(
            "psql",
            [
-             "-h", hostname,
-             "-p", to_string(port),
-             "-U", username,
-             "-d", "postgres",
-             "-c", "DROP DATABASE IF EXISTS #{db_name}"
+             "-h",
+             hostname,
+             "-p",
+             to_string(port),
+             "-U",
+             username,
+             "-d",
+             "postgres",
+             "-c",
+             "DROP DATABASE IF EXISTS #{db_name}"
            ],
            env: env,
            stderr_to_stdout: true
@@ -188,11 +198,16 @@ defmodule Platform.Test.DatabaseHelper do
     case System.cmd(
            "psql",
            [
-             "-h", hostname,
-             "-p", to_string(port),
-             "-U", username,
-             "-d", db_name,
-             "-c", sql
+             "-h",
+             hostname,
+             "-p",
+             to_string(port),
+             "-U",
+             username,
+             "-d",
+             db_name,
+             "-c",
+             sql
            ],
            env: env,
            stderr_to_stdout: true

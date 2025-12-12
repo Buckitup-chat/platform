@@ -88,9 +88,7 @@ defmodule Platform.MixProject do
       #        targets: :bktp_rpi4,
       #        nerves: [compile: false]},
       # pg_query_ex is needed for ElectricSync patched to recompile correctly
-      {:pg_query_ex,
-       path: "../pg_query",
-       override: true},
+      {:pg_query_ex, path: "../pg_query", override: true},
       {:dns, "~> 2.4"},
       {:socket, "~> 0.3.13"},
       {:postgrex, "~> 0.17"},

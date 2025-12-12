@@ -37,11 +37,12 @@ defmodule Platform.Storage.SyncIntegrationTest do
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk3", name: "Charlie"})
 
       # Run sync
-      result = Sync.run_local_sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        Sync.run_local_sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert :ok = result
@@ -51,7 +52,6 @@ defmodule Platform.Storage.SyncIntegrationTest do
     end
 
     test "handles sync with diverged data" do
-
       # Insert different users in each repo
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk1", name: "Alice"})
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk2", name: "Bob"})
@@ -60,11 +60,12 @@ defmodule Platform.Storage.SyncIntegrationTest do
       {:ok, _} = MainRepo.insert(%User{pub_key: "pk4", name: "David"})
 
       # Run sync (internal -> main)
-      result = Sync.run_local_sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        Sync.run_local_sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert :ok = result
@@ -78,7 +79,6 @@ defmodule Platform.Storage.SyncIntegrationTest do
     end
 
     test "handles sync with empty target" do
-
       # Insert users only in source
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk1", name: "Alice"})
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk2", name: "Bob"})
@@ -87,11 +87,12 @@ defmodule Platform.Storage.SyncIntegrationTest do
       assert MainRepo.aggregate(User, :count) == 0
 
       # Run sync
-      result = Sync.run_local_sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        Sync.run_local_sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert :ok = result
@@ -101,13 +102,13 @@ defmodule Platform.Storage.SyncIntegrationTest do
     end
 
     test "handles error and updates status" do
-
       # Try to sync with invalid repo (will cause error)
-      result = Sync.run_local_sync(
-        source_repo: InvalidRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        Sync.run_local_sync(
+          source_repo: InvalidRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify error was returned
       assert {:error, _reason} = result
@@ -118,37 +119,37 @@ defmodule Platform.Storage.SyncIntegrationTest do
     end
 
     test "returns error when source repo is missing" do
-
-      result = Sync.run_local_sync(
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        Sync.run_local_sync(
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Should return error due to missing source_repo
       assert {:error, _reason} = result
     end
 
     test "returns error when target repo is missing" do
-
-      result = Sync.run_local_sync(
-        source_repo: InternalRepo,
-        schemas: [:users]
-      )
+      result =
+        Sync.run_local_sync(
+          source_repo: InternalRepo,
+          schemas: [:users]
+        )
 
       # Should return error due to missing target_repo
       assert {:error, _reason} = result
     end
 
     test "uses default schemas when not specified" do
-
       # Insert users in source
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk1", name: "Alice"})
 
       # Run sync without specifying schemas (should default to [:users])
-      result = Sync.run_local_sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo
-      )
+      result =
+        Sync.run_local_sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo
+        )
 
       # Verify sync succeeded
       assert :ok = result
@@ -158,18 +159,18 @@ defmodule Platform.Storage.SyncIntegrationTest do
     end
 
     test "handles large dataset sync" do
-
       # Insert 100 users in source
       for i <- 1..100 do
         {:ok, _} = InternalRepo.insert(%User{pub_key: "pk#{i}", name: "User #{i}"})
       end
 
       # Run sync
-      result = Sync.run_local_sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        Sync.run_local_sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert :ok = result
@@ -179,17 +180,17 @@ defmodule Platform.Storage.SyncIntegrationTest do
     end
 
     test "handles sync with no missing rows" do
-
       # Insert same users in both repos
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk1", name: "Alice"})
       {:ok, _} = MainRepo.insert(%User{pub_key: "pk1", name: "Alice"})
 
       # Run sync
-      result = Sync.run_local_sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        Sync.run_local_sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded (even with 0 rows copied)
       assert :ok = result

@@ -48,8 +48,7 @@ config :mime, :types, %{
 config :chat, :db_write_logging, true
 
 # PostgreSQL synchronization configuration
-config :platform, Platform.Storage.Sync,
-  schemas: [:users]
+config :platform, Platform.Storage.Sync, schemas: [:users]
 
 # PostgreSQL configuration
 config :chat,

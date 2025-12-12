@@ -34,11 +34,12 @@ defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
       assert MainRepo.aggregate(User, :count) == 0
 
       # Sync from internal to main
-      result = BatchSync.sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        BatchSync.sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert {:ok, stats} = result
@@ -63,11 +64,12 @@ defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
       {:ok, _} = MainRepo.insert(%User{pub_key: "pk1", name: "Alice Original"})
 
       # Sync from internal to main
-      result = BatchSync.sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        BatchSync.sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert {:ok, stats} = result
@@ -90,11 +92,12 @@ defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
       assert InternalRepo.aggregate(User, :count) == 0
 
       # Sync from internal to main
-      result = BatchSync.sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        BatchSync.sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded with 0 rows copied
       assert {:ok, stats} = result
@@ -113,11 +116,12 @@ defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
       assert MainRepo.aggregate(User, :count) == 0
 
       # Sync from internal to main
-      result = BatchSync.sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        BatchSync.sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert {:ok, stats} = result
@@ -136,11 +140,12 @@ defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
       assert InternalRepo.aggregate(User, :count) == 0
 
       # Sync from main to internal (reverse direction)
-      result = BatchSync.sync(
-        source_repo: MainRepo,
-        target_repo: InternalRepo,
-        schemas: [:users]
-      )
+      result =
+        BatchSync.sync(
+          source_repo: MainRepo,
+          target_repo: InternalRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert {:ok, stats} = result
@@ -163,11 +168,12 @@ defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
       {:ok, _} = MainRepo.insert(%User{pub_key: "pk3", name: "Charlie"})
 
       # Sync from internal to main
-      result = BatchSync.sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        BatchSync.sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert {:ok, stats} = result
@@ -184,11 +190,12 @@ defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
       {:ok, _} = InternalRepo.insert(%User{pub_key: binary_key, name: "Binary User"})
 
       # Sync from internal to main
-      result = BatchSync.sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        BatchSync.sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify sync succeeded
       assert {:ok, stats} = result
@@ -207,11 +214,12 @@ defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
       end
 
       # Sync from internal to main
-      result = BatchSync.sync(
-        source_repo: InternalRepo,
-        target_repo: MainRepo,
-        schemas: [:users]
-      )
+      result =
+        BatchSync.sync(
+          source_repo: InternalRepo,
+          target_repo: MainRepo,
+          schemas: [:users]
+        )
 
       # Verify statistics
       assert {:ok, stats} = result

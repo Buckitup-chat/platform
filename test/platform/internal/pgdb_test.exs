@@ -202,7 +202,7 @@ defmodule Platform.Internal.PgDbTest do
       send(test_pid, {:file_dir, path})
       false
     end
-    
+
     def stat(path) do
       test_pid = Process.get(:test_pid)
       send(test_pid, {:file_stat, path})

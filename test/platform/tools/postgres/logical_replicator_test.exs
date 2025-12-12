@@ -37,11 +37,12 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
 
   describe "create_publication/3" do
     test "creates publication with specified tables" do
-      result = LogicalReplicator.create_publication(
-        RepoMock,
-        ["users", "messages"],
-        "my_publication"
-      )
+      result =
+        LogicalReplicator.create_publication(
+          RepoMock,
+          ["users", "messages"],
+          "my_publication"
+        )
 
       assert :ok = result
       assert_received {:repo_query, sql}
@@ -51,11 +52,12 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     end
 
     test "creates publication with single table" do
-      result = LogicalReplicator.create_publication(
-        RepoMock,
-        ["users"],
-        "users_pub"
-      )
+      result =
+        LogicalReplicator.create_publication(
+          RepoMock,
+          ["users"],
+          "users_pub"
+        )
 
       assert :ok = result
       assert_received {:repo_query, sql}
@@ -65,11 +67,12 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "returns error when query fails" do
       Process.put(:query_result, :error)
 
-      result = LogicalReplicator.create_publication(
-        RepoMock,
-        ["users"],
-        "my_publication"
-      )
+      result =
+        LogicalReplicator.create_publication(
+          RepoMock,
+          ["users"],
+          "my_publication"
+        )
 
       assert {:error, :query_failed} = result
     end
@@ -89,12 +92,13 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
 
   describe "create_subscription/5" do
     test "creates subscription with default options" do
-      result = LogicalReplicator.create_subscription(
-        RepoMock,
-        "host=localhost port=5432 dbname=chat user=replicator password=secret",
-        "source_publication",
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.create_subscription(
+          RepoMock,
+          "host=localhost port=5432 dbname=chat user=replicator password=secret",
+          "source_publication",
+          "my_subscription"
+        )
 
       assert :ok = result
       assert_received {:repo_query, exists_sql}
@@ -103,20 +107,24 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
 
       assert_received {:repo_query, create_sql}
       assert create_sql =~ "CREATE SUBSCRIPTION my_subscription"
-      assert create_sql =~ "CONNECTION 'host=localhost port=5432 dbname=chat user=replicator password=secret'"
+
+      assert create_sql =~
+               "CONNECTION 'host=localhost port=5432 dbname=chat user=replicator password=secret'"
+
       assert create_sql =~ "PUBLICATION source_publication"
       assert create_sql =~ "copy_data = false"
       assert create_sql =~ "enabled = true"
     end
 
     test "creates subscription with copy_data enabled" do
-      result = LogicalReplicator.create_subscription(
-        RepoMock,
-        "host=localhost port=5432 dbname=chat user=replicator",
-        "source_publication",
-        "my_subscription",
-        copy_data: true
-      )
+      result =
+        LogicalReplicator.create_subscription(
+          RepoMock,
+          "host=localhost port=5432 dbname=chat user=replicator",
+          "source_publication",
+          "my_subscription",
+          copy_data: true
+        )
 
       assert :ok = result
       assert_received {:repo_query, _exists_sql}
@@ -125,13 +133,14 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     end
 
     test "creates subscription with enabled false" do
-      result = LogicalReplicator.create_subscription(
-        RepoMock,
-        "host=localhost port=5432 dbname=chat user=replicator",
-        "source_publication",
-        "my_subscription",
-        enabled: false
-      )
+      result =
+        LogicalReplicator.create_subscription(
+          RepoMock,
+          "host=localhost port=5432 dbname=chat user=replicator",
+          "source_publication",
+          "my_subscription",
+          enabled: false
+        )
 
       assert :ok = result
       assert_received {:repo_query, _exists_sql}
@@ -140,14 +149,15 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     end
 
     test "creates subscription with both options" do
-      result = LogicalReplicator.create_subscription(
-        RepoMock,
-        "host=localhost port=5432 dbname=chat user=replicator",
-        "source_publication",
-        "my_subscription",
-        copy_data: true,
-        enabled: false
-      )
+      result =
+        LogicalReplicator.create_subscription(
+          RepoMock,
+          "host=localhost port=5432 dbname=chat user=replicator",
+          "source_publication",
+          "my_subscription",
+          copy_data: true,
+          enabled: false
+        )
 
       assert :ok = result
       assert_received {:repo_query, _exists_sql}
@@ -159,12 +169,13 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "returns error when query fails" do
       Process.put(:query_result, :error)
 
-      result = LogicalReplicator.create_subscription(
-        RepoMock,
-        "host=localhost port=5432 dbname=chat user=replicator",
-        "source_publication",
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.create_subscription(
+          RepoMock,
+          "host=localhost port=5432 dbname=chat user=replicator",
+          "source_publication",
+          "my_subscription"
+        )
 
       assert {:error, :query_failed} = result
     end
@@ -188,10 +199,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
 
   describe "enable_subscription/2" do
     test "enables subscription" do
-      result = LogicalReplicator.enable_subscription(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.enable_subscription(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert :ok = result
       assert_received {:repo_query, sql}
@@ -201,10 +213,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "returns error when query fails" do
       Process.put(:query_result, :error)
 
-      result = LogicalReplicator.enable_subscription(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.enable_subscription(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert {:error, :query_failed} = result
     end
@@ -212,10 +225,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
 
   describe "disable_subscription/2" do
     test "disables subscription" do
-      result = LogicalReplicator.disable_subscription(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.disable_subscription(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert :ok = result
       assert_received {:repo_query, sql}
@@ -225,10 +239,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "returns error when query fails" do
       Process.put(:query_result, :error)
 
-      result = LogicalReplicator.disable_subscription(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.disable_subscription(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert {:error, :query_failed} = result
     end
@@ -238,10 +253,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "returns lag in bytes when subscription exists" do
       Process.put(:query_result, {:lag, 1024})
 
-      result = LogicalReplicator.check_replication_lag(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.check_replication_lag(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert {:ok, 1024} = result
       assert_received {:repo_query, sql}
@@ -253,10 +269,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "returns zero lag when no lag" do
       Process.put(:query_result, {:lag, 0})
 
-      result = LogicalReplicator.check_replication_lag(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.check_replication_lag(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert {:ok, 0} = result
     end
@@ -264,10 +281,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "returns error when subscription not found" do
       Process.put(:query_result, :subscription_not_found)
 
-      result = LogicalReplicator.check_replication_lag(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.check_replication_lag(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert {:error, :subscription_not_found} = result
     end
@@ -275,10 +293,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "returns error when query fails" do
       Process.put(:query_result, :error)
 
-      result = LogicalReplicator.check_replication_lag(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.check_replication_lag(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert {:error, :query_failed} = result
     end
@@ -299,10 +318,11 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test "truncates float lag to integer" do
       Process.put(:query_result, {:lag, 1024.5})
 
-      result = LogicalReplicator.check_replication_lag(
-        RepoMock,
-        "my_subscription"
-      )
+      result =
+        LogicalReplicator.check_replication_lag(
+          RepoMock,
+          "my_subscription"
+        )
 
       assert {:ok, 1024} = result
     end

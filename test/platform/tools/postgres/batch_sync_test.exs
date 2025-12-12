@@ -29,8 +29,10 @@ defmodule Platform.Tools.Postgres.BatchSyncTest do
                 name: "user4"
               }
             ]
+
           :empty ->
             []
+
           _ ->
             # Return structs for pk3 (the missing one in default scenario)
             [%Chat.Data.Schemas.User{pub_key: "pk3", name: "user3"}]
@@ -43,14 +45,19 @@ defmodule Platform.Tools.Postgres.BatchSyncTest do
         case Process.get(:source_data, :default) do
           :default ->
             ["pk1", "pk2", "pk3"]
+
           :empty ->
             []
+
           :with_missing ->
             ["pk1", "pk2", "pk3", "pk4"]
+
           :full_users ->
             ["pk4"]
+
           :same_as_source ->
             ["pk1", "pk2", "pk3"]
+
           custom when is_list(custom) ->
             custom
         end

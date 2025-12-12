@@ -39,7 +39,8 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
     test "sets up publication on internal and subscription on main" do
       # Simulate the Copier setup_logical_replication flow
       # Create publication on internal (source)
-      assert :ok = LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
+      assert :ok =
+               LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
 
       # Verify publication exists
       assert publication_exists?(InternalRepo, "internal_to_main")
@@ -90,7 +91,9 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
   describe "subscription disable/enable on mode transitions" do
     test "publication management during mode transitions" do
       # Phase 1: Create internal→main publication (:internal_to_main mode)
-      assert :ok = LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
+      assert :ok =
+               LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
+
       assert publication_exists?(InternalRepo, "internal_to_main")
 
       # Phase 2: Create main→internal publication (:main mode)
@@ -125,7 +128,9 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
       assert MainRepo.aggregate(User, :count) == 2
 
       # Setup replication for ongoing changes
-      assert :ok = LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
+      assert :ok =
+               LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
+
       assert publication_exists?(InternalRepo, "internal_to_main")
     end
 
@@ -159,14 +164,18 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
   defp cleanup_replication(repo) do
     # Try to drop subscriptions if they exist (ignore errors)
     try do
-      repo.query("SELECT subname FROM pg_subscription WHERE subname IN ('main_from_internal', 'internal_from_main')")
+      repo.query(
+        "SELECT subname FROM pg_subscription WHERE subname IN ('main_from_internal', 'internal_from_main')"
+      )
       |> case do
         {:ok, %{rows: rows}} when rows != [] ->
           Enum.each(rows, fn [subname] ->
             repo.query("ALTER SUBSCRIPTION #{subname} DISABLE", [], timeout: 2000)
             repo.query("DROP SUBSCRIPTION IF EXISTS #{subname}", [], timeout: 2000)
           end)
-        _ -> :ok
+
+        _ ->
+          :ok
       end
     rescue
       _ -> :ok
