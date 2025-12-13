@@ -54,7 +54,7 @@ defmodule Platform.Tools.Postgres do
   - `:ok` if the PostgreSQL database was initialized successfully
   - `{:error, output}` if the PostgreSQL database failed to initialize
   """
-  def initialize(opts) do
+  def initialize(opts, retries \\ 5) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
 
@@ -62,19 +62,7 @@ defmodule Platform.Tools.Postgres do
     File.mkdir_p!(pg_data_dir)
     log(["[initialize] ", "dir created"], :debug)
 
-    log(["[alt traversal]"], :debug)
-
-    {wrong_uid_list, 0} = System.cmd("find", [pg_data_dir | ~w[! -user postgres -print]])
-    log(["[alt traversal] wrong_uid_list: ", wrong_uid_list], :debug)
-
-    {wrong_gid_list, 0} = System.cmd("find", [pg_data_dir | ~w[! -group postgres -print]])
-    log(["[alt traversal] wrong_gid_list: ", wrong_gid_list], :debug)
-
-    {wrong_files, 0} = System.cmd("find", [pg_data_dir | ~w[-type f ! -perm 600 -print]])
-    log(["[alt traversal] wrong_files: ", wrong_files], :debug)
-
-    {wrong_dirs, 0} = System.cmd("find", [pg_data_dir | ~w[-type d ! -perm 700 -print]])
-    log(["[alt traversal] wrong_dirs: ", wrong_dirs], :debug)
+    Permissions.log_permission_issues(pg_data_dir)
 
     [pg_data_dir]
     |> Permissions.ensure_dirs(Permissions.get_uid(), Permissions.get_gid())
@@ -84,13 +72,23 @@ defmodule Platform.Tools.Postgres do
     File.chmod!(pg_dir, 0o755)
     log(["[initialize] ", "dir permissions set"], :debug)
 
-    initialized?(opts)
+    {initialized?(opts), valid_init?(opts)}
     |> go_on(fn
-      true ->
+      {true, true} ->
         ["database already initialized at ", pg_data_dir] |> log(:info)
         :ok
 
-      false ->
+      {true, false} ->
+        [
+          "CRITICAL: PostgreSQL data directory exists but is INVALID at ",
+          pg_data_dir,
+          " - may contain user data, skipping re-initialization"
+        ]
+        |> log(:critical)
+
+        {:error, :incorrectly_initialized}
+
+      {false, _} ->
         SharedMemory.cleanup_stale(pg_data_dir)
 
         args =
@@ -101,13 +99,32 @@ defmodule Platform.Tools.Postgres do
         run_pg("initdb", args, as_postgres_user: true)
     end)
     |> go_on(fn
-      {_, 0} ->
-        ["PostgreSQL database initialized successfully"] |> log(:info)
-        setup_replication(opts)
-
-      {output, _} ->
+      {output, code} when code != 0 ->
         ["PostgreSQL database initialization failed: ", output] |> log(:error)
         {:error, output}
+
+      {_, 0} ->
+        valid_init?(opts)
+    end)
+    |> go_on(fn
+      true ->
+        setup_replication(opts)
+        :ok
+
+      false ->
+        retries - 1
+    end)
+    |> go_on(fn
+      retries_left when retries_left < 1 ->
+        ["PostgreSQL initialization failed after retries"] |> log(:error)
+        {:error, :failed_after_retries}
+
+      retries_left ->
+        ["PostgreSQL initialization produced invalid data directory, cleaning and retrying"]
+        |> log(:warning)
+
+        clean_data_dir(opts)
+        initialize(opts, retries_left)
     end)
   end
 
@@ -152,7 +169,7 @@ defmodule Platform.Tools.Postgres do
         end
 
       {:error, reason} ->
-        ["Failed to update pg_hba.conf: ", reason] |> log(:error)
+        log(["Failed to update pg_hba.conf: ", reason], :error)
         {:error, "Failed to update pg_hba.conf: #{reason}"}
     end
   end
@@ -215,6 +232,60 @@ defmodule Platform.Tools.Postgres do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
     File.exists?(Path.join(pg_data_dir, "PG_VERSION"))
+  end
+
+  @doc """
+  Validate that a PostgreSQL data directory is properly initialized.
+  Checks for essential files and directories that must exist after a successful initdb.
+
+  ## Options
+  - `:pg_dir` - Base directory for PostgreSQL data (required)
+
+  ## Returns
+  - `true` if the data directory appears valid
+  - `false` if essential components are missing
+  """
+  def valid_init?(opts) do
+    pg_dir = Keyword.fetch!(opts, :pg_dir)
+    pg_data_dir = Path.join(pg_dir, "data")
+
+    required_paths = [
+      Path.join(pg_data_dir, "PG_VERSION"),
+      Path.join(pg_data_dir, "base/1"),
+      Path.join(pg_data_dir, "global"),
+      Path.join(pg_data_dir, "pg_hba.conf")
+    ]
+
+    Enum.all?(required_paths, &File.exists?/1)
+  end
+
+  @doc """
+  Clean the PostgreSQL data directory for re-initialization.
+
+  ## Options
+  - `:pg_dir` - Base directory for PostgreSQL data (required)
+
+  ## Returns
+  - `:ok` if cleanup was successful
+  - `{:error, reason}` if cleanup failed
+  """
+  def clean_data_dir(opts) do
+    pg_dir = Keyword.fetch!(opts, :pg_dir)
+    pg_data_dir = Path.join(pg_dir, "data")
+
+    ["Cleaning PostgreSQL data directory: ", pg_data_dir] |> log(:warning)
+
+    case File.rm_rf(pg_data_dir) do
+      {:ok, _} ->
+        ["PostgreSQL data directory cleaned"] |> log(:info)
+        :ok
+
+      {:error, reason, path} ->
+        ["Failed to clean PostgreSQL data directory: ", inspect(reason), " at ", path]
+        |> log(:error)
+
+        {:error, reason}
+    end
   end
 
   @doc """

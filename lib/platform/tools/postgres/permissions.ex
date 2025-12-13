@@ -91,5 +91,27 @@ defmodule Platform.Tools.Postgres.Permissions do
     end
   end
 
+  @doc """
+  Log permission issues found in a directory for debugging.
+  Uses find commands to detect files/dirs with wrong ownership or permissions.
+  """
+  def log_permission_issues(dir) do
+    log(["[permission check] ", dir], :debug)
+
+    {wrong_uid_list, 0} = System.cmd("find", [dir | ~w[! -user postgres -print]])
+    log(["[permission check] wrong_uid_list: ", wrong_uid_list], :debug)
+
+    {wrong_gid_list, 0} = System.cmd("find", [dir | ~w[! -group postgres -print]])
+    log(["[permission check] wrong_gid_list: ", wrong_gid_list], :debug)
+
+    {wrong_files, 0} = System.cmd("find", [dir | ~w[-type f ! -perm 600 -print]])
+    log(["[permission check] wrong_files: ", wrong_files], :debug)
+
+    {wrong_dirs, 0} = System.cmd("find", [dir | ~w[-type d ! -perm 700 -print]])
+    log(["[permission check] wrong_dirs: ", wrong_dirs], :debug)
+
+    :ok
+  end
+
   defp log(msg, level), do: Platform.Log.postgres_log(msg, level)
 end
