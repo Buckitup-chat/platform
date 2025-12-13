@@ -61,4 +61,7 @@ defmodule Platform.Storage.InternalDbAwaiter do
   catch
     :exit, _ -> false
   end
+
+  @impl true
+  def on_exit(_reason, _state), do: :ok
 end
