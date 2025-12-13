@@ -108,6 +108,9 @@ defmodule Platform.Storage.InternalToMain.Copier do
   defp setup_logical_replication(source_repo, target_repo) do
     conn_string = Postgres.build_connection_string(source_repo)
 
+    # Clean up stale slots from previous sessions before creating new ones
+    _ = LogicalReplicator.drop_slot_if_exists(source_repo, "main_from_internal")
+
     with :ok <- LogicalReplicator.create_publication(source_repo, ["users"], "internal_to_main"),
          :ok <-
            LogicalReplicator.create_subscription(

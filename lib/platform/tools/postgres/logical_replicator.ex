@@ -212,6 +212,35 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
   end
 
   @doc """
+  Drops a replication slot if it exists on the source repo.
+
+  This is useful for cleaning up stale slots from previous sessions that
+  weren't properly cleaned up (e.g., after a crash).
+
+  ## Example
+
+      drop_slot_if_exists(Chat.InternalRepo, "main_from_internal")
+  """
+  @spec drop_slot_if_exists(repo(), String.t()) :: :ok | {:error, term()}
+  def drop_slot_if_exists(source_repo, slot_name) do
+    check_sql = "SELECT 1 FROM pg_replication_slots WHERE slot_name = '#{slot_name}'"
+    drop_sql = "SELECT pg_drop_replication_slot('#{slot_name}')"
+
+    with {:ok, %{rows: [_ | _]}} <- source_repo.query(check_sql),
+         {:ok, _} <- source_repo.query(drop_sql) do
+      log("dropped stale slot=#{slot_name}", :info)
+      :ok
+    else
+      {:ok, %{rows: []}} ->
+        :ok
+
+      {:error, reason} = error ->
+        log("failed to drop slot=#{slot_name} reason=#{inspect(reason)}", :warning)
+        error
+    end
+  end
+
+  @doc """
   Ensures a replication slot exists on the source repo.
 
   This should be called BEFORE enabling a subscription to ensure the slot

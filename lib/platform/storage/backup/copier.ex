@@ -62,6 +62,10 @@ defmodule Platform.Storage.Backup.Copier do
     {:noreply, state}
   end
 
+  def on_msg({_ref, _result}, state) do
+    {:noreply, state}
+  end
+
   def on_msg(:copied, %{continuous?: continuous?, device: device} = state) do
     set_db_flag(backup: false)
 

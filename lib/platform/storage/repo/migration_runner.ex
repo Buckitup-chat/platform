@@ -32,13 +32,13 @@ defmodule Platform.Storage.Repo.MigrationRunner do
 
     %{ref: ref} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
+        wait_for_repo_ready(repo_name)
         Chat.RepoStarter.run_migrations(repo_name)
       end)
 
     {:noreply, %{state | task_ref: ref}}
   end
 
-  @impl true
   def on_msg(
         {ref, result},
         %{task_ref: ref, repo_name: repo_name} = state
@@ -68,4 +68,23 @@ defmodule Platform.Storage.Repo.MigrationRunner do
 
   @impl true
   def on_exit(_reason, _state), do: :ok
+
+  defp wait_for_repo_ready(repo_name, attempts \\ 30) do
+    1..attempts
+    |> Enum.reduce_while(:timeout, fn i, _acc ->
+      case repo_name.query("SELECT 1") do
+        {:ok, _} ->
+          {:halt, :ok}
+
+        {:error, _} ->
+          log("Waiting for #{inspect(repo_name)} to be ready (attempt #{i}/#{attempts})", :debug)
+          Process.sleep(1000)
+          {:cont, :timeout}
+      end
+    end)
+    |> case do
+      :ok -> :ok
+      :timeout -> log("Timeout waiting for #{inspect(repo_name)} to be ready", :warning)
+    end
+  end
 end
