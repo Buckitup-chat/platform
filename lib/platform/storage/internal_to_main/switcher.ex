@@ -45,10 +45,8 @@ defmodule Platform.Storage.InternalToMain.Switcher do
           schemas: Platform.Storage.Sync.schemas()
         )
 
-      # Clean up stale slots from previous sessions before creating new ones
+      _ = LogicalReplicator.drop_subscription_if_exists(Chat.InternalRepo, "internal_from_main")
       _ = LogicalReplicator.drop_slot_if_exists(main_repo, "internal_from_main")
-
-      # Create publication on main for main→internal
       _ = LogicalReplicator.create_publication(main_repo, ["users"], "main_to_internal")
 
       # Create subscription on internal for main→internal

@@ -343,6 +343,51 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
   end
 
   @doc """
+  Drops a subscription if it exists.
+
+  This is useful for cleaning up stale subscriptions that point to old
+  connection strings (e.g., after a USB drive is swapped).
+
+  ## Example
+
+      drop_subscription_if_exists(Chat.InternalRepo, "internal_from_main")
+  """
+  @spec drop_subscription_if_exists(repo(), subscription_name()) :: :ok | {:error, term()}
+  def drop_subscription_if_exists(repo, subscription_name) do
+    check_sql = "SELECT 1 FROM pg_subscription WHERE subname = '#{subscription_name}' LIMIT 1"
+
+    case repo.query(check_sql) do
+      {:ok, %{rows: []}} -> :ok
+      {:ok, %{rows: [_ | _]}} -> do_drop_subscription(repo, subscription_name)
+      {:error, reason} = error ->
+        log(
+          "failed to check subscription name=#{subscription_name} reason=#{inspect(reason)}",
+          :error
+        )
+
+        error
+    end
+  end
+
+  defp do_drop_subscription(repo, subscription_name) do
+    _ = disable_subscription(repo, subscription_name)
+
+    case repo.query("DROP SUBSCRIPTION #{subscription_name}") do
+      {:ok, _} ->
+        log("dropped subscription name=#{subscription_name}", :info)
+        :ok
+
+      {:error, reason} = error ->
+        log(
+          "failed to drop subscription name=#{subscription_name} reason=#{inspect(reason)}",
+          :error
+        )
+
+        error
+    end
+  end
+
+  @doc """
   Checks replication lag for a subscription via pg_stat_subscription.
 
   Returns the lag in bytes, or {:error, reason} if the subscription is not found
@@ -370,6 +415,9 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
     case repo.query(sql) do
       {:ok, %{rows: [[lag_bytes]]}} when is_number(lag_bytes) ->
         {:ok, trunc(lag_bytes)}
+
+      {:ok, %{rows: [[%Decimal{} = lag_bytes]]}} ->
+        {:ok, Decimal.to_integer(lag_bytes)}
 
       {:ok, %{rows: []}} ->
         {:error, :subscription_not_found}
