@@ -33,10 +33,22 @@ defmodule Platform.Tools.Postgres.Permissions do
   @doc """
   Recursively ensure directories have correct permissions.
   Directories get 0o700, files get 0o600.
+  Uses find command for quick check - skips if permissions already correct.
   """
   def ensure_dirs([], _uid, _gid), do: :ok
 
   def ensure_dirs(dirs, uid, gid) when is_list(dirs) do
+    if permissions_correct?(dirs) do
+      log(["[permissions] already correct, skipping fix"], :debug)
+      :ok
+    else
+      do_ensure_dirs(dirs, uid, gid)
+    end
+  end
+
+  defp do_ensure_dirs([], _uid, _gid), do: :ok
+
+  defp do_ensure_dirs(dirs, uid, gid) when is_list(dirs) do
     dirs
     |> Enum.flat_map(fn dir ->
       set(dir, uid, gid, 0o700)
@@ -59,7 +71,7 @@ defmodule Platform.Tools.Postgres.Permissions do
           []
       end
     end)
-    |> ensure_dirs(uid, gid)
+    |> do_ensure_dirs(uid, gid)
   end
 
   defp set(path, uid, gid, mod) do
@@ -111,6 +123,28 @@ defmodule Platform.Tools.Postgres.Permissions do
     log(["[permission check] wrong_dirs: ", wrong_dirs], :debug)
 
     :ok
+  end
+
+  defp permissions_correct?(dirs) do
+    Enum.all?(dirs, fn dir ->
+      case System.cmd("find", [
+             dir,
+             "(",
+             "!",
+             "-user",
+             @postgres_user,
+             "-o",
+             "!",
+             "-group",
+             @postgres_user,
+             ")",
+             "-print",
+             "-quit"
+           ]) do
+        {"", 0} -> true
+        _ -> false
+      end
+    end)
   end
 
   defp log(msg, level), do: Platform.Log.postgres_log(msg, level)

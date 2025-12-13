@@ -616,8 +616,13 @@ defmodule Platform.Tools.Postgres do
   defp run_pg(tool, args, opts \\ []) do
     cmd_opts =
       Enum.reduce(opts, [stderr_to_stdout: true], fn
-        {:as_postgres_user, true}, acc -> Keyword.put(acc, :uid, get_postgres_uid())
-        _, acc -> acc
+        {:as_postgres_user, true}, acc ->
+          acc
+          |> Keyword.put(:uid, get_postgres_uid())
+          |> Keyword.put(:gid, get_postgres_gid())
+
+        _, acc ->
+          acc
       end)
 
     MuonTrap.cmd("/usr/bin/#{tool}", args, cmd_opts)
