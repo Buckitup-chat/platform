@@ -7,6 +7,7 @@ defmodule Platform.App.Drive.BootSupervisor do
   import Platform
 
   alias Platform.Storage.DriveIndicationStarter
+  alias Platform.Storage.InternalDbAwaiter
   alias Platform.UsbDrives.Decider
 
   def start_link([device, name]) do
@@ -92,6 +93,7 @@ defmodule Platform.App.Drive.BootSupervisor do
       {:step, name(MigrationsRun, device),
        {@pg_migration_runner, repo_name: repo_name, task_in: task_supervisor}
        |> exit_takes(60_000)},
+      {:step, name(InternalDbReady, device), {InternalDbAwaiter, task_in: task_supervisor}},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider,
        [
