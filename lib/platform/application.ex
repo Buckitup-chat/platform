@@ -7,6 +7,12 @@ defmodule Platform.Application do
 
   @impl true
   def start(_type, _args) do
+    # Mount /dev/shm with enough space for PostgreSQL BEFORE supervisors start
+    # This must be synchronous to avoid race condition with DatabaseSupervisor
+    if target() != :host do
+      mount_shared_memory()
+    end
+
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Platform.Supervisor]
@@ -21,6 +27,11 @@ defmodule Platform.Application do
       ] ++ children(target())
 
     Supervisor.start_link(children, opts)
+  end
+
+  defp mount_shared_memory do
+    File.mkdir_p!("/dev/shm")
+    System.cmd("mount", ["-t", "tmpfs", "-o", "size=16M", "tmpfs", "/dev/shm"])
   end
 
   # List all child processes to be supervised
@@ -53,11 +64,6 @@ defmodule Platform.Application do
          pg_run_dir = "/tmp/pg_run"
          File.mkdir_p!(pg_run_dir)
          Platform.Tools.Postgres.make_accessible(pg_run_dir)
-
-         # Mount dedicated tmpfs for PostgreSQL shared memory (needs ~1MB per instance)
-         # Default /dev/shm on devtmpfs is only 1MB total, insufficient for PostgreSQL
-         File.mkdir_p!("/dev/shm")
-         System.cmd("mount", ["-t", "tmpfs", "-o", "size=16M", "tmpfs", "/dev/shm"])
 
          [
            "vm.dirty_expire_centisecs=300",
