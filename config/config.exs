@@ -83,7 +83,8 @@ config :chat, ecto_repos: [Chat.Repo, Chat.InternalRepo]
 config :phoenix_sync,
   env: config_env(),
   mode: :embedded,
-  repo: Chat.Repo
+  repo: Chat.Repo,
+  storage_dir: "/root/electric"
 
 if Mix.target() == :host or Mix.target() == :"" do
   import_config "host.exs"
