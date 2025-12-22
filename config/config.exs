@@ -80,6 +80,11 @@ config :chat, Chat.InternalRepo,
 # Configure Ecto repos
 config :chat, ecto_repos: [Chat.Repo, Chat.InternalRepo]
 
+config :phoenix_sync,
+  env: config_env(),
+  mode: :embedded,
+  repo: Chat.Repo
+
 if Mix.target() == :host or Mix.target() == :"" do
   import_config "host.exs"
 else
