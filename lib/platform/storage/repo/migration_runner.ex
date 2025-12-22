@@ -6,6 +6,8 @@ defmodule Platform.Storage.Repo.MigrationRunner do
   use GracefulGenServer, timeout: :timer.minutes(3)
   use OriginLog
 
+  alias Platform.Tools.Postgres.LogicalReplicator
+
   @impl true
   def on_init(opts) do
     next = opts |> Keyword.fetch!(:next)
@@ -48,6 +50,7 @@ defmodule Platform.Storage.Repo.MigrationRunner do
     case result do
       migrations when is_list(migrations) ->
         log("Migrations completed for #{inspect(repo_name)}, starting next stage", :info)
+        ensure_electric_slot_if_needed(repo_name)
 
       error ->
         log("Migration task returned: #{inspect(error)}", :warning)
@@ -85,6 +88,21 @@ defmodule Platform.Storage.Repo.MigrationRunner do
     |> case do
       :ok -> :ok
       :timeout -> log("Timeout waiting for #{inspect(repo_name)} to be ready", :warning)
+    end
+  end
+
+  defp ensure_electric_slot_if_needed(repo) do
+    case LogicalReplicator.ensure_slot_on_source(repo, "electric_slot_default") do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        log(
+          "failed to ensure electric_slot_default on repo=#{inspect(repo)} reason=#{inspect(reason)}",
+          :error
+        )
+
+        :ok
     end
   end
 end
