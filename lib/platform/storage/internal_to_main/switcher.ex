@@ -18,10 +18,24 @@ defmodule Platform.Storage.InternalToMain.Switcher do
 
   @impl true
   def on_exit(reason, state) do
-    log("cleanup #{inspect(reason)}", :warning)
+    log("cleanup #{inspect(reason)} state=#{inspect(state)}", :warning)
     set_db_mode(:main_to_internal)
-    disable_pg_replication(state)
-    revert_db_repo(state)
+
+    try do
+      disable_pg_replication(state)
+    catch
+      kind, error ->
+        log("disable_pg_replication failed: #{kind} #{inspect(error)}", :error)
+    end
+
+    try do
+      revert_db_repo(state)
+    catch
+      kind, error ->
+        log("revert_db_repo failed: #{kind} #{inspect(error)}", :error)
+    end
+
+    log("cleanup done", :warning)
   end
 
   defp set_db_mode(mode), do: Common.put_chat_db_env(:mode, mode)
@@ -105,10 +119,21 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   end
 
   defp revert_db_repo(args) do
-    with original_repo <- Keyword.get(args, :original_repo),
-         false <- is_nil(original_repo) do
-      Chat.Db.set_repo(original_repo)
+    original_repo = Keyword.get(args, :original_repo)
+
+    if original_repo do
+      # Force set the repo back - don't rely on Chat.Db.set_repo's process check
+      # because during shutdown the process might be terminating
+      Application.put_env(:chat, :repo, original_repo)
+      log("repo reverted to #{inspect(original_repo)}", :info)
+    else
+      log("no original_repo in state, cannot revert", :warning)
     end
-    |> tap(fn _ -> Chat.Sync.DbBrokers.refresh() end)
+
+    try do
+      Chat.Sync.DbBrokers.refresh()
+    catch
+      _, _ -> :ok
+    end
   end
 end
