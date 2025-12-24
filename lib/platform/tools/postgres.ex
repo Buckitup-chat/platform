@@ -9,7 +9,7 @@ defmodule Platform.Tools.Postgres do
 
   @pg_minimal_settings ~w[
     -c shared_buffers=400kB
-    -c max_connections=15
+    -c max_connections=50
     -c dynamic_shared_memory_type=posix
     -c max_prepared_transactions=0
     -c max_locks_per_transaction=32
