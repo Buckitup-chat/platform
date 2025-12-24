@@ -54,6 +54,9 @@ defmodule Platform.App.DatabaseSupervisor do
       {:step, ChatMigrationsRun,
        {@pg_migration_runner, repo_name: Chat.Repo, task_in: task_supervisor}
        |> exit_takes(60_000)},
+      {:step, PhoenixSyncReady,
+       {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor}
+       |> exit_takes(15_000)},
       {:step, InternalDbCreated,
        {@pg_db_creator, db_name: internal_db_name(), pg_port: @pg_port, task_in: task_supervisor}
        |> exit_takes(15_000)},

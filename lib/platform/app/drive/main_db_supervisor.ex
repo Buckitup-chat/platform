@@ -18,6 +18,8 @@ defmodule Platform.App.Drive.MainDbSupervisor do
     Switcher
   }
 
+  alias Platform.Storage.PhoenixSyncInit
+
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg,
       name: __MODULE__,
@@ -42,7 +44,8 @@ defmodule Platform.App.Drive.MainDbSupervisor do
       {:stage, Copying,
        {Copier, task_in: task_supervisor, pg_opts: pg_opts} |> exit_takes(25_000)},
       MainReplicator,
-      {Switcher, pg_opts: pg_opts} |> exit_takes(1000)
+      {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
+      PhoenixSyncInit |> exit_takes(5000)
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->

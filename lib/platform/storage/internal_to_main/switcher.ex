@@ -115,10 +115,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     else
       _ -> args
     end
-    |> tap(fn _ ->
-      Chat.Sync.DbBrokers.refresh()
-      reinit_phoenix_sync()
-    end)
+    |> tap(fn _ -> Chat.Sync.DbBrokers.refresh() end)
   end
 
   defp revert_db_repo(args) do
@@ -135,18 +132,8 @@ defmodule Platform.Storage.InternalToMain.Switcher do
 
     try do
       Chat.Sync.DbBrokers.refresh()
-      reinit_phoenix_sync()
     catch
       _, _ -> :ok
-    end
-  end
-
-  defp reinit_phoenix_sync do
-    try do
-      Chat.PhoenixSyncReinit.reinit()
-    catch
-      kind, error ->
-        log("Phoenix.Sync reinit failed: #{kind} #{inspect(error)}", :error)
     end
   end
 end
