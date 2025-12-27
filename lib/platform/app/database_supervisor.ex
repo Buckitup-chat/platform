@@ -36,6 +36,10 @@ defmodule Platform.App.DatabaseSupervisor do
 
     task_supervisor = __MODULE__.TaskSupervisor
 
+    # Staging order:
+    # 1. Initialize PG -> 2. Start PG Daemon -> 3. Create Chat DB -> 4. Start Chat.Repo
+    # 5. Run Chat migrations -> 6. Initialize PhoenixSync
+
     [
       use_task(task_supervisor),
       {:step, InitPg,
@@ -56,25 +60,9 @@ defmodule Platform.App.DatabaseSupervisor do
        |> exit_takes(60_000)},
       {:step, PhoenixSyncReady,
        {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor}
-       |> exit_takes(15_000)},
-      {:step, InternalDbCreated,
-       {@pg_db_creator, db_name: internal_db_name(), pg_port: @pg_port, task_in: task_supervisor}
-       |> exit_takes(15_000)},
-      {:stage, InternalRepoStarted,
-       {@pg_repo_starter, name: Chat.InternalRepo, port: @pg_port, task_in: task_supervisor}
-       |> exit_takes(30_000)},
-      {:step, InternalMigrationsRun,
-       {@pg_migration_runner, repo_name: Chat.InternalRepo, task_in: task_supervisor}
-       |> exit_takes(60_000)}
+       |> exit_takes(15_000)}
     ]
     |> prepare_stages(Platform.App.DatabaseStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)
-  end
-
-  defp internal_db_name do
-    Chat.InternalRepo.config()
-    |> Keyword.get(:database, @db_name)
-  rescue
-    _ -> @db_name
   end
 end

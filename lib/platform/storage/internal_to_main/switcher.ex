@@ -55,11 +55,11 @@ defmodule Platform.Storage.InternalToMain.Switcher do
       _ =
         Platform.Storage.Sync.run_local_sync(
           source_repo: main_repo,
-          target_repo: Chat.InternalRepo,
+          target_repo: Chat.Repo,
           schemas: Platform.Storage.Sync.schemas()
         )
 
-      _ = LogicalReplicator.drop_subscription_if_exists(Chat.InternalRepo, "internal_from_main")
+      _ = LogicalReplicator.drop_subscription_if_exists(Chat.Repo, "internal_from_main")
       _ = LogicalReplicator.drop_slot_if_exists(main_repo, "internal_from_main")
       _ = LogicalReplicator.create_publication(main_repo, ["users"], "main_to_internal")
 
@@ -68,7 +68,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
       conn_string = Platform.Tools.Postgres.build_connection_string(main_repo, port: main_port)
 
       case LogicalReplicator.create_subscription(
-             Chat.InternalRepo,
+             Chat.Repo,
              conn_string,
              "main_to_internal",
              "internal_from_main",
@@ -79,7 +79,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
         :ok ->
           # Ensure slot exists on source (main) before enabling subscription
           _ = LogicalReplicator.ensure_slot_on_source(main_repo, "internal_from_main")
-          _ = LogicalReplicator.enable_subscription(Chat.InternalRepo, "internal_from_main")
+          _ = LogicalReplicator.enable_subscription(Chat.Repo, "internal_from_main")
           log("PG replication switched to main→internal", :info)
 
         {:error, reason} ->
@@ -96,7 +96,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   defp disable_pg_replication(_state) do
     # Disable main→internal subscription on internal repo
     # This stops internal from trying to connect to the dead USB postgres
-    _ = LogicalReplicator.disable_subscription(Chat.InternalRepo, "internal_from_main")
+    _ = LogicalReplicator.disable_subscription(Chat.Repo, "internal_from_main")
     log("PG replication disabled on internal (USB ejected)", :info)
 
     # Note: We don't try to re-enable main_from_internal on USB repo

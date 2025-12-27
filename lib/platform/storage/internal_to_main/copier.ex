@@ -42,7 +42,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
         Copying.await_copied(internal, main)
 
         # Start local in-process sync after bootstrap copy completes
-        source_repo = Chat.InternalRepo
+        source_repo = Chat.Repo
 
         target_repo =
           case pg_opts do

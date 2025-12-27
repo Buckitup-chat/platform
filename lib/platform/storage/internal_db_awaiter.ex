@@ -55,15 +55,15 @@ defmodule Platform.Storage.InternalDbAwaiter do
   end
 
   defp check_pg_ready do
-    Chat.InternalRepo.query("SELECT 1", [])
+    Chat.Repo.query("SELECT 1", [])
     true
   rescue
     error ->
-      log("Internal PG not ready: #{inspect(error)}", :warn)
+      log("Chat.Repo PG not ready: #{inspect(error)}", :warn)
       false
   catch
     :exit, reason ->
-      log("Internal PG exited during readiness check: #{inspect(reason)}", :warn)
+      log("Chat.Repo PG exited during readiness check: #{inspect(reason)}", :warn)
       false
   end
 

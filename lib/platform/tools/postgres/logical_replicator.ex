@@ -26,7 +26,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
 
   ## Example
 
-      create_publication(Chat.InternalRepo, ["users"], "internal_to_main")
+      create_publication(Chat.Repo, ["users"], "internal_to_main")
   """
   @spec create_publication(repo(), [table_name()], publication_name()) ::
           :ok | {:error, term()}
@@ -219,7 +219,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
 
   ## Example
 
-      drop_slot_if_exists(Chat.InternalRepo, "main_from_internal")
+      drop_slot_if_exists(Chat.Repo, "main_from_internal")
   """
   @spec drop_slot_if_exists(repo(), String.t()) :: :ok | {:error, term()}
   def drop_slot_if_exists(source_repo, slot_name) do
@@ -248,7 +248,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
 
   ## Example
 
-      ensure_slot_on_source(Chat.InternalRepo, "main_from_internal")
+      ensure_slot_on_source(Chat.Repo, "main_from_internal")
   """
   @spec ensure_slot_on_source(repo(), String.t()) :: :ok | {:error, term()}
   def ensure_slot_on_source(source_repo, slot_name) do
@@ -293,9 +293,9 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
   ## Example
 
       # First ensure slot exists on source
-      ensure_slot_on_source(Chat.InternalRepo, "main_from_internal")
+      ensure_slot_on_source(Chat.Repo, "main_from_internal")
       # Then enable subscription on target
-      enable_subscription(Chat.MainRepo, "main_from_internal")
+      enable_subscription(MainRepo, "main_from_internal")
   """
   @spec enable_subscription(repo(), subscription_name()) :: :ok | {:error, term()}
   def enable_subscription(repo, subscription_name) do
@@ -350,7 +350,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
 
   ## Example
 
-      drop_subscription_if_exists(Chat.InternalRepo, "internal_from_main")
+      drop_subscription_if_exists(Chat.Repo, "internal_from_main")
   """
   @spec drop_subscription_if_exists(repo(), subscription_name()) :: :ok | {:error, term()}
   def drop_subscription_if_exists(repo, subscription_name) do

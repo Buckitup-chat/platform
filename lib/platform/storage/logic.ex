@@ -60,7 +60,7 @@ defmodule Platform.Storage.Logic do
   defp check_pg_replication_lag do
     # Check lag for internal_from_main subscription
     case LogicalReplicator.check_replication_lag(
-           Chat.InternalRepo,
+           Chat.Repo,
            "internal_from_main"
          ) do
       {:ok, lag_bytes} ->
