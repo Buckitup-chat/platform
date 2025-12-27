@@ -66,19 +66,8 @@ config :chat, Chat.Repo,
   pool_size: 5,
   show_sensitive_data_on_connection_error: false
 
-# Configure PostgreSQL connection for Chat.InternalRepo
-config :chat, Chat.InternalRepo,
-  adapter: Ecto.Adapters.Postgres,
-  username: "postgres",
-  password: "",
-  database: "chat",
-  hostname: "localhost",
-  port: 5432,
-  pool_size: 5,
-  show_sensitive_data_on_connection_error: false
-
 # Configure Ecto repos
-config :chat, ecto_repos: [Chat.Repo, Chat.InternalRepo]
+config :chat, ecto_repos: [Chat.Repo]
 
 config :phoenix_sync,
   env: config_env(),
