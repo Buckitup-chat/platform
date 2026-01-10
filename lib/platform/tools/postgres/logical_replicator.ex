@@ -357,8 +357,12 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
     check_sql = "SELECT 1 FROM pg_subscription WHERE subname = '#{subscription_name}' LIMIT 1"
 
     case repo.query(check_sql) do
-      {:ok, %{rows: []}} -> :ok
-      {:ok, %{rows: [_ | _]}} -> do_drop_subscription(repo, subscription_name)
+      {:ok, %{rows: []}} ->
+        :ok
+
+      {:ok, %{rows: [_ | _]}} ->
+        do_drop_subscription(repo, subscription_name)
+
       {:error, reason} = error ->
         log(
           "failed to check subscription name=#{subscription_name} reason=#{inspect(reason)}",

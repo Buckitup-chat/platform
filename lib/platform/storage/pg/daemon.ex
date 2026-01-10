@@ -20,6 +20,7 @@ defmodule Platform.Storage.Pg.Daemon do
     %{
       pg_dir: opts |> Keyword.fetch!(:pg_dir),
       pg_port: opts |> Keyword.fetch!(:pg_port),
+      device: Keyword.get(opts, :device),
       daemon_name: Keyword.get(opts, :name, :postgres_daemon),
       task_supervisor: opts |> Keyword.fetch!(:task_in),
       next_specs: next |> Keyword.fetch!(:run),
@@ -33,7 +34,7 @@ defmodule Platform.Storage.Pg.Daemon do
   @impl true
   def on_msg(
         :start,
-        %{pg_dir: pg_dir, pg_port: pg_port, daemon_name: daemon_name} = state
+        %{pg_dir: pg_dir, pg_port: pg_port, device: device, daemon_name: daemon_name} = state
       ) do
     # Verify PostgreSQL was initialized before attempting to start
     unless Postgres.initialized?(pg_dir: pg_dir) do
@@ -47,13 +48,15 @@ defmodule Platform.Storage.Pg.Daemon do
       # Capture any PostgreSQL crash logs before cleanup
       capture_pg_crash_logs(pg_dir)
 
-      Postgres.cleanup_old_server(pg_dir)
+      # Use device from supervision tree for explicit run_dir management
+      opts = if device, do: [device: device], else: []
+
+      Postgres.cleanup_old_server(pg_dir, opts)
+
+      Postgres.ensure_run_dir(pg_dir, opts)
+      Postgres.remove_stale_postmaster_pid(pg_dir)
 
       daemon_spec = Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)
-
-      [pg_dir, "data", "postmaster.pid"]
-      |> Path.join()
-      |> File.rm()
 
       {:ok, pid} = start_daemon(daemon_spec)
 

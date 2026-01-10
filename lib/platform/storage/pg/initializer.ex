@@ -59,6 +59,15 @@ defmodule Platform.Storage.Pg.Initializer do
   # Handle task crash (e.g., :epipe from initdb)
   def on_msg({:DOWN, ref, :process, _pid, reason}, %{task_ref: ref} = state) do
     log("PostgreSQL initialization task crashed: #{inspect(reason)}", :error)
+
+    Postgres.ensure_run_dir(state.pg_dir)
+
+    try do
+      Postgres.cleanup_posix_shared_memory()
+    catch
+      _, _ -> :ok
+    end
+
     {:stop, {:init_task_crashed, reason}, state}
   end
 

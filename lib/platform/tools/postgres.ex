@@ -4,8 +4,10 @@ defmodule Platform.Tools.Postgres do
   All configuration is passed as options rather than using hardcoded values.
   """
   alias Platform.Tools.Postgres.{Permissions, SharedMemory}
+  alias Platform.Tools.OsPid
   @postgres_user "postgres"
   @pg_host "localhost"
+  @pg_run_dir "/tmp/pg_run"
 
   @pg_minimal_settings ~w[
     -c shared_buffers=400kB
@@ -17,7 +19,6 @@ defmodule Platform.Tools.Postgres do
     -c work_mem=1MB
     -c wal_level=logical
     -c listen_addresses=localhost
-    -c unix_socket_directories=/tmp/pg_run
   ]
 
   # Settings optimized for faster recovery on SD cards
@@ -57,8 +58,9 @@ defmodule Platform.Tools.Postgres do
   def initialize(opts, retries \\ 5) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
+    run_dir = ensure_run_dir(pg_dir, opts)
 
-    log(["[intialize] pg_data_dir: ", pg_data_dir], :debug)
+    log(["[intialize] pg_data_dir: ", pg_data_dir, ", run_dir: ", run_dir], :debug)
     File.mkdir_p!(pg_data_dir)
     log(["[initialize] ", "dir created"], :debug)
 
@@ -95,8 +97,10 @@ defmodule Platform.Tools.Postgres do
           ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++
             @pg_minimal_settings
 
-        ["Initializing PostgreSQL database at ", pg_data_dir] |> log(:info)
-        run_pg("initdb", args, as_postgres_user: true)
+        ["Initializing PostgreSQL database at ", pg_data_dir, " with run_dir ", run_dir]
+        |> log(:info)
+
+        run_pg("initdb", args, as_postgres_user: true, run_dir: run_dir)
     end)
     |> go_on(fn
       {output, code} when code != 0 ->
@@ -303,6 +307,7 @@ defmodule Platform.Tools.Postgres do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_port = Keyword.get(opts, :pg_port, 5432)
     pg_data_dir = Path.join(pg_dir, "data")
+    run_dir = extract_pg_run_dir(pg_dir, opts)
 
     server_running?(opts)
     |> go_on(fn
@@ -324,8 +329,10 @@ defmodule Platform.Tools.Postgres do
           "start"
         ]
 
-        ["Starting PostgreSQL server on port ", pg_port] |> log(:info)
-        run_pg("pg_ctl", args, as_postgres_user: true)
+        ["Starting PostgreSQL server on port ", pg_port, " with run_dir ", run_dir]
+        |> log(:info)
+
+        run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
     end)
     |> go_on(fn
       {output, status} when status != 0 ->
@@ -360,6 +367,7 @@ defmodule Platform.Tools.Postgres do
   def stop(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
+    run_dir = extract_pg_run_dir(pg_dir, opts)
 
     server_running?(opts)
     |> go_on(fn
@@ -368,10 +376,10 @@ defmodule Platform.Tools.Postgres do
         :ok
 
       true ->
-        ["Stopping PostgreSQL server"] |> log(:info)
+        ["Stopping PostgreSQL server with run_dir ", run_dir] |> log(:info)
         args = ["-D", pg_data_dir, "stop", "-m", "fast"]
 
-        run_pg("pg_ctl", args, as_postgres_user: true)
+        run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
     end)
     |> go_on(fn
       {_, 0} ->
@@ -510,6 +518,50 @@ defmodule Platform.Tools.Postgres do
     "host=#{host} port=#{port} dbname=#{database} user=#{username} password=#{password}"
   end
 
+  def ensure_run_dir(pg_dir, opts \\ []) do
+    run_dir = extract_pg_run_dir(pg_dir, opts)
+
+    File.mkdir_p!(run_dir)
+
+    [run_dir]
+    |> Permissions.ensure_dirs(get_postgres_uid(), get_postgres_gid())
+
+    cleanup_run_dir_files(run_dir)
+
+    run_dir
+  end
+
+  def cleanup_run_dir_files(run_dir) do
+    with true <- File.dir?(run_dir),
+         {:ok, entries} <- File.ls(run_dir) do
+      Enum.each(entries, fn entry ->
+        Path.join(run_dir, entry)
+        |> File.rm()
+      end)
+    end
+
+    :ok
+  end
+
+  def remove_stale_postmaster_pid(pg_dir) do
+    pid_path = Path.join([pg_dir, "data", "postmaster.pid"])
+
+    with true <- File.exists?(pid_path),
+         {:ok, contents} <- File.read(pid_path),
+         os_pid when not is_nil(os_pid) <-
+           contents
+           |> String.split("\n", trim: true)
+           |> List.first()
+           |> parse_os_pid(),
+         false <- os_pid_alive?(os_pid) do
+      File.rm(pid_path)
+    else
+      _ -> :ok
+    end
+
+    :ok
+  end
+
   @doc """
   Ensure a database exists, creating it if necessary.
 
@@ -532,14 +584,24 @@ defmodule Platform.Tools.Postgres do
     end
   end
 
-  def cleanup_old_server(pg_dir) do
+  def cleanup_old_server(pg_dir, opts \\ []) do
     pg_data_dir = Path.join(pg_dir, "data")
+    run_dir = extract_pg_run_dir(pg_dir, opts)
 
-    ["Attempting to stop any existing PostgreSQL server for ", pg_data_dir]
+    [
+      "Attempting to stop any existing PostgreSQL server for ",
+      pg_data_dir,
+      " (run_dir: ",
+      run_dir,
+      ")"
+    ]
     |> log(:info)
 
     {output, status} =
-      run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast"], as_postgres_user: true)
+      run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast"],
+        as_postgres_user: true,
+        run_dir: run_dir
+      )
 
     if status == 0 do
       ["Existing PostgreSQL server stopped before daemon start"] |> log(:info)
@@ -562,7 +624,45 @@ defmodule Platform.Tools.Postgres do
 
     SharedMemory.cleanup_stale(pg_data_dir)
 
+    run_dir = ensure_run_dir(pg_dir, opts)
+    remove_stale_postmaster_pid(run_dir)
+
     :ok
+  end
+
+  defp extract_pg_run_dir(pg_dir, opts \\ []) do
+    cond do
+      run_dir = Keyword.get(opts, :run_dir) ->
+        run_dir
+
+      device = Keyword.get(opts, :device) ->
+        Path.join(@pg_run_dir, device)
+
+      true ->
+        device =
+          case String.split(pg_dir, "/", trim: true) do
+            ["root", "media", device | _] -> device
+            _ -> "internal"
+          end
+
+        Path.join(@pg_run_dir, device)
+    end
+  end
+
+  defp parse_os_pid(nil), do: nil
+
+  defp parse_os_pid(str) do
+    str
+    |> String.trim()
+    |> Integer.parse()
+    |> case do
+      {os_pid, _} when os_pid > 0 -> os_pid
+      _ -> nil
+    end
+  end
+
+  defp os_pid_alive?(os_pid) when is_integer(os_pid) do
+    OsPid.alive?(os_pid)
   end
 
   defdelegate cleanup_stale_shared_memory(pg_data_dir), to: SharedMemory, as: :cleanup_stale
@@ -581,6 +681,8 @@ defmodule Platform.Tools.Postgres do
     pg_port = Keyword.get(opts, :pg_port, 5432)
     daemon_name = Keyword.get(opts, :name, :postgres_daemon)
 
+    run_dir = extract_pg_run_dir(pg_dir, opts)
+
     pg_data_dir = Path.join(pg_dir, "data")
 
     {MuonTrap.Daemon,
@@ -589,7 +691,11 @@ defmodule Platform.Tools.Postgres do
        ["-D", pg_data_dir] ++
          @pg_minimal_settings ++
          @pg_recovery_optimized_settings ++
-         ["-c", "port=#{pg_port}", "-c", "log_destination=stderr"],
+         ~w[
+           -c unix_socket_directories=#{run_dir}
+           -c port=#{pg_port}
+           -c log_destination=stderr
+         ],
        [
          stderr_to_stdout: true,
          log_output: :debug,
@@ -620,6 +726,11 @@ defmodule Platform.Tools.Postgres do
           acc
           |> Keyword.put(:uid, get_postgres_uid())
           |> Keyword.put(:gid, get_postgres_gid())
+
+        {:run_dir, run_dir}, acc ->
+          # Set PGHOST to run_dir so pg_* tools use the correct socket directory
+          env = Keyword.get(acc, :env, [])
+          Keyword.put(acc, :env, [{"PGHOST", run_dir} | env])
 
         _, acc ->
           acc

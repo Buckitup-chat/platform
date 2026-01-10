@@ -82,7 +82,11 @@ defmodule Platform.App.Drive.BootSupervisor do
        |> exit_takes(30_000)},
       {:stage, name(PgServer, device),
        {@pg_daemon,
-        pg_dir: pg_dir, pg_port: port, name: name(PgDaemon, device), task_in: task_supervisor}
+        pg_dir: pg_dir,
+        pg_port: port,
+        device: device,
+        name: name(PgDaemon, device),
+        task_in: task_supervisor}
        |> exit_takes(180_000)},
       {:step, name(DbCreated, device),
        {@pg_db_creator, db_name: "chat", pg_port: port, task_in: task_supervisor}
