@@ -523,6 +523,9 @@ defmodule Platform.Tools.Postgres do
 
     File.mkdir_p!(run_dir)
 
+    parent_dir = Path.dirname(run_dir)
+    File.chmod!(parent_dir, 0o755)
+
     [run_dir]
     |> Permissions.ensure_dirs(get_postgres_uid(), get_postgres_gid())
 
