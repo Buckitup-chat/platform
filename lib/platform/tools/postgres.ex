@@ -532,8 +532,7 @@ defmodule Platform.Tools.Postgres do
   end
 
   def cleanup_run_dir_files(run_dir) do
-    with true <- File.dir?(run_dir),
-         {:ok, entries} <- File.ls(run_dir) do
+    with {:ok, entries} <- File.ls(run_dir) do
       Enum.each(entries, fn entry ->
         Path.join(run_dir, entry)
         |> File.rm()
@@ -548,15 +547,10 @@ defmodule Platform.Tools.Postgres do
 
     with true <- File.exists?(pid_path),
          {:ok, contents} <- File.read(pid_path),
-         os_pid when not is_nil(os_pid) <-
-           contents
-           |> String.split("\n", trim: true)
-           |> List.first()
-           |> parse_os_pid(),
+         [first_line | _] <- String.split(contents, "\n", trim: true),
+         os_pid when not is_nil(os_pid) <- parse_os_pid(first_line),
          false <- os_pid_alive?(os_pid) do
       File.rm(pid_path)
-    else
-      _ -> :ok
     end
 
     :ok

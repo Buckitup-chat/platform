@@ -348,9 +348,21 @@ def cleanup do
 end
 ```
 
+**Note**: The `else` clause is optional when all failure cases can be handled uniformly (e.g., always returning `:ok` or ignoring errors):
+
+```elixir
+# OK to omit else when failures are ignored
+def cleanup_files(dir) do
+  with {:ok, files} <- File.ls(dir) do
+    Enum.each(files, &File.rm/1)
+  end
+  :ok
+end
+```
+
 ### Tagged Tuples in `with` for Branch Identification
 
-When handling multiple `else` branches, use tagged tuples to identify which step failed:
+Use tagged tuples **only when you have multiple `else` branches that need distinct handling**. This makes it explicit which step failed:
 
 ```elixir
 # Without tags - ambiguous which branch failed
@@ -362,8 +374,8 @@ else
   {:error, reason} -> {:error, reason}
 end
 
-# Preferred - tagged tuples for clarity
-with {_, true} <- {:is_dir, File.dir?(shm_dir)},
+# Preferred - tagged tuples when multiple else branches exist
+with {:is_dir, true} <- {:is_dir, File.dir?(shm_dir)},
      _ = log_shm_usage(),
      {:ok, files} <- File.ls(shm_dir) do
   files
@@ -375,7 +387,55 @@ else
 end
 ```
 
-This pattern makes it explicit which step failed and allows distinct handling per branch.
+**Don't use tagged tuples** when:
+- You have no `else` clause (failures are ignored)
+- You have only one or two `else` branches where the pattern is already clear
+- The return types are already distinct (e.g., `true/false` vs `{:ok, _}/{:error, _}`)
+
+### Railway-Oriented Programming Pattern
+
+For sequential operations with heterogeneous return types and automatic error propagation, a custom helper like `go_on/2` is acceptable:
+
+```elixir
+# Helper that short-circuits on terminal states
+defp go_on(data, step_fn) do
+  case data do
+    {:error, _} -> data  # Propagate errors
+    {:ok, _} -> data     # Propagate success
+    :ok -> data          # Propagate ok
+    _ -> step_fn.(data)  # Transform raw data
+  end
+end
+
+# Usage: clean pipeline with mixed return types
+def initialize(opts) do
+  {initialized?(opts), valid_init?(opts)}
+  |> go_on(fn
+    {true, true} -> :ok
+    {true, false} -> {:error, :invalid}
+    {false, _} -> run_initialization(opts)
+  end)
+  |> go_on(fn
+    {output, 0} -> validate_result(opts)
+    {output, _} -> {:error, output}
+  end)
+  |> go_on(fn
+    true -> :ok
+    false -> retry_with_cleanup(opts)
+  end)
+end
+```
+
+**When to use this pattern**:
+- Sequential operations where each step returns different types
+- Need automatic short-circuiting on `:ok`, `{:ok, _}`, or `{:error, _}`
+- Each step pattern-matches on the previous step's output
+- Alternative to deeply nested `case` or awkward `with` statements
+
+**When NOT to use**:
+- Simple linear success/failure paths (use `with` instead)
+- All steps return homogeneous tuples (use `with` instead)
+- Only 1-2 steps (use direct `case` instead)
 
 ### Code Organization
 
