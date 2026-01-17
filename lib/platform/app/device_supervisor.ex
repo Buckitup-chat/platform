@@ -32,7 +32,8 @@ defmodule Platform.App.DeviceSupervisor do
   end
 
   defp unless_on_host(x) do
-    if Platform.Application.target() != :host do
+    target = Application.get_env(:platform, :target)
+    if target != :host do
       # coveralls-ignore-next-line
       x
     end

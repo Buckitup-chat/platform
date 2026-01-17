@@ -2,103 +2,59 @@ defmodule Platform.MixProject do
   use Mix.Project
 
   @app :platform
-  @version "0.1.2"
-  # @all_targets [:rpi, :rpi0, :rpi2, :rpi3, :rpi3a, :rpi4, :bbb, :osd32mp1, :x86_64]
-  @all_targets [:rpi3, :rpi3a, :rpi4, :bktp_rpi4]
+  @version "0.4.0"
+  @all_targets [:rpi4, :buckitup_rpi4]
 
   def project do
     [
       app: @app,
       version: @version,
-      elixir: "~> 1.14",
-      elixirc_paths: elixirc_paths(Mix.env()),
-      archives: [nerves_bootstrap: "~> 1.10"],
-      start_permanent: Mix.target() != :host,
-      build_embedded: true,
+      elixir: "~> 1.19",
+      archives: [nerves_bootstrap: "~> 1.14"],
+      listeners: listeners(Mix.target(), Mix.env()),
+      start_permanent: Mix.env() == :prod,
       deps: deps(),
-      releases: [{@app, release()}],
-      preferred_cli_env: [
-        coveralls: :test,
-        "coveralls.detail": :test,
-        "coveralls.html": :test
-      ],
-      preferred_cli_target: [run: :host, test: :host],
-      test_coverage: [tool: ExCoveralls]
+      releases: [{@app, release()}]
     ]
+    |> more_project()
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      mod: {Platform.Application, []},
-      extra_applications: [:logger, :runtime_tools, :inets, :crypto]
+      extra_applications: [:logger, :runtime_tools],
+      mod: {Platform.Application, []}
     ]
   end
 
-  # Specifies which paths to compile per environment.
-  defp elixirc_paths(:test), do: ["lib", "test/support"]
-  defp elixirc_paths(_), do: ["lib"]
+  def cli do
+    [preferred_targets: [run: :host, test: :host]]
+  end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ramoops_logger, "~> 0.3.0"},
-      {:observer_cli, "~> 1.7"},
-      {:nerves_leds, "~> 0.8.1"},
       # Dependencies for all targets
       {:nerves, "~> 1.10", runtime: false},
       {:shoehorn, "~> 0.9.1"},
-      {:ring_logger, "~> 0.10"},
-      {:toolshed, "~> 0.3"},
+      {:ring_logger, "~> 0.11.0"},
+      {:toolshed, "~> 0.4.0"},
+
+      # Allow Nerves.Runtime on host to support development, testing and CI.
+      # See config/host.exs for usage.
+      {:nerves_runtime, "~> 0.13.0"},
 
       # Dependencies for all targets except :host
-      {:nerves_runtime, "~> 0.13.5", targets: @all_targets},
-      {:nerves_pack, "~> 0.7", targets: @all_targets},
-      # {:chat, path: "../chat", targets: @all_targets, env: Mix.env()},
+      {:nerves_pack, "~> 0.7.1", targets: @all_targets},
 
       # Dependencies for specific targets
       # NOTE: It's generally low risk and recommended to follow minor version
       # bumps to Nerves systems. Since these include Linux kernel and Erlang
       # version updates, please review their release notes in case
       # changes to your application are needed.
-      {:nerves_system_rpi, "~> 1.31", runtime: false, targets: :rpi},
-      {:nerves_system_rpi0, "~> 1.31", runtime: false, targets: :rpi0},
-      {:nerves_system_rpi2, "~> 1.31", runtime: false, targets: :rpi2},
-      {:nerves_system_rpi3, "~> 1.31", runtime: false, targets: :rpi3},
-      {:nerves_system_rpi3a, "~> 1.31", runtime: false, targets: :rpi3a},
-      {:nerves_system_rpi4, "~> 1.31", runtime: false, targets: :rpi4},
-      {:nerves_system_bbb, "~> 2.12", runtime: false, targets: :bbb},
-      {:nerves_system_osd32mp1, "~> 0.8", runtime: false, targets: :osd32mp1},
-      {:nerves_system_x86_64, "~> 1.31", runtime: false, targets: :x86_64},
-      #      {:bktp_rpi4,
-      #       github: "Buckitup-chat/bktp_rpi4",
-      #       runtime: false,
-      #       targets: :bktp_rpi4,
-      #       nerves: [compile: false]},
-      {:bktp_rpi4, path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4},
-      # path: "../bktp_rpi4", runtime: false, targets: :bktp_rpi4, nerves: [compile: true]},
-      {:chat,
-       path: "../chat",
-       targets: [:host | @all_targets],
-       env: if(Mix.target() == :host, do: Mix.env(), else: :prod)},
-      # {:chat, path: "../chat", env: Mix.env()},
-      #      {:chat,
-      #        github: "Buckitup-chat/bktp_rpi4",
-      #        runtime: false,
-      #        targets: :bktp_rpi4,
-      #        nerves: [compile: false]},
-      # pg_query_ex is needed for ElectricSync patched to recompile correctly
-      {:pg_query_ex, path: "../pg_query", override: true},
-      {:dns, "~> 2.4"},
-      {:socket, "~> 0.3.13"},
-      {:postgrex, "~> 0.17"},
-      {:excoveralls, "~> 0.14", only: [:test]},
-      {:graceful_genserver, "~> 0.1.0"},
-      {:circuits_uart, "~> 1.3"},
-      {:circuits_gpio, "~> 2.0 or ~> 1.0"},
-      {:muontrap, "~> 1.0"}
-      # {:vintage_net_bridge, github: "mnishiguchi/vintage_net_bridge"}
+      {:nerves_system_rpi4, "~> 1.24", runtime: false, targets: :rpi4}
     ]
+    |> more_deps()
   end
 
   def release do
@@ -109,9 +65,65 @@ defmodule Platform.MixProject do
       cookie: "#{@app}_cookie",
       include_erts: &Nerves.Release.erts/0,
       steps: [&Nerves.Release.init/1, :assemble],
-      strip_beams: Mix.env() == :prod or [keep: ["Docs"]],
-      version: build_version()
+      strip_beams: Mix.env() == :prod or [keep: ["Docs"]]
     ]
+    |> more_release()
+  end
+
+  # Uncomment the following line if using Phoenix > 1.8.
+  # defp listeners(:host, :dev), do: [Phoenix.CodeReloader]
+  defp listeners(_, _), do: []
+
+  ################################
+  defp more_project(project) do
+    Keyword.merge(project,
+      elixirc_paths: elixirc_paths(Mix.env()),
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.html": :test
+      ],
+      preferred_cli_target: [run: :host, test: :host],
+      test_coverage: [tool: ExCoveralls]
+    )
+  end
+
+  defp elixirc_paths(:test), do: ["lib", "test/support"]
+  defp elixirc_paths(_), do: ["lib"]
+
+  defp more_deps(deps) do
+    deps ++
+      [
+        {:ramoops_logger, "~> 0.3.0"},
+        {:observer_cli, "~> 1.8"},
+        {:nerves_leds, "~> 0.8.1"},
+        # pg_query_ex is needed for ElectricSync patched to recompile correctly
+        {:pg_query_ex, path: "../pg_query", override: true},
+        {:dns, "~> 2.4"},
+        {:socket, "~> 0.3.13"},
+        {:postgrex, "~> 0.17"},
+        {:excoveralls, "~> 0.14", only: [:test]},
+        {:graceful_genserver, "~> 0.1.0"},
+        {:circuits_uart, "~> 1.3"},
+        {:circuits_gpio, "~> 2.0 or ~> 1.0"},
+        {:muontrap, "~> 1.0"},
+        ### project deps
+        {:chat,
+         path: "../chat",
+         targets: [:host | @all_targets],
+         env: if(Mix.target() == :host, do: Mix.env(), else: :prod)},
+        {:buckitup_rpi4,
+         path: "../fresh/buckitup_rpi4",
+         runtime: false,
+         targets: :buckitup_rpi4,
+         nerves: [compile: true]}
+      ]
+  end
+
+  defp more_release(release) do
+    Keyword.merge(release,
+      version: build_version()
+    )
   end
 
   defp build_version do

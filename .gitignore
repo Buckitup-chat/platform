@@ -25,9 +25,11 @@ platform*.img
 image.old.zip
 image*.zip
 
+built_for_domain
 # Build cache
 .chat_compiled
 
+.claude
 #IDEA
 .idea/
 *.iml
@@ -42,6 +44,7 @@ ctags
 /priv/db
 /priv/admin_db
 /priv/admin_db_v2
+/priv/data
 /priv/test_db
 /priv/test_admin_db
 /priv/test_admin_db_v2

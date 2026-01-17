@@ -98,6 +98,9 @@ cover:
 test:
 	MIX_TARGET=host MIX_ENV=test mix test $(filter-out $@,$(MAKECMDGOALS))
 
+firmware_build:
+	CMAKE_POLICY_VERSION_MINIMUM=3.5 mix firmware
+
 # This rule prevents Make from trying to run arguments as targets
 %:
 	@:
