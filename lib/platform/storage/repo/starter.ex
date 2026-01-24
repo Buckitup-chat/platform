@@ -4,7 +4,7 @@ defmodule Platform.Storage.Repo.Starter do
   This is a long-running stage that keeps the repo alive and propagates to next stage.
   """
   use GracefulGenServer, timeout: :timer.minutes(3)
-  use OriginLog
+  use Toolbox.OriginLog
 
   @impl true
   def on_init(opts) do

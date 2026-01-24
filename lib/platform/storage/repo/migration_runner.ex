@@ -4,7 +4,7 @@ defmodule Platform.Storage.Repo.MigrationRunner do
   This is a one-time operation that runs migrations and then propagates to next stage.
   """
   use GracefulGenServer, timeout: :timer.minutes(3)
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Tools.Postgres.LogicalReplicator
 

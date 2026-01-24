@@ -1,7 +1,7 @@
 defmodule Platform.Storage.Sync do
   @moduledoc "Storage sync (local, in-process) lifecycle and status"
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   @key {__MODULE__, :status}
 

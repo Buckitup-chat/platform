@@ -1,7 +1,7 @@
 defmodule Platform.Tools.Fwup do
   @moduledoc "fwup tasks"
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   @firmware_source_path "/data/platform.fw"
 

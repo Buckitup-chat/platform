@@ -4,7 +4,7 @@ defmodule Platform.App.Sync.Onliners.Logic do
   """
 
   use GenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Db.Scope.KeyScope
   alias Phoenix.PubSub

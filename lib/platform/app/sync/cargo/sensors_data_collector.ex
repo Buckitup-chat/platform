@@ -1,7 +1,7 @@
 defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   @moduledoc "Collects sensor data and writes it to the database"
 
-  use OriginLog
+  use Toolbox.OriginLog
   use GracefulGenServer, name: __MODULE__
 
   alias Chat.AdminRoom

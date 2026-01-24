@@ -1,7 +1,7 @@
 defmodule Platform.App.Drive.UsbDriveDumpSupervisor do
   @moduledoc "Usb drive dump scenario"
   use Supervisor
-  use OriginLog
+  use Toolbox.OriginLog
   import Platform
 
   alias Platform.App.Sync.UsbDriveDump.Completer

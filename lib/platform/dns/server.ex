@@ -2,7 +2,7 @@ defmodule Platform.Dns.Server do
   @moduledoc "DnsServer to inject our domain"
 
   use GenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   @doc """
   Start DNS.Server` server.

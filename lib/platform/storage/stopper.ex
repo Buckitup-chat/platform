@@ -3,7 +3,7 @@ defmodule Platform.Storage.Stopper do
   Awaits few seconds and finalizes copying
   """
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Leds
   alias Platform.UsbDrives.Drive

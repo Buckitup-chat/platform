@@ -4,7 +4,7 @@ defmodule Platform.App.DatabaseSupervisor do
   Mirrors the boot supervisor's approach for internal database setup.
   """
   use Supervisor
-  use OriginLog
+  use Toolbox.OriginLog
 
   import Platform
 

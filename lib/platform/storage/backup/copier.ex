@@ -3,7 +3,7 @@ defmodule Platform.Storage.Backup.Copier do
   Syncs data between backup and current DB
   """
   use GracefulGenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Db
   alias Chat.Db.{Common, Copying, Switching}

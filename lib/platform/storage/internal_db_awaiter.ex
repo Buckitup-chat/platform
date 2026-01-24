@@ -4,7 +4,7 @@ defmodule Platform.Storage.InternalDbAwaiter do
   Uses Process.send_after for infinite polling once per second.
   """
   use GracefulGenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   @check_interval_ms 1_000
 

@@ -5,7 +5,7 @@ defmodule Platform.Storage.Pg.Daemon do
   then starts the next stage.
   """
   use GracefulGenServer, timeout: :timer.minutes(3)
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Tools.Postgres
 

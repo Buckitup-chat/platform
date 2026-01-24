@@ -4,7 +4,7 @@ defmodule Platform.Storage.Pg.DbCreator do
   Runs once to create the specified database if it doesn't exist.
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Tools.Postgres
 

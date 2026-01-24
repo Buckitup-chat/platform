@@ -2,7 +2,7 @@ defmodule Platform.App.Drive.BootSupervisor do
   @moduledoc "Starts drive booting (till be able to decide what to do next)"
 
   use Supervisor
-  use OriginLog
+  use Toolbox.OriginLog
 
   import Platform
 

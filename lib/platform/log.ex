@@ -1,7 +1,7 @@
 defmodule Platform.Log do
   @moduledoc "Helpers for unified logging"
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   def fsck_warn(code, msg) do
     log(["[fsck] ", "(", inspect(code), ") ", msg], :warning)

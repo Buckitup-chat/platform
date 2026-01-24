@@ -3,7 +3,7 @@ defmodule Platform.Emulator.Drive.Mounter do
   Does nothing, but tree building
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
-  use OriginLog
+  use Toolbox.OriginLog
 
   @impl true
   def on_init(opts) do

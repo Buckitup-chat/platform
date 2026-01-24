@@ -1,7 +1,7 @@
 defmodule Platform.Tools.Mount do
   @moduledoc "mount/unmount wrapper"
 
-  use OriginLog
+  use Toolbox.OriginLog
   alias Platform.Tools.Proto.Device
 
   def mount_at_path(device, path, mount_options \\ []) do

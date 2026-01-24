@@ -3,7 +3,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   Main DB device mount
   """
   use Supervisor
-  use OriginLog
+  use Toolbox.OriginLog
 
   import Platform
 

@@ -3,7 +3,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
   Copies data from internal to main db
   """
   use GracefulGenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Db.Copying
   alias Chat.Db.Switching

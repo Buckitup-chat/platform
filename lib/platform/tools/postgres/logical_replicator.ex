@@ -11,7 +11,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
   Uses PostgreSQL's native logical replication (available since PG 10).
   """
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   @type repo :: module()
   @type table_name :: String.t()

@@ -9,7 +9,7 @@ defmodule Platform.Storage.Copier do
     - next: [under: DynamicSupervisor, run: supervisor_children]
   """
   use GracefulGenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Db
   alias Chat.Db.Copying

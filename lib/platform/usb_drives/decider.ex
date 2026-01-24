@@ -2,7 +2,7 @@ defmodule Platform.UsbDrives.Decider do
   @moduledoc "Decides which scenario to run"
 
   use GenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Tools.Mount
   alias Platform.Tools.Mkfs

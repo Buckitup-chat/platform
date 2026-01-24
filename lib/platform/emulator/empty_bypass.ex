@@ -5,7 +5,7 @@ defmodule Platform.Emulator.EmptyBypass do
   Used in emulated environment to skip steps and stages that aren't needed.
   """
   use GracefulGenServer, timeout: :timer.seconds(5)
-  use OriginLog
+  use Toolbox.OriginLog
 
   @impl true
   def on_init(opts) do

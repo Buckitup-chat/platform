@@ -1,7 +1,7 @@
 defmodule Platform.Sensor.Weigh.Polling do
   @moduledoc "Weight sensor polling pipeline"
 
-  use OriginLog
+  use Toolbox.OriginLog
   alias Platform.Sensor.Weigh.Protocol
 
   defstruct [:proto, :msg, :error]

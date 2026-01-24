@@ -3,7 +3,7 @@ defmodule Platform.App.DeviceSupervisor do
   Handles Main and Backup database supervision trees
   """
   use Supervisor
-  use OriginLog
+  use Toolbox.OriginLog
 
   import Platform
 

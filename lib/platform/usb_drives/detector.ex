@@ -1,7 +1,7 @@
 defmodule Platform.UsbDrives.Detector do
   @moduledoc "Drive detector side effects"
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.App.Drive.BootSupervisor
   alias Platform.Storage.DriveIndication

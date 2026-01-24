@@ -1,7 +1,7 @@
 defmodule Platform.Storage.Logic do
   @moduledoc "Storage logic"
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Db.Common
   alias Chat.Db.Copying

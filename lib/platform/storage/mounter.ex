@@ -3,7 +3,7 @@ defmodule Platform.Storage.Mounter do
   Mounts on start, unmount on terminate
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Storage.Device
   alias Platform.Tools.Mount

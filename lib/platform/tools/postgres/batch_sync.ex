@@ -19,7 +19,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
   3. **Conflict resolution**: Uses PostgreSQL's `ON CONFLICT DO NOTHING`
   """
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   # Batch size for insert_all operations
   @batch_size 500

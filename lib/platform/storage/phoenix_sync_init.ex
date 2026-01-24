@@ -13,7 +13,7 @@ defmodule Platform.Storage.PhoenixSyncInit do
   Calls reinit on both init and exit to handle repo changes in both directions.
   """
   use GracefulGenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   @impl true
   def on_init(opts) do

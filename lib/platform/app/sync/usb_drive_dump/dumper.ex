@@ -4,7 +4,7 @@ defmodule Platform.App.Sync.UsbDriveDump.Dumper do
   """
 
   use GracefulGenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Sync.{UsbDriveDumpFile, UsbDriveDumpRoom, UsbDriveFileDumper}
   alias Platform.Leds

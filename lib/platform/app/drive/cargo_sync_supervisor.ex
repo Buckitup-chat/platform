@@ -1,7 +1,7 @@
 defmodule Platform.App.Drive.CargoSyncSupervisor do
   @moduledoc "Cargo scenario"
   use Supervisor
-  use OriginLog
+  use Toolbox.OriginLog
 
   import Platform
 

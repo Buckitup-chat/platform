@@ -2,7 +2,7 @@ defmodule Platform.Storage.Device do
   @moduledoc """
   Device level operations
   """
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Db.Maintenance
   alias Platform.Leds

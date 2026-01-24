@@ -2,7 +2,7 @@ defmodule Platform.Storage.MainReplicator do
   @moduledoc "GenServer to replicate main to internal every 5min or so"
 
   use GenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Storage.Logic
 

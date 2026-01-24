@@ -3,7 +3,7 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   Starts supervision tree for online sync.
   """
   use Supervisor
-  use OriginLog
+  use Toolbox.OriginLog
 
   import Platform
 

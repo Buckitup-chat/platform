@@ -4,7 +4,7 @@ defmodule Platform.Storage.Bouncer do
   """
 
   use GenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Db.DbType
 

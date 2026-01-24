@@ -3,7 +3,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   Finalising switching to main
   """
   use GracefulGenServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Chat.Db.Common
   alias Platform.Tools.Postgres.LogicalReplicator

@@ -2,7 +2,7 @@ defmodule Platform.Storage.DriveIndication do
   @moduledoc "Control of GPIO leds"
 
   use GracefulGenServer, name: __MODULE__
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Circuits.GPIO
 

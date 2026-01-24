@@ -4,7 +4,7 @@ defmodule Platform.Emulator.Drive.DriveIndication do
   alias Platform.Storage.DriveIndication, as: IndicationServer
 
   use GracefulGenServer, name: IndicationServer
-  use OriginLog
+  use Toolbox.OriginLog
 
   @blink_interval 500
 

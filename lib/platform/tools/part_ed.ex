@@ -1,7 +1,7 @@
 defmodule Platform.Tools.PartEd do
   @moduledoc "parted wrapper"
 
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Tools.PartEd.Print
   alias Platform.Tools.Proto.Device

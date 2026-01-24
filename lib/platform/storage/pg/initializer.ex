@@ -4,7 +4,7 @@ defmodule Platform.Storage.Pg.Initializer do
   Runs once to set up the PostgreSQL data directory and configuration.
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
-  use OriginLog
+  use Toolbox.OriginLog
 
   alias Platform.Tools.Postgres
 
