@@ -58,7 +58,7 @@ defmodule Platform.App.Drive.BootSupervisor do
 
     Application.get_env(:chat, Chat.Repo)
     |> Keyword.put(:port, port)
-    |> then(&Application.put_env(:platfrom, repo_name, &1))
+    |> then(&Application.put_env(:platform, repo_name, &1))
 
     repo_module_content =
       quote do

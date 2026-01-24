@@ -1,10 +1,10 @@
 defmodule Platform.ChatBridge.ZeroTierWorker do
   @moduledoc "ZeroTier CLI wrapper"
   # cmd "zerotier-cli -D/root/zt info"
-
-  use OriginLog
   use GenServer
-  import Tools.GenServerHelpers
+  use Toolbox.OriginLog
+
+  import Toolbox.GenServerHelpers
 
   @topic Application.compile_env!(:chat, :topic_to_zerotier)
 

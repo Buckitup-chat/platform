@@ -125,22 +125,11 @@ defmodule Platform.Tools.Postgres.Permissions do
     :ok
   end
 
+  @args ~w[( ! -user] ++
+          [@postgres_user] ++ ~w[-o ! -group] ++ [@postgres_user] ++ ~w[) -print -quit]
   defp permissions_correct?(dirs) do
     Enum.all?(dirs, fn dir ->
-      case System.cmd("find", [
-             dir,
-             "(",
-             "!",
-             "-user",
-             @postgres_user,
-             "-o",
-             "!",
-             "-group",
-             @postgres_user,
-             ")",
-             "-print",
-             "-quit"
-           ]) do
+      case System.cmd("find", [dir | @args]) do
         {"", 0} -> true
         _ -> false
       end
