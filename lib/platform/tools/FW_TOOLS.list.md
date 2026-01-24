@@ -5,6 +5,8 @@ Here is a list of tools installed on the device
 ├── ash
 ├── busybox
 ├── cat
+├── chattr
+├── compile_et
 ├── cp
 ├── date
 ├── dd
@@ -14,7 +16,10 @@ Here is a list of tools installed on the device
 ├── grep
 ├── kill
 ├── ls
+├── lsattr
 ├── lsblk
+├── lsfd
+├── mk_cmds
 ├── mkdir
 ├── mknod
 ├── mount
@@ -26,6 +31,7 @@ Here is a list of tools installed on the device
 ├── rmdir
 ├── sh
 ├── sleep
+├── su
 ├── umount
 ├── zerotier-cli
 ├── zerotier-idtool
@@ -34,6 +40,7 @@ Here is a list of tools installed on the device
 
 ```
 /sbin
+├── badblocks
 ├── blkdiscard
 ├── blkid
 ├── blkpr
@@ -43,14 +50,33 @@ Here is a list of tools installed on the device
 ├── chcpu
 ├── ctrlaltdel
 ├── dosfsck
+├── dumpe2fs
+├── dumpexfat
+├── e2freefrag
+├── e2fsck
+├── e2label
+├── e2mmpstatus
+├── e2undo
+├── e4crypt
+├── exfatattrib
+├── exfatfsck
+├── exfatlabel
+├── faillock
 ├── fdisk
+├── filefrag
 ├── findfs
+├── fsck
+├── fsck.exfat
+├── fsck.ext2
+├── fsck.ext3
+├── fsck.ext4
 ├── fsck.fat
 ├── fsck.msdos
 ├── fsck.vfat
 ├── fsfreeze
 ├── fstrim
 ├── halt
+├── hdparm
 ├── ifconfig
 ├── init
 ├── ip
@@ -60,11 +86,26 @@ Here is a list of tools installed on the device
 ├── iproute
 ├── iprule
 ├── iptunnel
+├── logsave
 ├── lsmod
+├── mkdosfs
+├── mke2fs
+├── mkexfatfs
 ├── mkfs
+├── mkfs.exfat
+├── mkfs.ext2
+├── mkfs.ext3
+├── mkfs.ext4
+├── mkfs.fat
+├── mkfs.msdos
+├── mkfs.vfat
+├── mkhomedir_helper
+├── mklost+found
 ├── mkswap
 ├── modinfo
 ├── modprobe
+├── pam_namespace_helper
+├── pam_timestamp_check
 ├── poweroff
 ├── reboot
 ├── rmmod
@@ -73,8 +114,10 @@ Here is a list of tools installed on the device
 ├── swapoff
 ├── swapon
 ├── sysctl
+├── tune2fs
 ├── udhcpc
-└── uevent
+├── uevent
+└── unix_chkpwd
 ```
 
 ```
@@ -85,6 +128,7 @@ Here is a list of tools installed on the device
 ├── aplay
 ├── arecord
 ├── aserver
+├── bits
 ├── boardid
 ├── camera-bug-report
 ├── choom
@@ -104,6 +148,13 @@ Here is a list of tools installed on the device
 ├── dtoverlay-post
 ├── dtoverlay-pre
 ├── dtparam
+├── e2cp
+├── e2ln
+├── e2ls
+├── e2mkdir
+├── e2mv
+├── e2rm
+├── e2tail
 ├── ecpg
 ├── enosys
 ├── env
@@ -189,11 +240,9 @@ Here is a list of tools installed on the device
 ├── postgres
 ├── prlimit
 ├── psql
-├── randstat
 ├── reindexdb
 ├── renice
 ├── rev
-├── rngtest
 ├── rpicam-hello
 ├── rpicam-jpeg
 ├── rpicam-raw
@@ -268,7 +317,6 @@ Here is a list of tools installed on the device
 ├── partprobe
 ├── readprofile
 ├── resize.f2fs
-├── rngd
 ├── rtcwake
 ├── sload.f2fs
 ├── sudo_logsrvd
