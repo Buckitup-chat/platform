@@ -114,11 +114,14 @@ defmodule Platform.MixProject do
          path: "../chat",
          targets: [:host | @all_targets],
          env: if(Mix.target() == :host, do: Mix.env(), else: :prod)},
+        # Buckitup customized image
         {:buckitup_rpi4,
-         path: "../fresh/buckitup_rpi4",
-         runtime: false,
-         targets: :buckitup_rpi4,
-         nerves: [compile: true]}
+         github: "Buckitup-chat/buckitup_rpi4", runtime: false, targets: :buckitup_rpi4}
+        # {:buckitup_rpi4,
+        #  path: "../fresh/buckitup_rpi4",
+        #  runtime: false,
+        #  targets: :buckitup_rpi4,
+        #  nerves: [compile: true]}
       ]
   end
 
