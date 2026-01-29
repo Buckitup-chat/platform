@@ -108,6 +108,7 @@ defmodule Platform.MixProject do
         {:circuits_uart, "~> 1.3"},
         {:circuits_gpio, "~> 2.0 or ~> 1.0"},
         {:muontrap, "~> 1.0"},
+        {:req, "~> 0.5"},
         ### project deps
         {:toolbox, path: "../toolbox", targets: [:host | @all_targets]},
         {:chat,

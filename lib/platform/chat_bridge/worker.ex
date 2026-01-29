@@ -73,6 +73,9 @@ defmodule Platform.ChatBridge.Worker do
 
       {:upgrade_firmware, binary} ->
         Logic.upgrade_firmware(binary)
+
+      {:upgrade_firmware_from_url, url} ->
+        Logic.upgrade_firmware_from_url(url)
     end
     |> respond()
 

@@ -99,6 +99,17 @@ defmodule Platform.ChatBridge.Logic do
     end
   end
 
+  def upgrade_firmware_from_url(url) do
+    alias Platform.ChatBridge.FirmwareDownloader
+
+    with {:ok, path} <- FirmwareDownloader.download(url),
+         :ok <- Fwup.upgrade_from_file(path) do
+      {:github_firmware_upgrade, :done}
+    else
+      {:error, reason} -> {:github_firmware_upgrade, {:error, reason}}
+    end
+  end
+
   defp mark(x, label), do: {label, x}
   defp error(x), do: {:error, x}
 end
