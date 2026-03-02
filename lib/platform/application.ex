@@ -139,6 +139,8 @@ defmodule Platform.Application do
                "ACCEPT"
              ])
 
+             :inet_db.add_host({127, 0, 0, 1}, [~c"buckitup.app"])
+
              Logger.put_module_level(Tesla.Middleware.Logger, :error)
 
              System.cmd("modprobe", ["pwm-raspberrypi-poe"])
