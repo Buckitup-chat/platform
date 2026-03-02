@@ -6,8 +6,6 @@ import Config
 
 config :logger, backends: [RingLogger]
 
-config :kernel, inet_hosts_file: "/etc/hosts"
-
 # Use shoehorn to start the main application. See the shoehorn
 # library documentation for more control in ordering how OTP
 # applications are started and handling failures.
