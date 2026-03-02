@@ -184,7 +184,26 @@ config :vintage_net,
          ]
        }
      }},
-    {"usb0", %{type: VintageNetDirect}}
+    {"usb0",
+     %{
+       type: VintageNetDirect,
+       ipv4: %{
+         method: :static,
+         address: {192, 168, 26, 1},
+         prefix_length: 24
+       },
+       dhcpd: %{
+         start: {192, 168, 26, 10},
+         end: {192, 168, 26, 250},
+         options: %{
+           dns: [{192, 168, 26, 1}],
+           subnet: {255, 255, 255, 0},
+           router: [{192, 168, 26, 1}],
+           domain: domain,
+           search: [domain]
+         }
+       }
+     }}
   ]
 
 # Enable verbose logging for VintageNetWiFi to diagnose wpa_supplicant issues
