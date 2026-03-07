@@ -46,6 +46,7 @@ defmodule Platform.Storage.InternalDbAwaiter do
 
   def on_msg(:ready, %{next: {next_specs, next_supervisor}} = state) do
     Chat.Sync.DbBrokers.refresh()
+    Chat.NetworkSynchronization.init_electric_peers()
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
   end
