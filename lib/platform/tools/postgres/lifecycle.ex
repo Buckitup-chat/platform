@@ -24,6 +24,7 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     -c work_mem=1MB
     -c wal_level=logical
     -c listen_addresses=localhost
+    -c wal_sender_timeout=600s
   ]
 
   # Settings optimized for faster recovery on SD cards
