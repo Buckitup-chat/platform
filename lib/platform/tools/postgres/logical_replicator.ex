@@ -342,6 +342,27 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
     end
   end
 
+  @spec disable_subscription_if_exists(repo(), subscription_name()) :: :ok | {:error, term()}
+  def disable_subscription_if_exists(repo, subscription_name) do
+    check_sql = "SELECT 1 FROM pg_subscription WHERE subname = '#{subscription_name}' LIMIT 1"
+
+    case repo.query(check_sql) do
+      {:ok, %{rows: []}} ->
+        :ok
+
+      {:ok, %{rows: [_ | _]}} ->
+        disable_subscription(repo, subscription_name)
+
+      {:error, reason} = error ->
+        log(
+          "failed to check subscription before disable name=#{subscription_name} reason=#{inspect(reason)}",
+          :error
+        )
+
+        error
+    end
+  end
+
   @doc """
   Drops a subscription if it exists.
 

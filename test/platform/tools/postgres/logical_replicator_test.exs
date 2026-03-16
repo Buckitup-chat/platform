@@ -11,19 +11,24 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
       test_pid = Process.get(:test_pid)
       send(test_pid, {:repo_query, sql})
 
-      # Return different responses based on query type
-      case Process.get(:query_result, :ok) do
-        :ok ->
-          {:ok, %{rows: [], num_rows: 0}}
+      case Process.get(:query_results) do
+        [result | rest] ->
+          Process.put(:query_results, rest)
+          normalize_result(result)
 
-        :error ->
-          {:error, :query_failed}
+        _ ->
+          normalize_result(Process.get(:query_result, :ok))
+      end
+    end
 
-        {:lag, bytes} ->
-          {:ok, %{rows: [[bytes]], num_rows: 1}}
-
-        :subscription_not_found ->
-          {:ok, %{rows: [], num_rows: 0}}
+    defp normalize_result(result) do
+      case result do
+        :ok -> {:ok, %{rows: [], num_rows: 0}}
+        :error -> {:error, :query_failed}
+        {:lag, bytes} -> {:ok, %{rows: [[bytes]], num_rows: 1}}
+        :subscription_not_found -> {:ok, %{rows: [], num_rows: 0}}
+        {:ok, _} = result -> result
+        {:error, _} = result -> result
       end
     end
   end
@@ -32,6 +37,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
     test_pid = self()
     Process.put(:test_pid, test_pid)
     Process.put(:query_result, :ok)
+    Process.delete(:query_results)
     :ok
   end
 
@@ -241,6 +247,57 @@ defmodule Platform.Tools.Postgres.LogicalReplicatorTest do
 
       result =
         LogicalReplicator.disable_subscription(
+          RepoMock,
+          "my_subscription"
+        )
+
+      assert {:error, :query_failed} = result
+    end
+  end
+
+  describe "disable_subscription_if_exists/2" do
+    test "disables an existing subscription" do
+      Process.put(:query_results, [
+        {:ok, %{rows: [[1]], num_rows: 1}},
+        :ok
+      ])
+
+      result =
+        LogicalReplicator.disable_subscription_if_exists(
+          RepoMock,
+          "my_subscription"
+        )
+
+      assert :ok = result
+      assert_received {:repo_query, exists_sql}
+      assert exists_sql =~ "FROM pg_subscription"
+      assert exists_sql =~ "subname = 'my_subscription'"
+      assert_received {:repo_query, disable_sql}
+      assert disable_sql =~ "ALTER SUBSCRIPTION my_subscription DISABLE"
+    end
+
+    test "is a no-op when the subscription does not exist" do
+      Process.put(:query_results, [
+        {:ok, %{rows: [], num_rows: 0}}
+      ])
+
+      result =
+        LogicalReplicator.disable_subscription_if_exists(
+          RepoMock,
+          "my_subscription"
+        )
+
+      assert :ok = result
+      assert_received {:repo_query, exists_sql}
+      assert exists_sql =~ "FROM pg_subscription"
+      refute_received {:repo_query, _disable_sql}
+    end
+
+    test "returns error when checking existing subscription fails" do
+      Process.put(:query_results, [{:error, :query_failed}])
+
+      result =
+        LogicalReplicator.disable_subscription_if_exists(
           RepoMock,
           "my_subscription"
         )

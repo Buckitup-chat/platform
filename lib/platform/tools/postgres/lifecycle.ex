@@ -427,8 +427,8 @@ defmodule Platform.Tools.Postgres.Lifecycle do
 
     SharedMemory.cleanup_stale(pg_data_dir)
 
-    run_dir = ensure_run_dir(pg_dir, opts)
-    remove_stale_postmaster_pid(run_dir)
+    ensure_run_dir(pg_dir, opts)
+    remove_stale_postmaster_pid(pg_dir)
 
     :ok
   end

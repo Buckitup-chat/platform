@@ -6,6 +6,8 @@ defmodule Platform.Storage.Repo.Starter do
   use GracefulGenServer, timeout: :timer.minutes(3)
   use Toolbox.OriginLog
 
+  alias Platform.Tools.Postgres.LogicalReplicator
+
   @impl true
   def on_init(opts) do
     next = opts |> Keyword.fetch!(:next)
@@ -37,6 +39,8 @@ defmodule Platform.Storage.Repo.Starter do
       |> Keyword.put(:port, port)
       |> repo_name.start_link()
 
+    cleanup_stale_internal_subscription(repo_name)
+
     log("Chat.Repo started successfully, starting next stage", :info)
     Platform.start_next_stage(next_supervisor, next_specs)
 
@@ -48,4 +52,10 @@ defmodule Platform.Storage.Repo.Starter do
     log("Repo starter stage exiting for #{inspect(repo_name)}", :info)
     :ok
   end
+
+  defp cleanup_stale_internal_subscription(Chat.Repo) do
+    :ok = LogicalReplicator.disable_subscription_if_exists(Chat.Repo, "internal_from_main")
+  end
+
+  defp cleanup_stale_internal_subscription(_repo), do: :ok
 end
