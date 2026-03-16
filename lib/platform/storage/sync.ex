@@ -9,7 +9,7 @@ defmodule Platform.Storage.Sync do
 
   @spec schemas(keyword()) :: [atom() | String.t()]
   def schemas(opts \\ []) do
-    default = Keyword.get(opts, :default, [:users])
+    default = Keyword.get(opts, :default, [:user_cards, :user_storage])
     # If schemas is configured, use it; otherwise use the provided default
     case config() |> Keyword.get(:schemas) do
       nil -> default
