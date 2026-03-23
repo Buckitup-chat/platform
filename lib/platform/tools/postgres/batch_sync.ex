@@ -81,7 +81,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
   def sync(opts) do
     source_repo = Keyword.fetch!(opts, :source_repo)
     target_repo = Keyword.fetch!(opts, :target_repo)
-    schemas = Keyword.get(opts, :schemas, [:user_cards, :user_storage])
+    schemas = Keyword.get(opts, :schemas, [:user_cards, :user_storage, :user_storage_versions])
     batch_size = Keyword.get(opts, :batch_size, @batch_size)
     schema_config = Keyword.get(opts, :schema_config, %{})
 
@@ -137,6 +137,10 @@ defmodule Platform.Tools.Postgres.BatchSync do
     sync_table(source_repo, target_repo, Chat.Data.Schemas.UserStorage, batch_size, config)
   end
 
+  defp sync_schema(source_repo, target_repo, :user_storage_versions, batch_size, config) do
+    sync_table(source_repo, target_repo, Chat.Data.Schemas.UserStorageVersion, batch_size, config)
+  end
+
   defp sync_schema(_source_repo, _target_repo, schema, _batch_size, _config) do
     log("schema #{schema} not yet supported, skipping", :warning)
     {:ok, 0}
@@ -161,6 +165,16 @@ defmodule Platform.Tools.Postgres.BatchSync do
     }
 
     Map.merge(default, Map.get(custom_config, :user_storage, %{}))
+  end
+
+  defp get_schema_config(:user_storage_versions, custom_config) do
+    default = %{
+      id_field: [:user_hash, :uuid, :sign_hash],
+      conflict_target: [:user_hash, :uuid, :sign_hash],
+      on_conflict: :nothing
+    }
+
+    Map.merge(default, Map.get(custom_config, :user_storage_versions, %{}))
   end
 
   defp get_schema_config(schema, custom_config) do
