@@ -1,4 +1,6 @@
 defmodule Platform.Tools.Postgres.Permissions do
+  use Toolbox.OriginLog
+
   @moduledoc """
   Handles PostgreSQL directory and file permissions.
   Ensures proper ownership (postgres user/group) and access modes.
@@ -136,5 +138,4 @@ defmodule Platform.Tools.Postgres.Permissions do
     end)
   end
 
-  defp log(msg, level), do: Platform.Log.postgres_log(msg, level)
 end

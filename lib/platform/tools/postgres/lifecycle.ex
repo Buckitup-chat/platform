@@ -25,6 +25,9 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     -c wal_level=logical
     -c listen_addresses=localhost
     -c wal_sender_timeout=600s
+    -c tcp_keepalives_idle=60
+    -c tcp_keepalives_interval=10
+    -c tcp_keepalives_count=5
   ]
 
   # Settings optimized for faster recovery on SD cards
