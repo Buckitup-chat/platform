@@ -22,6 +22,10 @@ defmodule Platform.Storage.PhoenixSyncInit do
     # Reinitialize Phoenix.Sync with the now-ready database
     reinit_phoenix_sync("on_init")
 
+    if Keyword.get(opts, :init_peers) do
+      Chat.NetworkSynchronization.init_electric_peers()
+    end
+
     # Start the next stage if configured (used in DatabaseSupervisor)
     case Keyword.get(opts, :next) do
       nil ->

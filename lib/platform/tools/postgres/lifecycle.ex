@@ -354,8 +354,12 @@ defmodule Platform.Tools.Postgres.Lifecycle do
   Clean all files in the PostgreSQL run directory.
   """
   def cleanup_run_dir_files(run_dir) do
-    with {:ok, entries} <- File.ls(run_dir) do
-      Enum.each(entries, fn entry ->
+    with {:ok, entries} <- File.ls(run_dir),
+         files = Enum.filter(entries, fn e -> !File.dir?(Path.join(run_dir, e)) end),
+         true <- files != [] do
+      ["Cleaning stale PG run-dir files in ", run_dir, ": ", inspect(files)] |> log(:info)
+
+      Enum.each(files, fn entry ->
         Path.join(run_dir, entry)
         |> File.rm()
       end)
@@ -373,9 +377,16 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     with true <- File.exists?(pid_path),
          {:ok, contents} <- File.read(pid_path),
          [first_line | _] <- String.split(contents, "\n", trim: true),
-         os_pid when not is_nil(os_pid) <- parse_os_pid(first_line),
-         false <- os_pid_alive?(os_pid) do
-      File.rm(pid_path)
+         os_pid when not is_nil(os_pid) <- parse_os_pid(first_line) do
+      if os_pid_alive?(os_pid) do
+        ["postmaster.pid at ", pid_path, " belongs to live PID ", to_string(os_pid), ", leaving it"]
+        |> log(:debug)
+      else
+        ["Removing stale postmaster.pid at ", pid_path, " (PID ", to_string(os_pid), " not running)"]
+        |> log(:info)
+
+        File.rm(pid_path)
+      end
     end
 
     :ok
