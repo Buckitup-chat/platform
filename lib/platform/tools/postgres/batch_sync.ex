@@ -324,7 +324,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
 
   # Add timestamps if the schema has them but they're nil
   defp maybe_add_timestamps(attrs, schema_module) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = Chat.TimeKeeper.now() |> DateTime.truncate(:second)
 
     attrs
     |> maybe_put_timestamp(:inserted_at, now, schema_module)
