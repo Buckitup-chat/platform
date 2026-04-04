@@ -48,11 +48,17 @@ defmodule PlatformTest.ChatBridge.GithubFirmwareUpgradeTest do
       def binwrite(:mock_file, _data), do: :ok
     end
 
-    rewire(FirmwareDownloader, Req: ReqSuccessMock, File: FileMock, IO: IOMock,
+    rewire(FirmwareDownloader,
+      Req: ReqSuccessMock,
+      File: FileMock,
+      IO: IOMock,
       as: SuccessDownloader
     )
 
-    rewire(FirmwareDownloader, Req: ReqFailureMock, File: FileMock, IO: IOMock,
+    rewire(FirmwareDownloader,
+      Req: ReqFailureMock,
+      File: FileMock,
+      IO: IOMock,
       as: FailureDownloader
     )
 

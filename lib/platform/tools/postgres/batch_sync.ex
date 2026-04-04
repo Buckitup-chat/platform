@@ -248,9 +248,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
 
     # Fetch full rows from source for this batch
     rows =
-      source_repo.all(
-        build_where_query(schema_module, id_field, batch_ids)
-      )
+      source_repo.all(build_where_query(schema_module, id_field, batch_ids))
 
     # Convert structs to maps for insert_all
     # Filter to only include database fields (exclude virtual fields)

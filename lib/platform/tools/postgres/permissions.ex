@@ -126,7 +126,10 @@ defmodule Platform.Tools.Postgres.Permissions do
         log(["[permission check] ", label, ": ", output], :debug)
 
       {output, code} ->
-        log(["[permission check] ", label, " failed (exit ", to_string(code), "): ", output], :warning)
+        log(
+          ["[permission check] ", label, " failed (exit ", to_string(code), "): ", output],
+          :warning
+        )
     end
   end
 
@@ -140,5 +143,4 @@ defmodule Platform.Tools.Postgres.Permissions do
       end
     end)
   end
-
 end
