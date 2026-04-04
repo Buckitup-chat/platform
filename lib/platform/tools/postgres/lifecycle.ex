@@ -65,6 +65,8 @@ defmodule Platform.Tools.Postgres.Lifecycle do
   - `{:error, output}` if the PostgreSQL database failed to initialize
   """
   def initialize(opts, retries \\ 5) do
+    SharedMemory.cleanup_posix()
+
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
     run_dir = ensure_run_dir(pg_dir, opts)
