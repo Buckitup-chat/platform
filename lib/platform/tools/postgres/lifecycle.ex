@@ -317,10 +317,14 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     pg_port = Keyword.get(opts, :pg_port, 5432)
     sql = "SELECT 1"
 
-    {_, status} =
-      run_pg("psql", ["-U", @postgres_user, "-h", @pg_host, "-p", "#{pg_port}", "-c", sql])
+    try do
+      {_, status} =
+        run_pg("psql", ["-U", @postgres_user, "-h", @pg_host, "-p", "#{pg_port}", "-c", sql])
 
-    status == 0
+      status == 0
+    catch
+      _, _ -> false
+    end
   end
 
   @doc """
