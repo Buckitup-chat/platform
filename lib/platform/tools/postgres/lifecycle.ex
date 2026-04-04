@@ -69,22 +69,9 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     pg_data_dir = Path.join(pg_dir, "data")
     run_dir = ensure_run_dir(pg_dir, opts)
 
-    log(["[intialize] pg_data_dir: ", pg_data_dir, ", run_dir: ", run_dir], :debug)
-    File.mkdir_p!(pg_data_dir)
-    log(["[initialize] ", "dir created"], :debug)
+    prepare_data_dir(pg_data_dir, pg_dir, run_dir)
 
-    Permissions.log_permission_issues(pg_data_dir)
-
-    [pg_data_dir]
-    |> Permissions.ensure_dirs(Permissions.get_uid(), Permissions.get_gid())
-
-    log(["[initialize] ", "permissions set"], :debug)
-
-    File.chmod!(pg_dir, 0o755)
-    log(["[initialize] ", "dir permissions set"], :debug)
-
-    {initialized?(opts), valid_init?(opts)}
-    |> go_on(fn
+    check_init_state = fn
       {true, true} ->
         ["database already initialized at ", pg_data_dir] |> log(:info)
         :ok
@@ -100,34 +87,28 @@ defmodule Platform.Tools.Postgres.Lifecycle do
         {:error, :incorrectly_initialized}
 
       {false, _} ->
-        SharedMemory.cleanup_stale(pg_data_dir)
+        run_fresh_initdb(pg_data_dir, run_dir)
+    end
 
-        args =
-          ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++
-            @pg_minimal_settings
-
-        ["Initializing PostgreSQL database at ", pg_data_dir, " with run_dir ", run_dir]
-        |> log(:info)
-
-        run_pg("initdb", args, as_postgres_user: true, run_dir: run_dir)
-    end)
-    |> go_on(fn
+    evaluate_initdb_output = fn
       {output, code} when code != 0 ->
         ["PostgreSQL database initialization failed: ", output] |> log(:error)
         {:error, output}
 
       {_, 0} ->
         valid_init?(opts)
-    end)
-    |> go_on(fn
+    end
+
+    setup_replication_if_valid = fn
       true ->
         Platform.Tools.Postgres.Database.setup_replication(opts)
         :ok
 
       false ->
         retries - 1
-    end)
-    |> go_on(fn
+    end
+
+    retry_or_fail = fn
       retries_left when retries_left < 1 ->
         ["PostgreSQL initialization failed after retries"] |> log(:error)
         {:error, :failed_after_retries}
@@ -138,7 +119,64 @@ defmodule Platform.Tools.Postgres.Lifecycle do
 
         clean_data_dir(opts)
         initialize(opts, retries_left)
-    end)
+    end
+
+    {initialized?(opts), valid_init?(opts)}
+    |> go_on(check_init_state)
+    |> go_on(evaluate_initdb_output)
+    |> go_on(setup_replication_if_valid)
+    |> go_on(retry_or_fail)
+  end
+
+  defp prepare_data_dir(pg_data_dir, pg_dir, run_dir) do
+    log(["[initialize] pg_data_dir: ", pg_data_dir, ", run_dir: ", run_dir], :debug)
+    File.mkdir_p!(pg_data_dir)
+    log(["[initialize] dir created"], :debug)
+
+    Permissions.log_permission_issues(pg_data_dir)
+
+    [pg_data_dir]
+    |> Permissions.ensure_dirs(Permissions.get_uid(), Permissions.get_gid())
+
+    log(["[initialize] permissions set"], :debug)
+
+    File.chmod!(pg_dir, 0o755)
+    log(["[initialize] dir permissions set"], :debug)
+  end
+
+  defp run_fresh_initdb(pg_data_dir, run_dir) do
+    SharedMemory.cleanup_stale(pg_data_dir)
+
+    args = ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++ @pg_minimal_settings
+
+    ["Initializing PostgreSQL database at ", pg_data_dir, " with run_dir ", run_dir]
+    |> log(:info)
+
+    run_pg("initdb", args, as_postgres_user: true, run_dir: run_dir)
+  end
+
+  defp start_pg_server(opts) do
+    pg_dir = Keyword.fetch!(opts, :pg_dir)
+    pg_port = Keyword.get(opts, :pg_port, 5432)
+    pg_data_dir = Path.join(pg_dir, "data")
+    run_dir = extract_pg_run_dir(pg_dir, opts)
+
+    settings = Enum.join(@pg_minimal_settings ++ @pg_recovery_optimized_settings, " ")
+
+    args = [
+      "-D",
+      pg_data_dir,
+      "-l",
+      "/dev/null",
+      "-o",
+      "#{settings} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
+      "start"
+    ]
+
+    ["Starting PostgreSQL server on port ", pg_port, " with run_dir ", run_dir]
+    |> log(:info)
+
+    run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
   end
 
   @doc """
@@ -219,37 +257,18 @@ defmodule Platform.Tools.Postgres.Lifecycle do
   - `{:error, output}` if the PostgreSQL server failed to start
   """
   def start(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_port = Keyword.get(opts, :pg_port, 5432)
-    pg_data_dir = Path.join(pg_dir, "data")
-    run_dir = extract_pg_run_dir(pg_dir, opts)
 
-    server_running?(opts)
-    |> go_on(fn
+    check_if_running = fn
       true ->
         ["PostgreSQL already running on port ", pg_port] |> log(:info)
         :ok
 
       false ->
-        minimal_settings_str = Enum.join(@pg_minimal_settings, " ")
-        recovery_settings_str = Enum.join(@pg_recovery_optimized_settings, " ")
+        start_pg_server(opts)
+    end
 
-        args = [
-          "-D",
-          pg_data_dir,
-          "-l",
-          "/dev/null",
-          "-o",
-          "#{minimal_settings_str} #{recovery_settings_str} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
-          "start"
-        ]
-
-        ["Starting PostgreSQL server on port ", pg_port, " with run_dir ", run_dir]
-        |> log(:info)
-
-        run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
-    end)
-    |> go_on(fn
+    evaluate_pg_ctl_output = fn
       {output, status} when status != 0 ->
         ["PostgreSQL server failed to start: ", output] |> log(:error)
         {:error, output}
@@ -257,8 +276,9 @@ defmodule Platform.Tools.Postgres.Lifecycle do
       {output, 0} ->
         Process.sleep(1000)
         {output, server_running?(opts)}
-    end)
-    |> go_on(fn
+    end
+
+    confirm_server_running = fn
       {_, true} ->
         ["PostgreSQL server started successfully"] |> log(:info)
         :ok
@@ -266,7 +286,12 @@ defmodule Platform.Tools.Postgres.Lifecycle do
       {output, false} ->
         ["PostgreSQL server failed to start: ", output] |> log(:error)
         {:error, output}
-    end)
+    end
+
+    server_running?(opts)
+    |> go_on(check_if_running)
+    |> go_on(evaluate_pg_ctl_output)
+    |> go_on(confirm_server_running)
   end
 
   @doc """
@@ -284,19 +309,21 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     pg_data_dir = Path.join(pg_dir, "data")
     run_dir = extract_pg_run_dir(pg_dir, opts)
 
-    server_running?(opts)
-    |> go_on(fn
+    check_if_running = fn
       false ->
         ["PostgreSQL server not running"] |> log(:info)
         :ok
 
       true ->
         ["Stopping PostgreSQL server with run_dir ", run_dir] |> log(:info)
-        args = ["-D", pg_data_dir, "stop", "-m", "fast"]
 
-        run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
-    end)
-    |> go_on(fn
+        run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast"],
+          as_postgres_user: true,
+          run_dir: run_dir
+        )
+    end
+
+    report_stop = fn
       {_, 0} ->
         ["PostgreSQL server stopped successfully"] |> log(:info)
         :ok
@@ -304,7 +331,11 @@ defmodule Platform.Tools.Postgres.Lifecycle do
       {output, _} ->
         ["PostgreSQL server failed to stop: ", output] |> log(:error)
         {:error, output}
-    end)
+    end
+
+    server_running?(opts)
+    |> go_on(check_if_running)
+    |> go_on(report_stop)
   end
 
   @doc """
@@ -383,10 +414,22 @@ defmodule Platform.Tools.Postgres.Lifecycle do
          [first_line | _] <- String.split(contents, "\n", trim: true),
          os_pid when not is_nil(os_pid) <- parse_os_pid(first_line) do
       if os_pid_alive?(os_pid) do
-        ["postmaster.pid at ", pid_path, " belongs to live PID ", to_string(os_pid), ", leaving it"]
+        [
+          "postmaster.pid at ",
+          pid_path,
+          " belongs to live PID ",
+          to_string(os_pid),
+          ", leaving it"
+        ]
         |> log(:debug)
       else
-        ["Removing stale postmaster.pid at ", pid_path, " (PID ", to_string(os_pid), " not running)"]
+        [
+          "Removing stale postmaster.pid at ",
+          pid_path,
+          " (PID ",
+          to_string(os_pid),
+          " not running)"
+        ]
         |> log(:info)
 
         File.rm(pid_path)
@@ -409,42 +452,9 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     pg_data_dir = Path.join(pg_dir, "data")
     run_dir = extract_pg_run_dir(pg_dir, opts)
 
-    [
-      "Attempting to stop any existing PostgreSQL server for ",
-      pg_data_dir,
-      " (run_dir: ",
-      run_dir,
-      ")"
-    ]
-    |> log(:info)
-
-    {output, status} =
-      run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast"],
-        as_postgres_user: true,
-        run_dir: run_dir
-      )
-
-    if status == 0 do
-      ["Existing PostgreSQL server stopped before daemon start"] |> log(:info)
-    else
-      ["pg_ctl stop exited with status ", to_string(status), ": ", output]
-      |> log(:warning)
-    end
-
-    if File.exists?("/usr/bin/lsipc") do
-      {ipc_output, ipc_status} = MuonTrap.cmd("/usr/bin/lsipc", ["-m"], stderr_to_stdout: true)
-
-      [
-        "lsipc -m exited with status ",
-        to_string(ipc_status),
-        ":\n",
-        ipc_output
-      ]
-      |> log(:debug)
-    end
-
+    force_stop_server(pg_data_dir, run_dir)
+    log_ipc_info()
     SharedMemory.cleanup_stale(pg_data_dir)
-
     ensure_run_dir(pg_dir, opts)
     remove_stale_postmaster_pid(pg_dir)
 
@@ -500,6 +510,37 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     |> case do
       {os_pid, _} when os_pid > 0 -> os_pid
       _ -> nil
+    end
+  end
+
+  defp force_stop_server(pg_data_dir, run_dir) do
+    [
+      "Attempting to stop any existing PostgreSQL server for ",
+      pg_data_dir,
+      " (run_dir: ",
+      run_dir,
+      ")"
+    ]
+    |> log(:info)
+
+    {output, status} =
+      run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast"],
+        as_postgres_user: true,
+        run_dir: run_dir
+      )
+
+    case status do
+      0 -> ["Existing PostgreSQL server stopped before daemon start"] |> log(:info)
+      _ -> ["pg_ctl stop exited with status ", to_string(status), ": ", output] |> log(:warning)
+    end
+  end
+
+  defp log_ipc_info do
+    if File.exists?("/usr/bin/lsipc") do
+      {ipc_output, ipc_status} = MuonTrap.cmd("/usr/bin/lsipc", ["-m"], stderr_to_stdout: true)
+
+      ["lsipc -m exited with status ", to_string(ipc_status), ":\n", ipc_output]
+      |> log(:debug)
     end
   end
 
