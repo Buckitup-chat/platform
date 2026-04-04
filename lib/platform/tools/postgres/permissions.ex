@@ -112,19 +112,22 @@ defmodule Platform.Tools.Postgres.Permissions do
   def log_permission_issues(dir) do
     log(["[permission check] ", dir], :debug)
 
-    {wrong_uid_list, 0} = System.cmd("find", [dir | ~w[! -user postgres -print]])
-    log(["[permission check] wrong_uid_list: ", wrong_uid_list], :debug)
-
-    {wrong_gid_list, 0} = System.cmd("find", [dir | ~w[! -group postgres -print]])
-    log(["[permission check] wrong_gid_list: ", wrong_gid_list], :debug)
-
-    {wrong_files, 0} = System.cmd("find", [dir | ~w[-type f ! -perm 600 -print]])
-    log(["[permission check] wrong_files: ", wrong_files], :debug)
-
-    {wrong_dirs, 0} = System.cmd("find", [dir | ~w[-type d ! -perm 700 -print]])
-    log(["[permission check] wrong_dirs: ", wrong_dirs], :debug)
+    find_and_log(dir, ~w[! -user postgres -print], "wrong_uid_list")
+    find_and_log(dir, ~w[! -group postgres -print], "wrong_gid_list")
+    find_and_log(dir, ~w[-type f ! -perm 600 -print], "wrong_files")
+    find_and_log(dir, ~w[-type d ! -perm 700 -print], "wrong_dirs")
 
     :ok
+  end
+
+  defp find_and_log(dir, args, label) do
+    case System.cmd("find", [dir | args], stderr_to_stdout: true) do
+      {output, 0} ->
+        log(["[permission check] ", label, ": ", output], :debug)
+
+      {output, code} ->
+        log(["[permission check] ", label, " failed (exit ", to_string(code), "): ", output], :warning)
+    end
   end
 
   @args ~w[( ! -user] ++
