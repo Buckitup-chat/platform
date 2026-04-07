@@ -8,6 +8,9 @@ defmodule Platform.Storage.Pg.Initializer do
 
   alias Platform.Tools.Postgres
 
+  @max_retries 5
+  @initial_retry_delay :timer.seconds(3)
+
   @impl true
   def on_init(opts) do
     next = opts |> Keyword.fetch!(:next)
@@ -18,7 +21,9 @@ defmodule Platform.Storage.Pg.Initializer do
       task_supervisor: opts |> Keyword.fetch!(:task_in),
       next_specs: next |> Keyword.fetch!(:run),
       next_supervisor: next |> Keyword.fetch!(:under),
-      task_ref: nil
+      task_ref: nil,
+      retries: 0,
+      retry_delay: @initial_retry_delay
     }
     |> tap(fn _ -> send(self(), :start) end)
   end
@@ -53,7 +58,7 @@ defmodule Platform.Storage.Pg.Initializer do
   def on_msg({ref, {:error, reason}}, %{task_ref: ref} = state) do
     Process.demonitor(ref, [:flush])
     log("PostgreSQL initialization failed: #{inspect(reason)}", :error)
-    {:stop, {:init_failed, reason}, state}
+    maybe_retry(state)
   end
 
   # Handle task crash (e.g., :epipe from initdb)
@@ -68,13 +73,28 @@ defmodule Platform.Storage.Pg.Initializer do
       _, _ -> :ok
     end
 
-    {:stop, {:init_task_crashed, reason}, state}
+    maybe_retry(state)
   end
 
   def on_msg(:initialized, %{next_specs: next_specs, next_supervisor: next_supervisor} = state) do
     log("PostgreSQL initialized, starting next stage", :info)
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
+  end
+
+  defp maybe_retry(%{retries: retries, retry_delay: delay} = state) do
+    if retries >= @max_retries do
+      log("PostgreSQL initialization failed after #{retries} retries, giving up", :error)
+      {:stop, {:init_failed_after_retries, retries}, state}
+    else
+      log(
+        "Retrying PostgreSQL initialization in #{delay}ms (attempt #{retries + 1}/#{@max_retries})",
+        :warning
+      )
+
+      Process.send_after(self(), :start, delay)
+      {:noreply, %{state | retries: retries + 1, retry_delay: min(delay * 2, :timer.minutes(1))}}
+    end
   end
 
   @impl true
