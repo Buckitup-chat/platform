@@ -78,22 +78,22 @@ defmodule Platform.Application do
     end
   else
     defp more_target_children(kids) do
+      Chat.Time.init_time()
+
+      pg_run_dir = "/tmp/pg_run"
+      File.mkdir_p!(pg_run_dir)
+      Platform.Tools.Postgres.make_accessible(pg_run_dir)
+
       kids ++
         [
           Platform.ChatBridge.Worker,
           {Platform.Dns.Server, 53},
           {Task,
            fn ->
-             Chat.Time.init_time()
-
              # Ensure wpa_supplicant control directory exists with proper permissions
              wpa_control_dir = "/tmp/vintage_net/wpa_supplicant"
              File.mkdir_p!(wpa_control_dir)
              File.chmod!(wpa_control_dir, 0o755)
-
-             pg_run_dir = "/tmp/pg_run"
-             File.mkdir_p!(pg_run_dir)
-             Platform.Tools.Postgres.make_accessible(pg_run_dir)
 
              [
                "vm.dirty_expire_centisecs=300",
@@ -155,6 +155,7 @@ defmodule Platform.Application do
                  Logger.error(" [platform] error setting media: #{inspect(t)} #{inspect(e)}")
              end
            end},
+          Chat.TimeKeeper,
           Platform.Storage.DriveIndication,
           Platform.App.DeviceSupervisor,
           Platform.App.DatabaseSupervisor,
