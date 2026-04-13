@@ -8,11 +8,11 @@ defmodule Platform.App.Drive.CargoSyncSupervisor do
   alias Chat.Db.MediaDbSupervisor
 
   alias Platform.App.Sync.Cargo.{
-    SensorsDataCollector,
     FinalCopyCompleter,
     InitialCopyCompleter,
     InviteAcceptor,
-    ScopeProvider
+    ScopeProvider,
+    SensorsDataCollector
   }
 
   alias Platform.App.Drive.CargoSyncSupervisor.Tasks

@@ -54,10 +54,14 @@ defmodule Platform.Network.IptablesMonitor do
       {has_masquerade?, has_forward?} ->
         log(
           [
-            "Missing iptables rules — MASQUERADE: ", to_string(has_masquerade?),
-            ", FORWARD/wlan0: ", to_string(has_forward?),
-            "\nNAT:\n", nat,
-            "\nFILTER:\n", filter
+            "Missing iptables rules — MASQUERADE: ",
+            to_string(has_masquerade?),
+            ", FORWARD/wlan0: ",
+            to_string(has_forward?),
+            "\nNAT:\n",
+            nat,
+            "\nFILTER:\n",
+            filter
           ],
           :warning
         )
