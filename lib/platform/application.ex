@@ -139,6 +139,11 @@ defmodule Platform.Application do
                "ACCEPT"
              ])
 
+             {nat_out, _} = System.cmd("iptables", ["-t", "nat", "-S"])
+             {filter_out, _} = System.cmd("iptables", ["-S"])
+             Logger.info("[iptables] NAT rules:\n#{nat_out}")
+             Logger.info("[iptables] FILTER rules:\n#{filter_out}")
+
              :inet_db.add_host({127, 0, 0, 1}, [~c"localhost", ~c"buckitup.app"])
 
              Logger.put_module_level(Tesla.Middleware.Logger, :error)
@@ -155,6 +160,7 @@ defmodule Platform.Application do
                  Logger.error(" [platform] error setting media: #{inspect(t)} #{inspect(e)}")
              end
            end},
+          Platform.Network.IptablesMonitor,
           Chat.TimeKeeper,
           Platform.Storage.DriveIndication,
           Platform.App.DeviceSupervisor,
