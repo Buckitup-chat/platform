@@ -1,18 +1,19 @@
 defmodule Platform.Tools.Postgres.Lifecycle do
   @moduledoc """
   PostgreSQL server lifecycle management.
-  Handles initialization, startup, shutdown, and runtime directory management.
+  Handles startup, shutdown, and runtime directory management.
+
+  Initialization is in `Platform.Tools.Postgres.Lifecycle.Init`.
+  Cleanup is in `Platform.Tools.Postgres.Lifecycle.Cleanup`.
   """
   use Toolbox.OriginLog
 
   import Toolbox.Flow, only: [go_on: 2]
 
-  alias Platform.Tools.Postgres.{Permissions, SharedMemory}
-  alias Platform.Tools.OsPid
+  alias Platform.Tools.Postgres.Permissions
 
   @postgres_user "postgres"
   @pg_host "localhost"
-  @pg_run_dir "/tmp/pg_run"
 
   @pg_minimal_settings ~w[
     -c shared_buffers=400kB
@@ -54,198 +55,25 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     -c bgwriter_lru_maxpages=100
   ]
 
-  @doc """
-  Initialize the PostgreSQL database with configurable options.
+  # --- Delegated Init functions ---
 
-  ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
+  defdelegate initialize(opts, retries \\ 5), to: __MODULE__.Init
+  defdelegate initialized?(opts), to: __MODULE__.Init
+  defdelegate valid_init?(opts), to: __MODULE__.Init
+  defdelegate clean_data_dir(opts), to: __MODULE__.Init
 
-  ## Returns
-  - `:ok` if the PostgreSQL database was initialized successfully
-  - `{:error, output}` if the PostgreSQL database failed to initialize
-  """
-  def initialize(opts, retries \\ 5) do
-    SharedMemory.cleanup_posix()
+  # --- Delegated Cleanup functions ---
 
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_data_dir = Path.join(pg_dir, "data")
-    run_dir = ensure_run_dir(pg_dir, opts)
+  defdelegate cleanup_old_server(pg_dir, opts \\ []), to: __MODULE__.Cleanup
+  defdelegate remove_stale_postmaster_pid(pg_dir), to: __MODULE__.Cleanup
 
-    prepare_data_dir(pg_data_dir, pg_dir, run_dir)
+  # --- Delegated RunDir functions ---
 
-    check_init_state = fn
-      {true, true} ->
-        ["database already initialized at ", pg_data_dir] |> log(:info)
-        :ok
+  defdelegate ensure_run_dir(pg_dir, opts \\ []), to: __MODULE__.RunDir
+  defdelegate cleanup_run_dir_files(run_dir), to: __MODULE__.RunDir
+  defdelegate extract_pg_run_dir(pg_dir, opts \\ []), to: __MODULE__.RunDir
 
-      {true, false} ->
-        [
-          "CRITICAL: PostgreSQL data directory exists but is INVALID at ",
-          pg_data_dir,
-          " - may contain user data, skipping re-initialization"
-        ]
-        |> log(:critical)
-
-        {:error, :incorrectly_initialized}
-
-      {false, _} ->
-        run_fresh_initdb(pg_data_dir, run_dir)
-    end
-
-    evaluate_initdb_output = fn
-      {output, code} when code != 0 ->
-        ["PostgreSQL database initialization failed: ", output] |> log(:error)
-        {:error, output}
-
-      {_, 0} ->
-        valid_init?(opts)
-    end
-
-    setup_replication_if_valid = fn
-      true ->
-        Platform.Tools.Postgres.Database.setup_replication(opts)
-        :ok
-
-      false ->
-        retries - 1
-    end
-
-    retry_or_fail = fn
-      retries_left when retries_left < 1 ->
-        ["PostgreSQL initialization failed after retries"] |> log(:error)
-        {:error, :failed_after_retries}
-
-      retries_left ->
-        ["PostgreSQL initialization produced invalid data directory, cleaning and retrying"]
-        |> log(:warning)
-
-        clean_data_dir(opts)
-        initialize(opts, retries_left)
-    end
-
-    {initialized?(opts), valid_init?(opts)}
-    |> go_on(check_init_state)
-    |> go_on(evaluate_initdb_output)
-    |> go_on(setup_replication_if_valid)
-    |> go_on(retry_or_fail)
-  end
-
-  defp prepare_data_dir(pg_data_dir, pg_dir, run_dir) do
-    log(["[initialize] pg_data_dir: ", pg_data_dir, ", run_dir: ", run_dir], :debug)
-    File.mkdir_p!(pg_data_dir)
-    log(["[initialize] dir created"], :debug)
-
-    Permissions.log_permission_issues(pg_data_dir)
-
-    [pg_data_dir]
-    |> Permissions.ensure_dirs(Permissions.get_uid(), Permissions.get_gid())
-
-    log(["[initialize] permissions set"], :debug)
-
-    File.chmod!(pg_dir, 0o755)
-    log(["[initialize] dir permissions set"], :debug)
-  end
-
-  defp run_fresh_initdb(pg_data_dir, run_dir) do
-    SharedMemory.cleanup_stale(pg_data_dir)
-
-    args = ["--auth-host=trust", "--auth-local=trust", "-D", pg_data_dir] ++ @pg_minimal_settings
-
-    ["Initializing PostgreSQL database at ", pg_data_dir, " with run_dir ", run_dir]
-    |> log(:info)
-
-    run_pg("initdb", args, as_postgres_user: true, run_dir: run_dir)
-  end
-
-  defp start_pg_server(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_port = Keyword.get(opts, :pg_port, 5432)
-    pg_data_dir = Path.join(pg_dir, "data")
-    run_dir = extract_pg_run_dir(pg_dir, opts)
-
-    settings = Enum.join(@pg_minimal_settings ++ @pg_recovery_optimized_settings, " ")
-
-    args = [
-      "-D",
-      pg_data_dir,
-      "-l",
-      "/dev/null",
-      "-o",
-      "#{settings} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
-      "start"
-    ]
-
-    ["Starting PostgreSQL server on port ", pg_port, " with run_dir ", run_dir]
-    |> log(:info)
-
-    run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
-  end
-
-  @doc """
-  Check if PostgreSQL is already initialized.
-
-  ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data (required)
-  """
-  def initialized?(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_data_dir = Path.join(pg_dir, "data")
-    File.exists?(Path.join(pg_data_dir, "PG_VERSION"))
-  end
-
-  @doc """
-  Validate that a PostgreSQL data directory is properly initialized.
-  Checks for essential files and directories that must exist after a successful initdb.
-
-  ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data (required)
-
-  ## Returns
-  - `true` if the data directory appears valid
-  - `false` if essential components are missing
-  """
-  def valid_init?(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_data_dir = Path.join(pg_dir, "data")
-
-    required_paths = [
-      Path.join(pg_data_dir, "PG_VERSION"),
-      Path.join(pg_data_dir, "base/1"),
-      Path.join(pg_data_dir, "global"),
-      Path.join(pg_data_dir, "pg_hba.conf")
-    ]
-
-    Enum.all?(required_paths, &File.exists?/1)
-  end
-
-  @doc """
-  Clean the PostgreSQL data directory for re-initialization.
-
-  ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data (required)
-
-  ## Returns
-  - `:ok` if cleanup was successful
-  - `{:error, reason}` if cleanup failed
-  """
-  def clean_data_dir(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_data_dir = Path.join(pg_dir, "data")
-
-    ["Cleaning PostgreSQL data directory: ", pg_data_dir] |> log(:warning)
-
-    case File.rm_rf(pg_data_dir) do
-      {:ok, _} ->
-        ["PostgreSQL data directory cleaned"] |> log(:info)
-        :ok
-
-      {:error, reason, path} ->
-        ["Failed to clean PostgreSQL data directory: ", inspect(reason), " at ", path]
-        |> log(:error)
-
-        {:error, reason}
-    end
-  end
+  # --- Server start/stop ---
 
   @doc """
   Start the PostgreSQL server with configurable options.
@@ -360,130 +188,7 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     end
   end
 
-  @doc """
-  Ensure the PostgreSQL run directory exists with correct permissions.
-
-  ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data (required)
-  - `:run_dir` - Override run directory path (optional)
-  - `:device` - Device name for run directory (optional)
-
-  ## Returns
-  The run directory path.
-  """
-  def ensure_run_dir(pg_dir, opts \\ []) do
-    run_dir = extract_pg_run_dir(pg_dir, opts)
-
-    File.mkdir_p!(run_dir)
-
-    parent_dir = Path.dirname(run_dir)
-    File.chmod!(parent_dir, 0o755)
-
-    [run_dir]
-    |> Permissions.ensure_dirs(get_postgres_uid(), get_postgres_gid())
-
-    cleanup_run_dir_files(run_dir)
-
-    run_dir
-  end
-
-  @doc """
-  Clean all files in the PostgreSQL run directory.
-  """
-  def cleanup_run_dir_files(run_dir) do
-    with {:ok, entries} <- File.ls(run_dir),
-         files = Enum.filter(entries, fn e -> !File.dir?(Path.join(run_dir, e)) end),
-         true <- files != [] do
-      ["Cleaning stale PG run-dir files in ", run_dir, ": ", inspect(files)] |> log(:info)
-
-      Enum.each(files, fn entry ->
-        Path.join(run_dir, entry)
-        |> File.rm()
-      end)
-    end
-
-    :ok
-  end
-
-  @doc """
-  Remove stale postmaster.pid file if the process is not running.
-  """
-  def remove_stale_postmaster_pid(pg_dir) do
-    pid_path = Path.join([pg_dir, "data", "postmaster.pid"])
-
-    with true <- File.exists?(pid_path),
-         {:ok, contents} <- File.read(pid_path),
-         [first_line | _] <- String.split(contents, "\n", trim: true),
-         os_pid when not is_nil(os_pid) <- parse_os_pid(first_line) do
-      if os_pid_alive?(os_pid) do
-        [
-          "postmaster.pid at ",
-          pid_path,
-          " belongs to live PID ",
-          to_string(os_pid),
-          ", leaving it"
-        ]
-        |> log(:debug)
-      else
-        [
-          "Removing stale postmaster.pid at ",
-          pid_path,
-          " (PID ",
-          to_string(os_pid),
-          " not running)"
-        ]
-        |> log(:info)
-
-        File.rm(pid_path)
-      end
-    end
-
-    :ok
-  end
-
-  @doc """
-  Clean up any existing PostgreSQL server before starting a new one.
-
-  ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data (required)
-
-  ## Returns
-  `:ok` after cleanup attempt
-  """
-  def cleanup_old_server(pg_dir, opts \\ []) do
-    pg_data_dir = Path.join(pg_dir, "data")
-    run_dir = extract_pg_run_dir(pg_dir, opts)
-
-    force_stop_server(pg_data_dir, run_dir)
-    log_ipc_info()
-    SharedMemory.cleanup_stale(pg_data_dir)
-    ensure_run_dir(pg_dir, opts)
-    remove_stale_postmaster_pid(pg_dir)
-
-    :ok
-  end
-
-  @doc """
-  Extract the PostgreSQL run directory path from options.
-  """
-  def extract_pg_run_dir(pg_dir, opts \\ []) do
-    cond do
-      run_dir = Keyword.get(opts, :run_dir) ->
-        run_dir
-
-      device = Keyword.get(opts, :device) ->
-        Path.join(@pg_run_dir, device)
-
-      true ->
-        device =
-          case String.split(pg_dir, "/", trim: true) do
-            ["root", "media", device | _] -> device
-            _ -> "internal"
-          end
-
-        Path.join(@pg_run_dir, device)
-    end
-  end
+  # --- Settings accessors ---
 
   @doc """
   Get the settings for PostgreSQL minimal configuration.
@@ -503,54 +208,10 @@ defmodule Platform.Tools.Postgres.Lifecycle do
   defdelegate get_postgres_uid(), to: Permissions, as: :get_uid
   defdelegate get_postgres_gid(), to: Permissions, as: :get_gid
 
-  defp parse_os_pid(nil), do: nil
+  # --- Shared pg command runner ---
 
-  defp parse_os_pid(str) do
-    str
-    |> String.trim()
-    |> Integer.parse()
-    |> case do
-      {os_pid, _} when os_pid > 0 -> os_pid
-      _ -> nil
-    end
-  end
-
-  defp force_stop_server(pg_data_dir, run_dir) do
-    [
-      "Attempting to stop any existing PostgreSQL server for ",
-      pg_data_dir,
-      " (run_dir: ",
-      run_dir,
-      ")"
-    ]
-    |> log(:info)
-
-    {output, status} =
-      run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast"],
-        as_postgres_user: true,
-        run_dir: run_dir
-      )
-
-    case status do
-      0 -> ["Existing PostgreSQL server stopped before daemon start"] |> log(:info)
-      _ -> ["pg_ctl stop exited with status ", to_string(status), ": ", output] |> log(:warning)
-    end
-  end
-
-  defp log_ipc_info do
-    if File.exists?("/usr/bin/lsipc") do
-      {ipc_output, ipc_status} = MuonTrap.cmd("/usr/bin/lsipc", ["-m"], stderr_to_stdout: true)
-
-      ["lsipc -m exited with status ", to_string(ipc_status), ":\n", ipc_output]
-      |> log(:debug)
-    end
-  end
-
-  defp os_pid_alive?(os_pid) when is_integer(os_pid) do
-    OsPid.alive?(os_pid)
-  end
-
-  defp run_pg(tool, args, opts \\ []) do
+  @doc false
+  def run_pg(tool, args, opts \\ []) do
     cmd_opts =
       Enum.reduce(opts, [stderr_to_stdout: true], fn
         {:as_postgres_user, true}, acc ->
@@ -559,7 +220,6 @@ defmodule Platform.Tools.Postgres.Lifecycle do
           |> Keyword.put(:gid, get_postgres_gid())
 
         {:run_dir, run_dir}, acc ->
-          # Set PGHOST to run_dir so pg_* tools use the correct socket directory
           env = Keyword.get(acc, :env, [])
           Keyword.put(acc, :env, [{"PGHOST", run_dir} | env])
 
@@ -568,5 +228,29 @@ defmodule Platform.Tools.Postgres.Lifecycle do
       end)
 
     MuonTrap.cmd("/usr/bin/#{tool}", args, cmd_opts)
+  end
+
+  defp start_pg_server(opts) do
+    pg_dir = Keyword.fetch!(opts, :pg_dir)
+    pg_port = Keyword.get(opts, :pg_port, 5432)
+    pg_data_dir = Path.join(pg_dir, "data")
+    run_dir = extract_pg_run_dir(pg_dir, opts)
+
+    settings = Enum.join(@pg_minimal_settings ++ @pg_recovery_optimized_settings, " ")
+
+    args = [
+      "-D",
+      pg_data_dir,
+      "-l",
+      "/dev/null",
+      "-o",
+      "#{settings} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
+      "start"
+    ]
+
+    ["Starting PostgreSQL server on port ", pg_port, " with run_dir ", run_dir]
+    |> log(:info)
+
+    run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
   end
 end
