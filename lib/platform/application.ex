@@ -145,6 +145,7 @@ defmodule Platform.Application do
              Logger.info("[iptables] FILTER rules:\n#{filter_out}")
 
              :inet_db.add_host({127, 0, 0, 1}, [~c"localhost", ~c"buckitup.app"])
+             :inet_db.set_lookup([:file, :dns])
 
              Logger.put_module_level(Tesla.Middleware.Logger, :error)
 
