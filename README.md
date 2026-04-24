@@ -1,6 +1,23 @@
 # Platform
 
-**TODO: Add description**
+Nerves-based embedded Elixir firmware for Raspberry Pi devices (rpi3, rpi3a, rpi4, bktp_rpi4). Manages USB storage, per-drive PostgreSQL instances, and hosts the companion `chat` application on-device.
+
+## Documentation
+
+See [docs/README.md](./docs/README.md) for the full index.
+
+Quick links:
+- [PostgreSQL lifecycle](./docs/pg_lifecycle.md) — initialization, supervision, replication
+- [PostgreSQL management requirements](./docs/reqs/postgresql-management.md)
+- [Future ideas](./docs/future_ideas.md)
+- [OpenSpec workflow](./openspec/AGENTS.md) — spec-driven change process
+- [Style guide](./STYLE.md)
+
+Module-level docs live next to the code:
+- [app/sync](./lib/platform/app/sync/README.md)
+- [sensor](./lib/platform/sensor/README.md)
+- [tools](./lib/platform/tools/README.md) · [firmware tool list](./lib/platform/tools/FW_TOOLS.list.md)
+- [usb_drives](./lib/platform/usb_drives/README.md)
 
 ## Targets
 
