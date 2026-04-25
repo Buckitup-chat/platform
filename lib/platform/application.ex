@@ -141,8 +141,8 @@ defmodule Platform.Application do
 
              {nat_out, _} = System.cmd("iptables", ["-t", "nat", "-S"])
              {filter_out, _} = System.cmd("iptables", ["-S"])
-             Logger.info("[iptables] NAT rules:\n#{nat_out}")
-             Logger.info("[iptables] FILTER rules:\n#{filter_out}")
+             Logger.info("[iptables] NAT rules:\n#{nat_out}", [])
+             Logger.info("[iptables] FILTER rules:\n#{filter_out}", [])
 
              :inet_db.add_host({127, 0, 0, 1}, [~c"localhost", ~c"buckitup.app"])
              :inet_db.set_lookup([:file, :dns])

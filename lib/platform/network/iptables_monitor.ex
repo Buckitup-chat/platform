@@ -46,25 +46,27 @@ defmodule Platform.Network.IptablesMonitor do
   defp verify_iptables do
     {nat, _} = System.cmd("iptables", ["-t", "nat", "-S"])
     {filter, _} = System.cmd("iptables", ["-S"])
+    {ip_forward, _} = System.cmd("sysctl", ["net.ipv4.ip_forward"])
 
-    case {nat =~ "MASQUERADE", filter =~ "FORWARD" and filter =~ "wlan0"} do
-      {true, true} ->
-        log("iptables rules OK", :debug)
+    has_masquerade? = nat =~ "MASQUERADE"
+    has_forward? = filter =~ "FORWARD" and filter =~ "wlan0"
+    has_input? = filter =~ "INPUT" and filter =~ "RELATED,ESTABLISHED"
+    has_ip_forward? = ip_forward =~ "= 1"
 
-      {has_masquerade?, has_forward?} ->
-        log(
-          [
-            "Missing iptables rules — MASQUERADE: ",
-            to_string(has_masquerade?),
-            ", FORWARD/wlan0: ",
-            to_string(has_forward?),
-            "\nNAT:\n",
-            nat,
-            "\nFILTER:\n",
-            filter
-          ],
-          :warning
-        )
+    missing =
+      [{has_ip_forward?, "ip_forward"},
+       {has_masquerade?, "MASQUERADE"},
+       {has_forward?, "FORWARD/wlan0"},
+       {has_input?, "INPUT/RELATED,ESTABLISHED"}]
+      |> Enum.reject(&elem(&1, 0))
+      |> Enum.map(&elem(&1, 1))
+
+    case missing do
+      [] ->
+        log("Inet is ok", :debug)
+
+      _ ->
+        log(["Inet warning: missing ", Enum.join(missing, ", ")], :warning)
     end
   end
 end

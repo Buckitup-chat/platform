@@ -27,12 +27,26 @@ defmodule Platform.Storage.Device do
   end
 
   def mount_on(device, path, mount_options \\ []) do
+    fs = Lsblk.fs_type(device)
+    :ok = assert_writable_fs(fs, device)
+    mount_options = filter_mount_options(fs, mount_options)
+
     File.mkdir_p!(path)
     Mount.unmount(path)
     {_, 0} = Mount.mount_at_path(device, path, mount_options)
 
     path
   end
+
+  defp assert_writable_fs(fs, device) when fs in ["squashfs", "iso9660"] do
+    log("#{device} has read-only filesystem #{fs}, skipping", :error)
+    raise "read-only filesystem #{fs} on #{device}"
+  end
+
+  defp assert_writable_fs(_fs, _device), do: :ok
+
+  defp filter_mount_options(fs, mount_options) when fs in ["vfat", "exfat"], do: mount_options
+  defp filter_mount_options(_fs, mount_options), do: Keyword.drop(mount_options, [:uid, :gid])
 
   def unmount(device) do
     case device do
