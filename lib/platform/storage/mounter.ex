@@ -48,6 +48,11 @@ defmodule Platform.Storage.Mounter do
     {:noreply, state}
   end
 
+  def on_msg({:DOWN, ref, :process, _pid, reason}, %{task_ref: ref, device: device} = state) do
+    log("mount failed for #{device}: #{inspect(reason)}", :error)
+    {:stop, {:mount_failed, reason}, state}
+  end
+
   def on_msg(:mounted, %{next_specs: next_specs, next_supervisor: next_supervisor} = state) do
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
