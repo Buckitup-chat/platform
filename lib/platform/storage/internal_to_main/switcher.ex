@@ -91,17 +91,10 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     end
   end
 
-  # Disable main→internal replication when USB is ejected
-  # USB repo is expected to be down - just clean up internal side
   defp disable_pg_replication(_state) do
-    # Disable main→internal subscription on internal repo
-    # This stops internal from trying to connect to the dead USB postgres
-    _ = LogicalReplicator.disable_subscription(Chat.Repo, "internal_from_main")
-    log("PG replication disabled on internal (USB ejected)", :info)
-
-    # Note: We don't try to re-enable main_from_internal on USB repo
-    # because the USB is ejected and the repo is down. The subscription
-    # will be re-enabled next time USB is inserted and copier runs.
+    _ = LogicalReplicator.drop_subscription_if_exists(Chat.Repo, "internal_from_main")
+    _ = LogicalReplicator.drop_slot_if_exists(Chat.Repo, "main_from_internal")
+    log("PG replication cleaned up on internal (USB ejected)", :info)
   end
 
   defp switch_db_repo(args) do

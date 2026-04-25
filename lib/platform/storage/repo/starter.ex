@@ -39,7 +39,7 @@ defmodule Platform.Storage.Repo.Starter do
       |> Keyword.put(:port, port)
       |> repo_name.start_link()
 
-    cleanup_stale_internal_subscription(repo_name)
+    cleanup_stale_replication(repo_name)
 
     log("Chat.Repo started successfully, starting next stage", :info)
     Platform.start_next_stage(next_supervisor, next_specs)
@@ -53,9 +53,11 @@ defmodule Platform.Storage.Repo.Starter do
     :ok
   end
 
-  defp cleanup_stale_internal_subscription(Chat.Repo) do
+  defp cleanup_stale_replication(Chat.Repo) do
     :ok = LogicalReplicator.disable_subscription_if_exists(Chat.Repo, "internal_from_main")
   end
 
-  defp cleanup_stale_internal_subscription(_repo), do: :ok
+  defp cleanup_stale_replication(repo) do
+    _ = LogicalReplicator.drop_slot_if_exists(repo, "internal_from_main")
+  end
 end

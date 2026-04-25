@@ -269,6 +269,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicator.Subscription do
 
   defp do_drop_subscription(repo, subscription_name) do
     _ = disable_subscription(repo, subscription_name)
+    _ = repo.query("ALTER SUBSCRIPTION #{subscription_name} SET (slot_name = NONE)")
 
     case repo.query("DROP SUBSCRIPTION #{subscription_name}") do
       {:ok, _} ->
