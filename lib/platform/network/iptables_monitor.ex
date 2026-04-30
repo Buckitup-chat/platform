@@ -49,14 +49,14 @@ defmodule Platform.Network.IptablesMonitor do
     {ip_forward, _} = System.cmd("sysctl", ["net.ipv4.ip_forward"])
 
     missing =
-      [
-        {ip_forward =~ "= 1", :ip_forward},
-        {nat =~ "MASQUERADE", :masquerade},
-        {filter =~ "FORWARD" and filter =~ "wlan0", :forward},
-        {filter =~ "INPUT" and filter =~ "RELATED,ESTABLISHED", :input}
-      ]
-      |> Enum.reject(&elem(&1, 0))
-      |> Enum.map(&elem(&1, 1))
+      for {present?, rule} <- [
+            {ip_forward =~ "= 1", :ip_forward},
+            {nat =~ "MASQUERADE", :masquerade},
+            {filter =~ "FORWARD" and filter =~ "wlan0", :forward},
+            {filter =~ "INPUT" and filter =~ "RELATED,ESTABLISHED", :input}
+          ],
+          not present?,
+          do: rule
 
     case missing do
       [] ->
@@ -77,11 +77,11 @@ defmodule Platform.Network.IptablesMonitor do
     do: System.cmd("sysctl", ["-w", "net.ipv4.ip_forward=1"])
 
   defp apply_rule(:masquerade),
-    do: System.cmd("iptables", ["-t", "nat", "-A", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"])
+    do: System.cmd("iptables", ~w[-t nat -A POSTROUTING -o eth0 -j MASQUERADE])
 
   defp apply_rule(:forward),
-    do: System.cmd("iptables", ["--append", "FORWARD", "--in-interface", "wlan0", "-j", "ACCEPT"])
+    do: System.cmd("iptables", ~w[--append FORWARD --in-interface wlan0 -j ACCEPT])
 
   defp apply_rule(:input),
-    do: System.cmd("iptables", ["-A", "INPUT", "-i", "eth0", "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
+    do: System.cmd("iptables", ~w[-A INPUT -i eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT])
 end
