@@ -48,16 +48,13 @@ defmodule Platform.Network.IptablesMonitor do
     {filter, _} = System.cmd("iptables", ["-S"])
     {ip_forward, _} = System.cmd("sysctl", ["net.ipv4.ip_forward"])
 
-    has_masquerade? = nat =~ "MASQUERADE"
-    has_forward? = filter =~ "FORWARD" and filter =~ "wlan0"
-    has_input? = filter =~ "INPUT" and filter =~ "RELATED,ESTABLISHED"
-    has_ip_forward? = ip_forward =~ "= 1"
-
     missing =
-      [{has_ip_forward?, "ip_forward"},
-       {has_masquerade?, "MASQUERADE"},
-       {has_forward?, "FORWARD/wlan0"},
-       {has_input?, "INPUT/RELATED,ESTABLISHED"}]
+      [
+        {ip_forward =~ "= 1", :ip_forward},
+        {nat =~ "MASQUERADE", :masquerade},
+        {filter =~ "FORWARD" and filter =~ "wlan0", :forward},
+        {filter =~ "INPUT" and filter =~ "RELATED,ESTABLISHED", :input}
+      ]
       |> Enum.reject(&elem(&1, 0))
       |> Enum.map(&elem(&1, 1))
 
@@ -66,7 +63,25 @@ defmodule Platform.Network.IptablesMonitor do
         log("Inet is ok", :debug)
 
       _ ->
-        log(["Inet warning: missing ", Enum.join(missing, ", ")], :warning)
+        log(["Inet warning: missing ", inspect(missing)], :warning)
+        recover_iptables(missing)
     end
   end
+
+  defp recover_iptables(missing) do
+    Enum.each(missing, &apply_rule/1)
+    log(["Recovered iptables rules: ", inspect(missing)], :info)
+  end
+
+  defp apply_rule(:ip_forward),
+    do: System.cmd("sysctl", ["-w", "net.ipv4.ip_forward=1"])
+
+  defp apply_rule(:masquerade),
+    do: System.cmd("iptables", ["-t", "nat", "-A", "POSTROUTING", "-o", "eth0", "-j", "MASQUERADE"])
+
+  defp apply_rule(:forward),
+    do: System.cmd("iptables", ["--append", "FORWARD", "--in-interface", "wlan0", "-j", "ACCEPT"])
+
+  defp apply_rule(:input),
+    do: System.cmd("iptables", ["-A", "INPUT", "-i", "eth0", "-m", "state", "--state", "RELATED,ESTABLISHED", "-j", "ACCEPT"])
 end
