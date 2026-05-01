@@ -45,11 +45,11 @@ defmodule Platform.Tools.LsblkTest do
   end
 
   test "should detect exfat" do
-    assert "vfat" = Lsblk.fs_type("mmcblk0p1")
+    assert "exfat" = Lsblk.fs_type("sda1")
   end
 
   test "should detect f2fs" do
-    assert "vfat" = Lsblk.fs_type("mmcblk0p1")
+    assert "f2fs" = Lsblk.fs_type("mmcblk0p3")
   end
 
   test "should not detect fs type on no device" do
