@@ -1,8 +1,6 @@
 defmodule Platform.ChatBridge.Worker do
   @moduledoc "Talks to Chat through PubSub"
 
-  require Logger
-
   use GenServer
 
   alias Phoenix.PubSub

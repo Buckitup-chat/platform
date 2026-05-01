@@ -4,6 +4,7 @@ defmodule Platform.Application do
   @moduledoc false
 
   use Application
+  use Toolbox.OriginLog
 
   @impl true
   def start(_type, _args) do
@@ -141,8 +142,8 @@ defmodule Platform.Application do
 
              {nat_out, _} = System.cmd("iptables", ["-t", "nat", "-S"])
              {filter_out, _} = System.cmd("iptables", ["-S"])
-             Logger.info("[iptables] NAT rules:\n#{nat_out}", [])
-             Logger.info("[iptables] FILTER rules:\n#{filter_out}", [])
+             log("[iptables] NAT rules:\n#{nat_out}", :info)
+             log("[iptables] FILTER rules:\n#{filter_out}", :info)
 
              :inet_db.add_host({127, 0, 0, 1}, [~c"localhost", ~c"buckitup.app"])
              :inet_db.set_lookup([:file, :dns])
@@ -157,8 +158,7 @@ defmodule Platform.Application do
                File.chmod!(mount_path, 0o755)
              catch
                t, e ->
-                 require Logger
-                 Logger.error(" [platform] error setting media: #{inspect(t)} #{inspect(e)}")
+                 log("error setting media: #{inspect(t)} #{inspect(e)}", :error)
              end
            end},
           Platform.Network.IptablesMonitor,

@@ -4,8 +4,6 @@ defmodule Platform.Storage.Backup.Starter do
   """
   use GracefulGenServer
 
-  require Logger
-
   alias Chat.Db.Common
 
   @impl true
