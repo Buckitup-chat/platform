@@ -77,6 +77,7 @@ defmodule Platform.App.Drive.BootSupervisor do
        {@mounter,
         device: device, at: mount_path, mount_options: mount_options(), task_in: task_supervisor}
        |> exit_takes(15_000)},
+      {:step, name(InternalDbReady, device), {InternalDbAwaiter, task_in: task_supervisor}},
       {:step, name(InitPg, device),
        {@pg_initializer, pg_dir: pg_dir, pg_port: port, task_in: task_supervisor}
        |> exit_takes(30_000)},
@@ -97,7 +98,6 @@ defmodule Platform.App.Drive.BootSupervisor do
       {:step, name(MigrationsRun, device),
        {@pg_migration_runner, repo_name: repo_name, task_in: task_supervisor}
        |> exit_takes(60_000)},
-      {:step, name(InternalDbReady, device), {InternalDbAwaiter, task_in: task_supervisor}},
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider,
        [
