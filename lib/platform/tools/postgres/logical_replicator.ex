@@ -34,7 +34,8 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
 
   ## Example
 
-      create_publication(Chat.Repo, ["users"], "internal_to_main")
+      tables = Platform.Storage.Sync.schemas() |> Enum.map(&to_string/1)
+      create_publication(Chat.Repo, tables, "internal_to_main")
   """
   @spec create_publication(repo(), [table_name()], publication_name()) ::
           :ok | {:error, term()}
@@ -46,13 +47,15 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
     BEGIN
       IF NOT EXISTS (SELECT 1 FROM pg_publication WHERE pubname = '#{publication_name}') THEN
         CREATE PUBLICATION #{publication_name} FOR TABLE #{tables_list};
+      ELSE
+        ALTER PUBLICATION #{publication_name} SET TABLE #{tables_list};
       END IF;
     END $$;
     """
 
     case repo.query(sql) do
       {:ok, _} ->
-        log("created publication name=#{publication_name} tables=#{inspect(tables)}", :info)
+        log("ensured publication name=#{publication_name} tables=#{inspect(tables)}", :info)
         :ok
 
       {:error, reason} = error ->
