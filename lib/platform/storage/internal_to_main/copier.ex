@@ -111,7 +111,9 @@ defmodule Platform.Storage.InternalToMain.Copier do
     # Clean up stale slots from previous sessions before creating new ones
     _ = LogicalReplicator.drop_slot_if_exists(source_repo, "main_from_internal")
 
-    with :ok <- LogicalReplicator.create_publication(source_repo, ["users"], "internal_to_main"),
+    tables = Sync.schemas() |> Enum.map(&to_string/1)
+
+    with :ok <- LogicalReplicator.create_publication(source_repo, tables, "internal_to_main"),
          :ok <-
            LogicalReplicator.create_subscription(
              target_repo,
