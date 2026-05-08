@@ -110,7 +110,7 @@ defmodule Platform.MixProject do
         {:muontrap, "~> 1.0"},
         {:req, "~> 0.5"},
         ### project deps
-        {:toolbox, path: "../toolbox", targets: [:host | @all_targets]},
+        {:toolbox, github: "Buckitup-chat/toolbox", targets: [:host | @all_targets]},
         {:chat,
          path: "../chat",
          targets: [:host | @all_targets],
