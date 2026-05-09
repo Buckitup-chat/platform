@@ -1,9 +1,13 @@
 .PHONY: zip burn card ssh test nothing await_restart burn_in cover \
 	ssh_lan ssh_usb burn_lan burn_usb burn_in_lan burn_in_usb \
-	faster_burn_in_lan faster_burn_in_usb
+	faster_burn_in_lan faster_burn_in_usb upload
 
 HOST_LAN := buckitup-lan
 HOST_USB := buckitup-usb
+
+HOST_PORT ?= 22
+SSH_KEY := ~/.ssh/buckit.id_rsa
+FW_PATH = _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw
 
 platform_version := $(shell git log -1 --date=format:%Y-%m-%d --format=%cd_%h)
 chat_version := $(shell bash chat_version.sh)
@@ -37,9 +41,12 @@ prepare_chat_old:
 clean_chat:
 	(cd ../chat && MIX_ENV=prod make clean)
 
+upload:
+	cat $(FW_PATH) | ssh -i $(SSH_KEY) -p $(HOST_PORT) -s -- $(HOST) fwup
+
 faster_burn_in:
 	mix firmware
-	mix upload $(HOST)
+	$(MAKE) upload HOST=$(HOST)
 
 faster_ssh:
 	sleep 20
@@ -56,8 +63,8 @@ burn:
 	rm -rf priv/admin_db_v2
 	rm -rf priv/db
 	mix firmware
-	mix upload $(HOST)
-	cp _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw platform.$(version).fw
+	$(MAKE) upload HOST=$(HOST)
+	cp $(FW_PATH) platform.$(version).fw
 	make clean_chat
 
 image:
@@ -71,7 +78,7 @@ image:
 	make clean_chat
 
 ssh:
-	ssh -i ~/.ssh/buckit.id_rsa -o "StrictHostKeyChecking=no" $(HOST)
+	ssh -i $(SSH_KEY) -o "StrictHostKeyChecking=no" $(HOST)
 
 burn_in: burn await_restart ssh
 
