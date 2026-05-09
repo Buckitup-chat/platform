@@ -6,7 +6,8 @@ import Config
 
 config :shoehorn,
   init: [:nerves_runtime, :nerves_pack],
-  app: Mix.Project.config()[:app]
+  app: Mix.Project.config()[:app],
+  overlay: [{:nerves_time, :stopped}]
 
 # Nerves Runtime can enumerate hardware devices and send notifications via
 # SystemRegistry. This slows down startup and not many programs make use of
@@ -22,6 +23,9 @@ config :nerves,
   erlinit: [
     hostname_pattern: "nerves-%s"
   ]
+
+# Chat.TimeKeeper manages time — disable NervesTime's ntpd as a safety net
+config :nerves_time, :servers, []
 
 # Configure the device for SSH IEx prompt access and firmware updates
 #

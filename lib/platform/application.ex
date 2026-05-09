@@ -79,7 +79,7 @@ defmodule Platform.Application do
     end
   else
     defp more_target_children(kids) do
-      Chat.Time.init_time()
+      Chat.Time.set_initial_system_time()
 
       pg_run_dir = "/tmp/pg_run"
       File.mkdir_p!(pg_run_dir)
