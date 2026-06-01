@@ -111,13 +111,7 @@ defmodule Platform.Storage.Pg.Daemon do
           next_supervisor: next_supervisor
         } = state
       ) do
-    result =
-      Task.Supervisor.async_nolink(task_supervisor, fn ->
-        wait_for_postgres_ready(pg_port)
-      end)
-      |> Task.await(:timer.minutes(2))
-
-    case result do
+    case await_postgres_ready(task_supervisor, pg_port) do
       :ok ->
         # Final health check before proceeding - verify PostgreSQL is actually accepting connections
         if Postgres.server_running?(pg_port: pg_port) do
@@ -153,6 +147,22 @@ defmodule Platform.Storage.Pg.Daemon do
       {:ok, pid} -> {:ok, pid}
       {:error, {:already_started, pid}} -> {:ok, pid}
       error -> error
+    end
+  end
+
+  # Yield/shutdown rather than await: a probe crash (e.g. :epipe when a
+  # connection check races with a network reconfiguration) is reported as
+  # {:error, _} for the caller to retry, instead of crashing this GenServer.
+  defp await_postgres_ready(task_supervisor, pg_port) do
+    task =
+      Task.Supervisor.async_nolink(task_supervisor, fn ->
+        wait_for_postgres_ready(pg_port)
+      end)
+
+    case Task.yield(task, :timer.minutes(2)) || Task.shutdown(task) do
+      {:ok, result} -> result
+      {:exit, reason} -> {:error, {:task_exit, reason}}
+      nil -> {:error, :timeout}
     end
   end
 
