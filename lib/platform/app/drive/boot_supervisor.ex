@@ -13,15 +13,15 @@ defmodule Platform.App.Drive.BootSupervisor do
   def start_link([device, name]) do
     Supervisor.start_link(__MODULE__, [device],
       name: name,
-      max_restarts: 1,
-      max_seconds: 15
+      max_restarts: 3,
+      max_seconds: 240
     )
   end
 
   def init([device]) do
     device
     |> supervision_tree()
-    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
+    |> Supervisor.init(strategy: :rest_for_one, max_restarts: 3, max_seconds: 240)
     |> tap(fn res ->
       log("init result #{inspect(res)}", :debug)
     end)

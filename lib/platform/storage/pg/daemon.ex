@@ -12,6 +12,8 @@ defmodule Platform.Storage.Pg.Daemon do
   # Increased from 10 to 30 attempts (60 seconds total) for slow SD cards
   @max_startup_attempts 30
   @startup_check_interval_ms 2000
+  # Cap total readiness polling cycles (each ~70s: 60s poll + 10s wait)
+  @max_ready_cycles 3
 
   @impl true
   def on_init(opts) do
@@ -26,7 +28,8 @@ defmodule Platform.Storage.Pg.Daemon do
       next_specs: next |> Keyword.fetch!(:run),
       next_supervisor: next |> Keyword.fetch!(:under),
       daemon_pid: nil,
-      daemon_restart_count: 0
+      daemon_restart_count: 0,
+      ready_cycle_count: 0
     }
     |> tap(fn _ -> send(self(), :start) end)
   end
@@ -69,9 +72,9 @@ defmodule Platform.Storage.Pg.Daemon do
         {:EXIT, daemon_pid, reason},
         %{daemon_pid: daemon_pid, daemon_restart_count: restart_count, pg_dir: pg_dir} = state
       )
-      when restart_count < 3 do
+      when restart_count < 1 do
     log(
-      "PostgreSQL daemon crashed with reason: #{inspect(reason)}, restarting (attempt #{restart_count + 1}/3)",
+      "PostgreSQL daemon crashed with reason: #{inspect(reason)}, restarting (attempt #{restart_count + 1}/1)",
       :warning
     )
 
@@ -104,30 +107,39 @@ defmodule Platform.Storage.Pg.Daemon do
   @impl GracefulGenServer
   def on_msg(
         :wait_for_ready,
+        %{ready_cycle_count: cycle} = state
+      )
+      when cycle >= @max_ready_cycles do
+    log("PostgreSQL not ready after #{cycle} polling cycles, giving up", :error)
+    {:stop, {:error, :pg_not_ready_after_timeout}, state}
+  end
+
+  def on_msg(
+        :wait_for_ready,
         %{
           pg_port: pg_port,
           task_supervisor: task_supervisor,
           next_specs: next_specs,
-          next_supervisor: next_supervisor
+          next_supervisor: next_supervisor,
+          ready_cycle_count: cycle
         } = state
       ) do
     case await_postgres_ready(task_supervisor, pg_port) do
       :ok ->
-        # Final health check before proceeding - verify PostgreSQL is actually accepting connections
         if Postgres.server_running?(pg_port: pg_port) do
           log("PostgreSQL daemon ready on port #{pg_port}, starting next stage", :info)
           Platform.start_next_stage(next_supervisor, next_specs)
           {:noreply, state}
         else
-          log("PostgreSQL health check failed after wait - retrying in 10s", :warning)
+          log("PostgreSQL health check failed after wait - retrying in 10s (cycle #{cycle + 1}/#{@max_ready_cycles})", :warning)
           Process.send_after(self(), :wait_for_ready, :timer.seconds(10))
-          {:noreply, state}
+          {:noreply, %{state | ready_cycle_count: cycle + 1}}
         end
 
       {:error, reason} ->
-        log("PostgreSQL failed to become ready: #{inspect(reason)} - retrying in 10s", :warning)
+        log("PostgreSQL failed to become ready: #{inspect(reason)} - retrying in 10s (cycle #{cycle + 1}/#{@max_ready_cycles})", :warning)
         Process.send_after(self(), :wait_for_ready, :timer.seconds(10))
-        {:noreply, state}
+        {:noreply, %{state | ready_cycle_count: cycle + 1}}
     end
   end
 
