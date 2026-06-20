@@ -111,7 +111,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
     # Clean up stale slots from previous sessions before creating new ones
     _ = LogicalReplicator.drop_slot_if_exists(source_repo, "main_from_internal")
 
-    tables = Sync.schemas() |> Enum.map(&to_string/1)
+    tables = Chat.Data.Shapes.sync_tables()
 
     with :ok <- LogicalReplicator.create_publication(source_repo, tables, "internal_to_main"),
          :ok <-

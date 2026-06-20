@@ -34,7 +34,7 @@ defmodule Platform.Tools.Postgres.LogicalReplicator do
 
   ## Example
 
-      tables = Platform.Storage.Sync.schemas() |> Enum.map(&to_string/1)
+      tables = Chat.Data.Shapes.sync_tables()
       create_publication(Chat.Repo, tables, "internal_to_main")
   """
   @spec create_publication(repo(), [table_name()], publication_name()) ::

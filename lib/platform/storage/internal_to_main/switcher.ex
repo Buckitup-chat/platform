@@ -61,7 +61,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
 
       _ = LogicalReplicator.drop_subscription_if_exists(Chat.Repo, "internal_from_main")
       _ = LogicalReplicator.drop_slot_if_exists(main_repo, "internal_from_main")
-      tables = Platform.Storage.Sync.schemas() |> Enum.map(&to_string/1)
+      tables = Chat.Data.Shapes.sync_tables()
       _ = LogicalReplicator.create_publication(main_repo, tables, "main_to_internal")
 
       # Create subscription on internal for main→internal

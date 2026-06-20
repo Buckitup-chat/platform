@@ -18,8 +18,12 @@ defmodule Platform.Storage.SyncTest do
     assert %{state: {:error, "test error"}} = Sync.status()
   end
 
-  test "schemas/1 returns default when no opts" do
-    # Config has [:users]
-    assert Sync.schemas() == [:users]
+  test "schemas/1 returns all Electric-synced schemas" do
+    schemas = Sync.schemas()
+    assert is_list(schemas)
+    assert Chat.Data.Schemas.UserCard in schemas
+    assert Chat.Data.Schemas.FileChunk in schemas
+    assert Chat.Data.Schemas.DialogMessage in schemas
+    assert schemas == Chat.Data.Shapes.sync_schemas()
   end
 end
