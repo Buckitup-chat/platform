@@ -53,6 +53,8 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     -c wal_buffers=256kB
     -c bgwriter_delay=500ms
     -c bgwriter_lru_maxpages=100
+    -c statement_timeout=45s
+    -c idle_in_transaction_session_timeout=60s
   ]
 
   # --- Delegated Init functions ---
