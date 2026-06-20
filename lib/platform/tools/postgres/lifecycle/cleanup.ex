@@ -18,11 +18,11 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
          {:ok, contents} <- File.read(pid_path),
          [first_line | _] <- String.split(contents, "\n", trim: true),
          os_pid when not is_nil(os_pid) <- parse_os_pid(first_line) do
-      if os_pid_alive?(os_pid) do
+      if postgres_process?(os_pid) do
         [
           "postmaster.pid at ",
           pid_path,
-          " belongs to live PID ",
+          " belongs to live postgres PID ",
           to_string(os_pid),
           ", leaving it"
         ]
@@ -33,7 +33,7 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
           pid_path,
           " (PID ",
           to_string(os_pid),
-          " not running)"
+          " is not a postgres process)"
         ]
         |> log(:info)
 
@@ -57,11 +57,11 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
     pg_data_dir = Path.join(pg_dir, "data")
     run_dir = Lifecycle.extract_pg_run_dir(pg_dir, opts)
 
+    remove_stale_postmaster_pid(pg_dir)
     force_stop_server(pg_data_dir, run_dir)
     log_ipc_info()
     SharedMemory.cleanup_stale(pg_data_dir)
     Lifecycle.ensure_run_dir(pg_dir, opts)
-    remove_stale_postmaster_pid(pg_dir)
 
     :ok
   end
@@ -77,9 +77,10 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
     |> log(:info)
 
     {output, status} =
-      Lifecycle.run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast"],
+      Lifecycle.run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast", "-t", "30"],
         as_postgres_user: true,
-        run_dir: run_dir
+        run_dir: run_dir,
+        timeout: 45_000
       )
 
     case status do
@@ -109,7 +110,14 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
     end
   end
 
-  defp os_pid_alive?(os_pid) when is_integer(os_pid) do
-    OsPid.alive?(os_pid)
+  defp postgres_process?(os_pid) when is_integer(os_pid) do
+    OsPid.alive?(os_pid) && os_pid_is_postgres?(os_pid)
+  end
+
+  defp os_pid_is_postgres?(os_pid) do
+    case File.read("/proc/#{os_pid}/cmdline") do
+      {:ok, cmdline} -> cmdline |> String.split(<<0>>) |> hd() == "/usr/bin/postgres"
+      _ -> false
+    end
   end
 end

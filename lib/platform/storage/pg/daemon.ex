@@ -7,6 +7,12 @@ defmodule Platform.Storage.Pg.Daemon do
   use GracefulGenServer, timeout: :timer.minutes(3)
   use Toolbox.OriginLog
 
+  defoverridable handle_info: 2
+
+  @impl true
+  def handle_info({:EXIT, _pid, _reason} = msg, state), do: on_msg(msg, state)
+  def handle_info(msg, state), do: super(msg, state)
+
   alias Platform.Tools.Postgres
 
   # Increased from 10 to 30 attempts (60 seconds total) for slow SD cards

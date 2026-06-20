@@ -225,6 +225,9 @@ defmodule Platform.Tools.Postgres.Lifecycle do
           env = Keyword.get(acc, :env, [])
           Keyword.put(acc, :env, [{"PGHOST", run_dir} | env])
 
+        {:timeout, ms}, acc ->
+          Keyword.put(acc, :timeout, ms)
+
         _, acc ->
           acc
       end)
