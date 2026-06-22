@@ -135,8 +135,9 @@ defmodule Platform.MixProject do
   defp build_version do
     {platform_hash, 0} = System.cmd("git", ~w|log -1 --date=format:%Y-%m-%d --format=%cd_%h|)
     {chat_hash, 0} = System.cmd("bash", ["chat_version.sh"])
+    {frontend_hash, 0} = System.cmd("bash", ["frontend_version.sh"])
 
-    [platform_hash, chat_hash]
+    [platform_hash, chat_hash, frontend_hash]
     |> Enum.map_join("___", &String.trim/1)
   end
 end

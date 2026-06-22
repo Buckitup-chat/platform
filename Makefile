@@ -11,8 +11,9 @@ FW_PATH = _build/$(MIX_TARGET)_$(MIX_ENV)/nerves/images/platform.fw
 
 platform_version := $(shell git log -1 --date=format:%Y-%m-%d --format=%cd_%h)
 chat_version := $(shell bash chat_version.sh)
+frontend_version := $(shell bash frontend_version.sh)
 domain := $(shell cat ./built_for_domain)
-version := "$(platform_version)___$(chat_version).$(domain)"
+version := "$(platform_version)___$(chat_version)___$(frontend_version).$(domain)"
 
 nothing:
 	@echo  $(version)
@@ -38,6 +39,17 @@ prepare_chat_old:
 	# first if the following command fails
 	MIX_ENV=prod mix deps.compile chat --force
 
+frontend_commit := $(shell cd ../chat-frontend && git rev-parse HEAD)
+
+prepare_frontend:
+	@if [ ! -f .frontend_compiled ] || [ "$$(cat .frontend_compiled)" != "$(frontend_commit)" ]; then \
+		echo "Frontend changed, rebuilding..."; \
+		(cd ../chat && make frontend-build); \
+		echo "$(frontend_commit)" > .frontend_compiled; \
+	else \
+		echo "Frontend unchanged, skipping rebuild"; \
+	fi
+
 clean_chat:
 	(cd ../chat && MIX_ENV=prod make clean)
 
@@ -54,9 +66,10 @@ faster_ssh:
 
 platform_burn_in: faster_burn_in faster_ssh
 
-full_burn_in: prepare_chat faster_burn_in clean_chat faster_ssh
+full_burn_in: prepare_frontend prepare_chat faster_burn_in clean_chat faster_ssh
 
 burn:
+	make prepare_frontend
 	make prepare_chat
 	rm -f image.*.zip
 	rm -f platform.*.fw
@@ -68,6 +81,7 @@ burn:
 	make clean_chat
 
 image:
+	make prepare_frontend
 	make prepare_chat
 	rm -f image.*.zip
 	rm -f platform.*.fw
@@ -110,6 +124,7 @@ await_restart:
 	sleep 45
 
 zip:
+	make prepare_frontend
 	make prepare_chat
 	mix firmware.image
 	rm -f image.*.zip
