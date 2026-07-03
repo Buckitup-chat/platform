@@ -60,7 +60,9 @@ defmodule Platform.App.DatabaseSupervisor do
        |> exit_takes(60_000)},
       {:step, PhoenixSyncReady,
        {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor, init_peers: true}
-       |> exit_takes(15_000)}
+       |> exit_takes(15_000)},
+      {:stage, ChunkPipeline,
+       {Chat.Data.File.ChunkPipelineSupervisor, drive_id: :internal, repo: Chat.Repo}}
     ]
     |> prepare_stages(Platform.App.DatabaseStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)

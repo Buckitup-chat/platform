@@ -66,7 +66,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
           setup_logical_replication(source_repo, target_repo)
         end
 
-        Switching.set_default(main)
+        device = Map.get(pg_opts, :device)
+        Switching.set_default(main, drive_id: device)
         Process.sleep(1_000)
         Switching.mirror(main, internal)
         DbBrokers.refresh()
@@ -99,7 +100,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
     Leds.blink_done()
 
     Chat.Db.InternalDb
-    |> Switching.set_default()
+    |> Switching.set_default(drive_id: :internal)
 
     DbBrokers.refresh()
   end

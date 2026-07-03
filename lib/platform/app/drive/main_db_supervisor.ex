@@ -18,6 +18,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
     Switcher
   }
 
+  alias Chat.Data.File.ChunkPipelineSupervisor
   alias Platform.Storage.PhoenixSyncInit
 
   def start_link(init_arg) do
@@ -29,11 +30,13 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   end
 
   @impl true
-  def init([_device, path, pg_opts]) do
+  def init([device, path, pg_opts]) do
     log("start", :debug)
 
     full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()
+    files_base_dir = [path, "main_db", Chat.Db.version_path() <> "_files"] |> Path.join()
     task_supervisor = Platform.App.Drive.MainDbSupervisor.Tasks
+    pg_opts = Map.put(pg_opts, :device, device)
 
     [
       use_task(task_supervisor),
@@ -45,7 +48,9 @@ defmodule Platform.App.Drive.MainDbSupervisor do
        {Copier, task_in: task_supervisor, pg_opts: pg_opts} |> exit_takes(25_000)},
       MainReplicator,
       {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
-      PhoenixSyncInit |> exit_takes(5000)
+      PhoenixSyncInit |> exit_takes(5000),
+      {ChunkPipelineSupervisor,
+       drive_id: device, base_dir: files_base_dir, repo: pg_opts.repo}
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->
