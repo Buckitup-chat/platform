@@ -18,26 +18,25 @@ defmodule Platform.Storage.PhoenixSyncInit do
   @impl true
   def on_init(opts) do
     task_supervisor = Keyword.get(opts, :task_in)
+    next = Keyword.get(opts, :next)
 
-    # Reinitialize Phoenix.Sync with the now-ready database
     reinit_phoenix_sync("on_init")
 
     if Keyword.get(opts, :init_peers) do
       Chat.NetworkSynchronization.init_electric_peers()
     end
 
-    # Start the next stage if configured (used in DatabaseSupervisor)
-    case Keyword.get(opts, :next) do
-      nil ->
-        :ok
+    send(self(), :start_next)
 
-      next_opts ->
-        next_supervisor = next_opts |> Keyword.fetch!(:under)
-        next_specs = next_opts |> Keyword.fetch!(:run)
-        Platform.start_next_stage(next_supervisor, next_specs)
-    end
+    %{task_in: task_supervisor, next: next}
+  end
 
-    %{task_in: task_supervisor}
+  @impl GracefulGenServer
+  def on_msg(:start_next, %{next: nil} = state), do: {:noreply, state}
+
+  def on_msg(:start_next, %{next: next} = state) do
+    Platform.start_next_stage(next[:under], next[:run])
+    {:noreply, state}
   end
 
   @impl true
