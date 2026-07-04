@@ -38,7 +38,7 @@ defmodule Platform.App.DatabaseSupervisor do
 
     # Staging order:
     # 1. Initialize PG -> 2. Start PG Daemon -> 3. Create Chat DB -> 4. Start Chat.Repo
-    # 5. Run Chat migrations -> 6. Initialize PhoenixSync
+    # 5. Run Chat migrations -> 6. Initialize PhoenixSync -> 7. Start ChunkPipeline
 
     [
       use_task(task_supervisor),
@@ -61,8 +61,9 @@ defmodule Platform.App.DatabaseSupervisor do
       {:step, PhoenixSyncReady,
        {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor, init_peers: true}
        |> exit_takes(15_000)},
-      {:stage, ChunkPipeline,
-       {Chat.Data.File.ChunkPipelineSupervisor, drive_id: :internal, repo: Chat.Repo}}
+      {:step, ChunkPipelineStarted,
+       {Platform.Storage.ChunkPipelineInit, task_in: task_supervisor}
+       |> exit_takes(15_000)}
     ]
     |> prepare_stages(Platform.App.DatabaseStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)
