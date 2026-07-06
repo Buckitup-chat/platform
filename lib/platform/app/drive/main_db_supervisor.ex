@@ -18,6 +18,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
     Switcher
   }
 
+  alias Platform.Storage.ChunkPipelineInit
   alias Platform.Storage.PhoenixSyncInit
 
   def start_link(init_arg) do
@@ -46,7 +47,9 @@ defmodule Platform.App.Drive.MainDbSupervisor do
        {Copier, task_in: task_supervisor, pg_opts: pg_opts} |> exit_takes(25_000)},
       MainReplicator,
       {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
-      PhoenixSyncInit |> exit_takes(5000)
+      PhoenixSyncInit |> exit_takes(5000),
+      {ChunkPipelineInit, drive_id: device, repo: pg_opts.repo, task_in: task_supervisor}
+        |> exit_takes(15_000)
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->

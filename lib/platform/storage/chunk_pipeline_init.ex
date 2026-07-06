@@ -9,8 +9,10 @@ defmodule Platform.Storage.ChunkPipelineInit do
   @impl true
   def on_init(opts) do
     next = Keyword.get(opts, :next)
+    drive_id = Keyword.get(opts, :drive_id, :internal)
+    repo = Keyword.get(opts, :repo, Chat.Repo)
 
-    %{next: next}
+    %{next: next, drive_id: drive_id, repo: repo}
     |> tap(fn _ -> send(self(), :start) end)
   end
 
@@ -19,10 +21,10 @@ defmodule Platform.Storage.ChunkPipelineInit do
     {:ok, _pid} =
       DynamicSupervisor.start_child(
         Chat.RepoDynamicSupervisor,
-        {ChunkPipelineSupervisor, drive_id: :internal, repo: Chat.Repo}
+        {ChunkPipelineSupervisor, drive_id: state.drive_id, repo: state.repo}
       )
 
-    log("ChunkPipelineSupervisor started for internal drive", :info)
+    log("ChunkPipelineSupervisor started for #{inspect(state.drive_id)} drive", :info)
     send(self(), :done)
     {:noreply, state}
   end
