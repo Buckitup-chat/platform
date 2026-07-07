@@ -61,8 +61,8 @@ defmodule Platform.App.DatabaseSupervisor do
       {:step, PhoenixSyncReady,
        {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor, init_peers: true}
        |> exit_takes(15_000)},
-      {:step, ChunkPipelineStarted,
-       {Platform.Storage.ChunkPipelineInit, task_in: task_supervisor}
+      {:stage, ChunkPipelineStarted,
+       {Platform.Storage.ChunkPipelineStarter, task_in: task_supervisor}
        |> exit_takes(15_000)}
     ]
     |> prepare_stages(Platform.App.DatabaseStages)

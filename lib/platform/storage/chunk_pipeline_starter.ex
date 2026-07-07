@@ -1,5 +1,5 @@
-defmodule Platform.Storage.ChunkPipelineInit do
-  @moduledoc "Stage: start ChunkPipelineSupervisor for the internal drive after Electric is ready."
+defmodule Platform.Storage.ChunkPipelineStarter do
+  @moduledoc "Stage: start ChunkPipelineSupervisor after Electric is ready."
 
   use GracefulGenServer
   use Toolbox.OriginLog
@@ -29,11 +29,8 @@ defmodule Platform.Storage.ChunkPipelineInit do
     {:noreply, state}
   end
 
-  #AI: see 6 lines bellow. single clause here
-  def on_msg(:done, %{next: nil} = state), do: {:noreply, state}
-
   def on_msg(:done, %{next: next} = state) do
-    Platform.start_next_stage(next[:under], next[:run])
+    if next, do: Platform.start_next_stage(next[:under], next[:run])
     {:noreply, state}
   end
 
