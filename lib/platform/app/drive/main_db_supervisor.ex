@@ -18,7 +18,6 @@ defmodule Platform.App.Drive.MainDbSupervisor do
     Switcher
   }
 
-  alias Platform.Storage.ChunkPipelineStarter
   alias Platform.Storage.PhoenixSyncInit
 
   def start_link(init_arg) do
@@ -48,9 +47,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
       MainReplicator,
       {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
       {:step, PhoenixSyncReady, PhoenixSyncInit |> exit_takes(5000)},
-      {:stage, ChunkPipelineStarted,
-       {ChunkPipelineStarter, drive_id: device, repo: pg_opts.repo, task_in: task_supervisor}
-       |> exit_takes(15_000)}
+      {Chat.Data.File.ChunkPipelineSupervisor, drive_id: device, repo: pg_opts.repo}
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->
