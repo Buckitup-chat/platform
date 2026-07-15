@@ -9,7 +9,16 @@ defmodule Platform.Tools.Postgres.BatchSync.TableSync do
 
   import Ecto.Query
 
-  @doc false
+  @doc """
+  Syncs a single table. Returns one of:
+
+  - `{:ok, count}` — all missing rows were copied
+  - `{:partial, count, reason}` — some rows were skipped because Postgres rejected
+    them (constraint/data error); `count` is the number actually copied. The caller
+    should keep syncing other tables.
+  - `{:abort, reason}` — the sync cannot make progress (connection lost, repo
+    unavailable, …); the caller should stop.
+  """
   def sync_table(source_repo, target_repo, schema_module, batch_size, config) do
     id_field = config.id_field
 
@@ -33,27 +42,68 @@ defmodule Platform.Tools.Postgres.BatchSync.TableSync do
         :info
       )
 
-      missing_ids
-      |> MapSet.to_list()
-      |> Stream.chunk_every(batch_size)
-      |> Enum.reduce_while({:ok, 0}, fn batch_ids, {:ok, total} ->
-        case sync_batch(source_repo, target_repo, schema_module, batch_ids, config) do
-          {:ok, count} ->
-            {:cont, {:ok, total + count}}
-
-          {:error, _} = error ->
-            {:halt, error}
-        end
-      end)
+      copy_missing_batches(
+        source_repo,
+        target_repo,
+        schema_module,
+        missing_ids,
+        batch_size,
+        config
+      )
     end
   rescue
-    e ->
+    %Postgrex.Error{postgres: %{}} = e ->
       log(
         "exception during sync schema=#{inspect(schema_module)} error=#{inspect(e)}",
         :error
       )
 
-      {:error, e}
+      {:partial, 0, e}
+
+    e ->
+      log(
+        "connection error during sync schema=#{inspect(schema_module)} error=#{inspect(e)}",
+        :error
+      )
+
+      {:abort, e}
+  end
+
+  # Copy missing rows batch by batch. A batch that Postgres rejects is skipped and we
+  # continue with the remaining batches; a connection-level failure halts the table.
+  defp copy_missing_batches(
+         source_repo,
+         target_repo,
+         schema_module,
+         missing_ids,
+         batch_size,
+         config
+       ) do
+    missing_ids
+    |> MapSet.to_list()
+    |> Stream.chunk_every(batch_size)
+    |> Enum.reduce_while({:copied, 0, nil}, fn batch_ids, {:copied, total, first_error} ->
+      case sync_batch(source_repo, target_repo, schema_module, batch_ids, config) do
+        {:ok, count} ->
+          {:cont, {:copied, total + count, first_error}}
+
+        {:error, %Postgrex.Error{postgres: %{}} = reason} ->
+          log(
+            "skipping batch schema=#{inspect(schema_module)} reason=#{inspect(reason)}",
+            :error
+          )
+
+          {:cont, {:copied, total, first_error || reason}}
+
+        {:error, reason} ->
+          {:halt, {:abort, reason}}
+      end
+    end)
+    |> case do
+      {:abort, reason} -> {:abort, reason}
+      {:copied, total, nil} -> {:ok, total}
+      {:copied, total, reason} -> {:partial, total, reason}
+    end
   end
 
   # Sync a batch of rows

@@ -5,7 +5,7 @@ defmodule Platform.Storage.Sync do
 
   @key {__MODULE__, :status}
 
-  @type state :: :inactive | :active | :done | {:error, term()}
+  @type state :: :inactive | :active | :done | {:partial, map()} | {:error, term()}
 
   @spec schemas(keyword()) :: [module()]
   def schemas(opts \\ []) do
@@ -29,8 +29,28 @@ defmodule Platform.Storage.Sync do
 
   @spec set_done() :: :ok
   def set_done do
-    :persistent_term.put(@key, :done)
-    log("state=done", :info)
+    # Never downgrade a recorded failure to "done" — a partial or aborted sync must
+    # stay visible. set_active/0 resets the status at the start of each attempt.
+    case :persistent_term.get(@key, :inactive) do
+      {:error, _} = status ->
+        log("keeping state=#{inspect(status)} (not overwriting with done)", :warning)
+        :ok
+
+      {:partial, _} = status ->
+        log("keeping state=#{inspect(status)} (not overwriting with done)", :warning)
+        :ok
+
+      _ ->
+        :persistent_term.put(@key, :done)
+        log("state=done", :info)
+        :ok
+    end
+  end
+
+  @spec set_partial(map()) :: :ok
+  def set_partial(failures) do
+    :persistent_term.put(@key, {:partial, failures})
+    log("state=partial failed=#{inspect(Map.keys(failures))}", :warning)
     :ok
   end
 
@@ -41,7 +61,7 @@ defmodule Platform.Storage.Sync do
     :ok
   end
 
-  @spec run_local_sync(keyword()) :: :ok | {:error, term()}
+  @spec run_local_sync(keyword()) :: :ok | {:partial, map()} | {:error, term()}
   def run_local_sync(opts) do
     source = Keyword.get(opts, :source_repo)
     target = Keyword.get(opts, :target_repo)
@@ -61,6 +81,16 @@ defmodule Platform.Storage.Sync do
       {:ok, stats} ->
         log("sync complete stats=#{inspect(stats)}", :info)
         :ok
+
+      {:partial, stats, failures} ->
+        set_partial(failures)
+
+        log(
+          "sync partial stats=#{inspect(stats)} failed=#{inspect(Map.keys(failures))}",
+          :warning
+        )
+
+        {:partial, failures}
 
       {:error, reason} = error ->
         set_error(reason)

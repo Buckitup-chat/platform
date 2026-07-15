@@ -45,7 +45,15 @@ defmodule Platform.Tools.Postgres.BatchSync do
   2. Compute set difference to find missing keys
   3. Batch-copy missing rows from source to target
 
-  Returns `{:ok, stats}` with row counts per schema, or `{:error, reason}`.
+  Returns one of:
+
+  - `{:ok, stats}` — every table synced, `stats` maps each schema to its copied row count
+  - `{:partial, stats, failures}` — some tables were skipped because Postgres rejected
+    their rows (constraint/data errors); `stats` holds what was copied, `failures` maps
+    the skipped schemas to their error. The other tables synced normally.
+  - `{:error, {:aborted, details}}` — the sync stopped early because it could not make
+    progress (connection lost, repo unavailable); `details` carries `:synced`, `:failed`,
+    `:aborted_at`, and `:reason`.
 
   ## Options
 
@@ -69,7 +77,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
   - `:replace_all` - Replace entire row on conflict
   - `{:update, fields}` - Update only specified fields on conflict
   """
-  @spec sync(sync_opts()) :: {:ok, map()} | {:error, term()}
+  @spec sync(sync_opts()) :: {:ok, map()} | {:partial, map(), map()} | {:error, term()}
   def sync(opts) do
     source_repo = Keyword.fetch!(opts, :source_repo)
     target_repo = Keyword.fetch!(opts, :target_repo)
@@ -85,29 +93,65 @@ defmodule Platform.Tools.Postgres.BatchSync do
     start_time = System.monotonic_time(:millisecond)
 
     result =
-      Enum.reduce_while(schemas, {:ok, %{}}, fn schema_module, {:ok, acc} ->
+      Enum.reduce_while(schemas, {:running, %{}, %{}}, fn schema_module,
+                                                          {:running, synced, failed} ->
         config = config_for(schema_module, schema_config)
 
         case TableSync.sync_table(source_repo, target_repo, schema_module, batch_size, config) do
           {:ok, count} ->
-            {:cont, {:ok, Map.put(acc, schema_module, count)}}
+            {:cont, {:running, Map.put(synced, schema_module, count), failed}}
 
-          {:error, reason} = error ->
-            log("failed to sync schema=#{inspect(schema_module)} reason=#{inspect(reason)}", :error)
-            {:halt, error}
+          {:partial, count, reason} ->
+            log(
+              "partial sync schema=#{inspect(schema_module)} synced=#{count} reason=#{inspect(reason)}",
+              :error
+            )
+
+            {:cont,
+             {:running, Map.put(synced, schema_module, count),
+              Map.put(failed, schema_module, reason)}}
+
+          {:abort, reason} ->
+            log(
+              "aborting sync at schema=#{inspect(schema_module)} reason=#{inspect(reason)}",
+              :error
+            )
+
+            {:halt, {:aborted, synced, failed, schema_module, reason}}
         end
       end)
 
     duration = System.monotonic_time(:millisecond) - start_time
 
     case result do
-      {:ok, stats} ->
-        total = stats |> Map.values() |> Enum.sum()
-        log("sync complete stats=#{inspect(stats)} total_rows=#{total} duration_ms=#{duration}", :info)
-        {:ok, stats}
+      {:running, synced, failed} when map_size(failed) == 0 ->
+        total = synced |> Map.values() |> Enum.sum()
 
-      error ->
-        error
+        log(
+          "sync complete stats=#{inspect(synced)} total_rows=#{total} duration_ms=#{duration}",
+          :info
+        )
+
+        {:ok, synced}
+
+      {:running, synced, failed} ->
+        total = synced |> Map.values() |> Enum.sum()
+
+        log(
+          "sync partial stats=#{inspect(synced)} failed=#{inspect(Map.keys(failed))} total_rows=#{total} duration_ms=#{duration}",
+          :warning
+        )
+
+        {:partial, synced, failed}
+
+      {:aborted, synced, failed, schema_module, reason} ->
+        log(
+          "sync aborted at=#{inspect(schema_module)} synced=#{inspect(synced)} reason=#{inspect(reason)} duration_ms=#{duration}",
+          :error
+        )
+
+        {:error,
+         {:aborted, %{synced: synced, failed: failed, aborted_at: schema_module, reason: reason}}}
     end
   end
 

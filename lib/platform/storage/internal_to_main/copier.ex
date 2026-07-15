@@ -55,15 +55,30 @@ defmodule Platform.Storage.InternalToMain.Copier do
         else
           Sync.set_active()
 
-          _ =
-            Sync.run_local_sync(
-              source_repo: source_repo,
-              target_repo: target_repo,
-              schemas: Sync.schemas()
-            )
+          Sync.run_local_sync(
+            source_repo: source_repo,
+            target_repo: target_repo,
+            schemas: Sync.schemas()
+          )
+          |> case do
+            :ok ->
+              setup_logical_replication(source_repo, target_repo)
 
-          # After sync completes, set up logical replication (internal → main)
-          setup_logical_replication(source_repo, target_repo)
+            {:partial, failures} ->
+              # Some tables were skipped (constraint/data errors). The tables that did
+              # sync are on the drive, and logical replication plus the next attach heal
+              # the rest — so continue, but the status stays :partial (not :done).
+              log("local sync incomplete, skipped tables=#{inspect(Map.keys(failures))}", :error)
+              setup_logical_replication(source_repo, target_repo)
+
+            {:error, reason} ->
+              # Connection/infra failure: do not set up replication against a target we
+              # could not sync. Status stays {:error, _} and is not overwritten by :done.
+              log(
+                "local sync aborted, skipping replication setup reason=#{inspect(reason)}",
+                :error
+              )
+          end
         end
 
         device = Map.get(pg_opts, :device)

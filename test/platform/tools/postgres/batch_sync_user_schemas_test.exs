@@ -125,7 +125,25 @@ defmodule Platform.Tools.Postgres.BatchSyncUserSchemasTest do
       Process.get(:test_pid)
       |> send({:target_repo_insert_all, schema_module, entries, opts})
 
-      {length(entries), nil}
+      case Process.get(:insert_result, :ok) do
+        :ok ->
+          {length(entries), nil}
+
+        # Server-side SQL rejection (e.g. FK violation) — should be skipped, not fatal
+        :constraint_error ->
+          raise %Postgrex.Error{
+            postgres: %{
+              code: :foreign_key_violation,
+              severity: "ERROR",
+              pg_code: "23503",
+              message: "insert or update on table violates foreign key constraint"
+            }
+          }
+
+        # Connection lost — should abort the whole sync
+        :connection_error ->
+          raise %DBConnection.ConnectionError{message: "connection not available"}
+      end
     end
   end
 
@@ -301,10 +319,68 @@ defmodule Platform.Tools.Postgres.BatchSyncUserSchemasTest do
     end
   end
 
+  # Uses the real schema modules (not bare atoms) so config_for/2 can read their
+  # primary keys — this is what exercises the skip/abort control flow end to end.
+  describe "sync/1 - skip-and-continue vs abort" do
+    test "skips a table whose rows Postgres rejects and reports partial" do
+      configure_sync(
+        source_data: :with_missing,
+        target_data: :default,
+        insert_result: :constraint_error
+      )
+
+      assert {:partial, synced, failed} = module_sync([UserCard])
+      assert Map.has_key?(failed, UserCard)
+      # Nothing was actually copied for the rejected table
+      assert synced[UserCard] == 0
+    end
+
+    test "continues to later tables after a skippable failure" do
+      configure_sync(
+        source_data: :with_missing,
+        target_data: :default,
+        insert_result: :constraint_error
+      )
+
+      assert {:partial, _synced, failed} = module_sync([UserCard, UserStorage])
+      # Both tables were attempted — the loop did NOT halt at the first failure
+      assert Map.has_key?(failed, UserCard)
+      assert Map.has_key?(failed, UserStorage)
+    end
+
+    test "aborts the whole sync on a connection error" do
+      configure_sync(
+        source_data: :with_missing,
+        target_data: :default,
+        insert_result: :connection_error
+      )
+
+      assert {:error, {:aborted, details}} = module_sync([UserCard, UserStorage])
+      assert details.aborted_at == UserCard
+      # The sync stopped — the later table was never reached
+      refute Map.has_key?(details.synced, UserStorage)
+    end
+
+    test "returns ok when every table syncs cleanly" do
+      configure_sync(
+        source_data: :with_missing,
+        target_data: :default,
+        insert_result: :ok
+      )
+
+      assert {:ok, synced} = module_sync([UserCard])
+      assert synced[UserCard] >= 1
+    end
+  end
+
   defp sync(opts \\ []) do
     [source_repo: SourceRepoMock, target_repo: TargetRepoMock]
     |> Keyword.merge(opts)
     |> BatchSync.sync()
+  end
+
+  defp module_sync(schemas) do
+    BatchSync.sync(source_repo: SourceRepoMock, target_repo: TargetRepoMock, schemas: schemas)
   end
 
   defp configure_sync(opts) do
