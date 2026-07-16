@@ -52,13 +52,17 @@ defmodule Platform.Tools.Postgres.BatchSync.TableSync do
       )
     end
   rescue
-    %Postgrex.Error{postgres: %{}} = e ->
+    e in Postgrex.Error ->
       log(
         "exception during sync schema=#{inspect(schema_module)} error=#{inspect(e)}",
         :error
       )
 
-      {:partial, 0, e}
+      if match?(%Postgrex.Error{postgres: %{}}, e) do
+        {:partial, 0, e}
+      else
+        {:abort, e}
+      end
 
     e ->
       log(
