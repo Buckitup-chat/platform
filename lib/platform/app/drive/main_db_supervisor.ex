@@ -47,7 +47,8 @@ defmodule Platform.App.Drive.MainDbSupervisor do
       MainReplicator,
       {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
       {:step, PhoenixSyncReady, PhoenixSyncInit |> exit_takes(5000)},
-      {Chat.Data.File.ChunkPipelineSupervisor, drive_id: device, repo: pg_opts.repo}
+      {Chat.Data.File.ChunkPipelineSupervisor,
+       drive_id: device, repo: pg_opts.repo, base_dir: full_path <> "_files"}
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->
