@@ -61,7 +61,8 @@ defmodule Platform.App.DatabaseSupervisor do
       {:step, PhoenixSyncReady,
        {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor, init_peers: true}
        |> exit_takes(15_000)},
-      {Chat.Data.File.ChunkPipelineSupervisor, drive_id: :internal, repo: Chat.Repo}
+      {Chat.Data.File.ChunkPipelineSupervisor,
+       drive_id: :internal, repo: Chat.Repo, base_dir: Chat.Data.File.DriveDirs.internal_files_dir()}
     ]
     |> prepare_stages(Platform.App.DatabaseStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)

@@ -20,6 +20,8 @@ defmodule Platform.App.Drive.MainDbSupervisor do
 
   alias Platform.Storage.PhoenixSyncInit
 
+  alias Chat.Data.File.DriveDirs
+
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg,
       name: __MODULE__,
@@ -48,7 +50,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
       {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
       {:step, PhoenixSyncReady, PhoenixSyncInit |> exit_takes(5000)},
       {Chat.Data.File.ChunkPipelineSupervisor,
-       drive_id: device, repo: pg_opts.repo, base_dir: full_path <> "_files"}
+       drive_id: device, repo: pg_opts.repo, base_dir: DriveDirs.usb_files_dir(path)}
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->

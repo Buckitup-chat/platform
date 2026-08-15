@@ -54,7 +54,7 @@ defmodule Platform.Storage.Repo.Starter do
   end
 
   defp cleanup_stale_replication(Chat.Repo) do
-    :ok = LogicalReplicator.disable_subscription_if_exists(Chat.Repo, "internal_from_main")
+    _ = LogicalReplicator.disable_subscription_if_exists(Chat.Repo, "internal_from_main")
   end
 
   defp cleanup_stale_replication(repo) do

@@ -2,6 +2,7 @@ import Config
 
 config :chat, :cub_db_file, "priv/test_db"
 config :chat, :admin_cub_db_file, "priv/test_admin_db"
+config :chat, :usb_media_root, "priv/test_media"
 
 config :chat,
   files_base_dir: "priv/test_db/files",
