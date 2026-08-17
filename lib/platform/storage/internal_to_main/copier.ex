@@ -63,6 +63,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
           |> case do
             :ok ->
               setup_logical_replication(source_repo, target_repo)
+              broadcast_pg_diff_copied()
 
             {:partial, failures} ->
               # Some tables were skipped (constraint/data errors). The tables that did
@@ -70,6 +71,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
               # the rest — so continue, but the status stays :partial (not :done).
               log("local sync incomplete, skipped tables=#{inspect(Map.keys(failures))}", :error)
               setup_logical_replication(source_repo, target_repo)
+              broadcast_pg_diff_copied()
 
             {:error, reason} ->
               # Connection/infra failure: do not set up replication against a target we
@@ -118,6 +120,10 @@ defmodule Platform.Storage.InternalToMain.Copier do
     |> Switching.set_default(drive_id: :internal)
 
     DbBrokers.refresh()
+  end
+
+  defp broadcast_pg_diff_copied do
+    Phoenix.PubSub.broadcast(Chat.PubSub, "chunk_pipeline", {:chunk_pipeline, :pg_diff_copied})
   end
 
   # Private helper to set up logical replication after sync
