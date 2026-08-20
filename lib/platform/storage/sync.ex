@@ -80,6 +80,7 @@ defmodule Platform.Storage.Sync do
          ) do
       {:ok, stats} ->
         log("sync complete stats=#{inspect(stats)}", :info)
+        backfill_target_missing_chunks(source, target)
         :ok
 
       {:partial, stats, failures} ->
@@ -90,6 +91,7 @@ defmodule Platform.Storage.Sync do
           :warning
         )
 
+        backfill_target_missing_chunks(source, target)
         {:partial, failures}
 
       {:error, reason} = error ->
@@ -101,6 +103,28 @@ defmodule Platform.Storage.Sync do
     e ->
       set_error(e)
       {:error, e}
+  end
+
+  defp backfill_target_missing_chunks(source_repo, target_repo) do
+    source_id = query_system_id(source_repo)
+
+    count =
+      Chat.Data.File.backfill_missing_chunks_from_file_chunks(
+        source_id,
+        Chat.TimeKeeper.now_unix(),
+        repo: target_repo
+      )
+
+    if count > 0, do: log("backfilled #{count} missing_chunks on target", :info)
+  end
+
+  defp query_system_id(repo) do
+    case Ecto.Adapters.SQL.query(repo, "SELECT system_identifier FROM pg_control_system()", []) do
+      {:ok, %{rows: [[id]]}} -> to_string(id)
+      _ -> nil
+    end
+  rescue
+    _ -> nil
   end
 
   defp config do
