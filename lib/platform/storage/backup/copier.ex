@@ -12,6 +12,10 @@ defmodule Platform.Storage.Backup.Copier do
 
   alias Platform.Leds
   alias Platform.Storage.Stopper
+  alias Platform.Storage.Sync
+  alias Platform.Tools.Postgres
+  alias Platform.Tools.Postgres.BatchSync
+  alias Platform.Tools.Postgres.LogicalReplicator
 
   @impl true
   def on_init(opts) do
@@ -19,13 +23,17 @@ defmodule Platform.Storage.Backup.Copier do
       task_in: opts |> Keyword.fetch!(:tasks_name),
       continuous?: opts |> Keyword.fetch!(:continuous?),
       task_ref: nil,
-      device: opts[:device]
+      device: opts[:device],
+      backup_repo: opts[:backup_repo]
     }
     |> tap(fn _ -> send(self(), :start) end)
   end
 
   @impl true
-  def on_msg(:start, %{task_in: tasks_name, continuous?: continuous?} = state) do
+  def on_msg(
+        :start,
+        %{task_in: tasks_name, continuous?: continuous?, backup_repo: backup_repo} = state
+      ) do
     log("syncing", :info)
 
     internal = Chat.Db.InternalDb
@@ -43,9 +51,12 @@ defmodule Platform.Storage.Backup.Copier do
         Leds.blink_write()
         Copying.await_copied(Db.db(), Chat.Db.BackupDb)
 
+        sync_pg(backup_repo)
+
         if continuous? do
           Process.sleep(1_000)
           Switching.mirror(main, [internal, backup])
+          setup_pg_replication(backup_repo)
           Process.sleep(3_000)
         end
 
@@ -83,15 +94,75 @@ defmodule Platform.Storage.Backup.Copier do
   end
 
   @impl true
-  def on_exit(_reason, _state) do
+  def on_exit(_reason, state) do
     internal = Chat.Db.InternalDb
     main = Chat.Db.MainDb
 
     set_db_flag(backup: false)
     Leds.blink_done()
+    cleanup_pg_replication(state[:backup_repo])
     Switching.mirror(main, internal)
     Ordering.reset()
     DbBrokers.refresh()
+  end
+
+  defp sync_pg(nil), do: :ok
+
+  defp sync_pg(backup_repo) do
+    schemas = Sync.schemas()
+
+    [{backup_repo, Chat.Repo, "restore"}, {Chat.Repo, backup_repo, "backup"}]
+    |> Enum.each(fn {source, target, label} ->
+      log("PG #{label} sync", :info)
+
+      case BatchSync.sync(source_repo: source, target_repo: target, schemas: schemas) do
+        {:ok, _} -> log("PG #{label} complete", :info)
+        {:partial, _, failures} -> log("PG #{label} partial: #{inspect(Map.keys(failures))}", :warning)
+        {:error, reason} -> log("PG #{label} failed: #{inspect(reason)}", :error)
+      end
+    end)
+  rescue
+    e -> log("PG sync error: #{inspect(e)}", :error)
+  end
+
+  defp setup_pg_replication(nil), do: :ok
+
+  defp setup_pg_replication(backup_repo) do
+    source_repo = Chat.Repo
+    conn_string = Postgres.build_connection_string(source_repo)
+
+    _ = LogicalReplicator.drop_slot_if_exists(source_repo, "backup_from_internal")
+    tables = Chat.Data.Shapes.sync_tables()
+
+    with :ok <- LogicalReplicator.create_publication(source_repo, tables, "internal_to_backup"),
+         :ok <-
+           LogicalReplicator.create_subscription(
+             backup_repo,
+             conn_string,
+             "internal_to_backup",
+             "backup_from_internal",
+             copy_data: false,
+             enabled: false
+           ) do
+      _ = LogicalReplicator.ensure_slot_on_source(source_repo, "backup_from_internal")
+      _ = LogicalReplicator.enable_subscription(backup_repo, "backup_from_internal")
+      log("PG backup replication started", :info)
+    else
+      {:error, reason} ->
+        log("PG backup replication failed: #{inspect(reason)}", :error)
+    end
+  rescue
+    e -> log("PG backup replication error: #{inspect(e)}", :error)
+  end
+
+  defp cleanup_pg_replication(nil), do: :ok
+
+  defp cleanup_pg_replication(backup_repo) do
+    _ = LogicalReplicator.drop_subscription_if_exists(backup_repo, "backup_from_internal")
+    _ = LogicalReplicator.drop_slot_if_exists(Chat.Repo, "backup_from_internal")
+    log("PG backup replication cleaned up", :info)
+  rescue
+    e -> log("PG replication cleanup error: #{inspect(e)}", :error)
   end
 
   defp set_db_flag(flags) do

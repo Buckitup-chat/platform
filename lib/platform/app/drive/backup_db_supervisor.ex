@@ -21,7 +21,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
   end
 
   @impl true
-  def init([device, path | _]) do
+  def init([device, path, pg_opts]) do
     log("start", :info)
 
     type = "backup_db"
@@ -29,13 +29,16 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
     tasks = Platform.App.Drive.BackupDbSupervisor.Tasks
     db = Chat.Db.BackupDb
     continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
+    backup_repo = Map.get(pg_opts, :repo)
 
     [
       {Task.Supervisor, name: tasks},
       {Task, fn -> File.mkdir_p!(full_path) end},
       {Chat.Db.MediaDbSupervisor, [db, full_path]} |> exit_takes(20_000),
       {Bouncer, db: db, type: type},
-      {Copier, continuous?: continuous?, tasks_name: tasks, device: device} |> exit_takes(35_000)
+      {Copier,
+       continuous?: continuous?, tasks_name: tasks, device: device, backup_repo: backup_repo}
+      |> exit_takes(35_000)
     ]
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
