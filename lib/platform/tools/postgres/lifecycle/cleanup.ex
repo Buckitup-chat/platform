@@ -5,44 +5,18 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
   """
   use Toolbox.OriginLog
 
-  alias Platform.Tools.Postgres.{Lifecycle, SharedMemory}
   alias Platform.Tools.OsPid
+  alias Platform.Tools.Postgres.{Lifecycle, SharedMemory}
 
-  @doc """
-  Remove stale postmaster.pid file if the process is not running.
-  """
-  def remove_stale_postmaster_pid(pg_dir) do
-    pid_path = Path.join([pg_dir, "data", "postmaster.pid"])
+  @lsipc_path "/usr/bin/lsipc"
 
-    with true <- File.exists?(pid_path),
-         {:ok, contents} <- File.read(pid_path),
-         [first_line | _] <- String.split(contents, "\n", trim: true),
-         os_pid when not is_nil(os_pid) <- parse_os_pid(first_line) do
-      if postgres_process?(os_pid) do
-        [
-          "postmaster.pid at ",
-          pid_path,
-          " belongs to live postgres PID ",
-          to_string(os_pid),
-          ", leaving it"
-        ]
-        |> log(:debug)
-      else
-        [
-          "Removing stale postmaster.pid at ",
-          pid_path,
-          " (PID ",
-          to_string(os_pid),
-          " is not a postgres process)"
-        ]
-        |> log(:info)
+  # Diagnostics only — must never outlive the cleanup it is reporting on.
+  @lsipc_timeout :timer.seconds(15)
 
-        File.rm(pid_path)
-      end
-    end
-
-    :ok
-  end
+  # pg_ctl gets its own deadline for the fast shutdown; the outer call timeout must
+  # outlast it so pg_ctl reports the failure itself instead of being killed mid-report.
+  @pg_ctl_stop_wait_seconds 30
+  @pg_ctl_stop_timeout :timer.seconds(45)
 
   @doc """
   Clean up any existing PostgreSQL server before starting a new one.
@@ -66,6 +40,21 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
     :ok
   end
 
+  @doc """
+  Remove stale postmaster.pid file if the process is not running.
+  """
+  def remove_stale_postmaster_pid(pg_dir) do
+    pid_path = Path.join([pg_dir, "data", "postmaster.pid"])
+
+    with {:ok, contents} <- File.read(pid_path),
+         [first_line | _] <- String.split(contents, "\n", trim: true),
+         {os_pid, _rest} when os_pid > 0 <- first_line |> String.trim() |> Integer.parse() do
+      remove_pid_file_unless_live(pid_path, os_pid)
+    end
+
+    :ok
+  end
+
   defp force_stop_server(pg_data_dir, run_dir) do
     [
       "Attempting to stop any existing PostgreSQL server for ",
@@ -76,48 +65,61 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
     ]
     |> log(:info)
 
-    {output, status} =
-      Lifecycle.run_pg("pg_ctl", ["-D", pg_data_dir, "stop", "-m", "fast", "-t", "30"],
-        as_postgres_user: true,
-        run_dir: run_dir,
-        timeout: 45_000
-      )
+    args = ["-D", pg_data_dir, "stop", "-m", "fast", "-t", to_string(@pg_ctl_stop_wait_seconds)]
 
-    case status do
-      0 -> ["Existing PostgreSQL server stopped before daemon start"] |> log(:info)
-      _ -> ["pg_ctl stop exited with status ", to_string(status), ": ", output] |> log(:warning)
+    Lifecycle.run_pg("pg_ctl", args,
+      as_postgres_user: true,
+      run_dir: run_dir,
+      timeout: @pg_ctl_stop_timeout
+    )
+    |> case do
+      {_output, 0} ->
+        ["Existing PostgreSQL server stopped before daemon start"] |> log(:info)
+
+      {output, status} ->
+        ["pg_ctl stop exited with status ", to_string(status), ": ", output] |> log(:warning)
     end
   end
 
   defp log_ipc_info do
-    if File.exists?("/usr/bin/lsipc") do
-      {ipc_output, ipc_status} = MuonTrap.cmd("/usr/bin/lsipc", ["-m"], stderr_to_stdout: true)
+    if File.exists?(@lsipc_path) do
+      {ipc_output, ipc_status} =
+        MuonTrap.cmd(@lsipc_path, ["-m"], stderr_to_stdout: true, timeout: @lsipc_timeout)
 
       ["lsipc -m exited with status ", to_string(ipc_status), ":\n", ipc_output]
       |> log(:debug)
     end
   end
 
-  defp parse_os_pid(nil), do: nil
+  defp remove_pid_file_unless_live(pid_path, os_pid) do
+    if postgres_process?(os_pid) do
+      [
+        "postmaster.pid at ",
+        pid_path,
+        " belongs to live postgres PID ",
+        to_string(os_pid),
+        ", leaving it"
+      ]
+      |> log(:debug)
+    else
+      [
+        "Removing stale postmaster.pid at ",
+        pid_path,
+        " (PID ",
+        to_string(os_pid),
+        " is not a postgres process)"
+      ]
+      |> log(:info)
 
-  defp parse_os_pid(str) do
-    str
-    |> String.trim()
-    |> Integer.parse()
-    |> case do
-      {os_pid, _} when os_pid > 0 -> os_pid
-      _ -> nil
+      File.rm(pid_path)
     end
   end
 
   defp postgres_process?(os_pid) when is_integer(os_pid) do
-    OsPid.alive?(os_pid) && os_pid_is_postgres?(os_pid)
-  end
-
-  defp os_pid_is_postgres?(os_pid) do
-    case File.read("/proc/#{os_pid}/cmdline") do
-      {:ok, cmdline} -> cmdline |> String.split(<<0>>) |> hd() == "/usr/bin/postgres"
-      _ -> false
-    end
+    OsPid.alive?(os_pid) &&
+      case File.read("/proc/#{os_pid}/cmdline") do
+        {:ok, cmdline} -> cmdline |> String.split(<<0>>) |> hd() == "/usr/bin/postgres"
+        _ -> false
+      end
   end
 end

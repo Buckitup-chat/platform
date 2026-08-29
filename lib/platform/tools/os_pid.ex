@@ -3,39 +3,34 @@ defmodule Platform.Tools.OsPid do
   Utilities for working with operating system process IDs.
   """
 
+  # Callers treat a timeout as "not alive" rather than blocking on a wedged signal.
+  @signal_timeout :timer.seconds(5)
+
   @doc """
   Checks if a process with the given OS PID is alive.
 
-  Uses the `/bin/kill -0` signal to check process existence without
-  actually sending a termination signal.
-
-  ## Parameters
-    - os_pid: Integer representing the operating system process ID
-
-  ## Returns
-    - `true` if the process exists
-    - `false` if the process does not exist or cannot be accessed
+  Probes with `/bin/kill -0`, which tests existence without terminating
+  anything. Everything but a clean exit reads as `false` — no such process,
+  no permission, a bad PID, or a wedged `kill` hitting `@signal_timeout`.
 
   ## Examples
 
-      iex> Platform.Tools.OsPid.alive?(1)
-      true
-
-      iex> Platform.Tools.OsPid.alive?(999999)
-      false
+      OsPid.alive?(1)        #=> true
+      OsPid.alive?(999_999)  #=> false
   """
-  @spec alive?(integer()) :: boolean()
+  @spec alive?(term()) :: boolean()
   def alive?(os_pid) when is_integer(os_pid) and os_pid > 0 do
-    try do
-      case MuonTrap.cmd("/bin/kill", ["-0", Integer.to_string(os_pid)], stderr_to_stdout: true) do
-        {_, 0} -> true
-        _ -> false
-      end
-    rescue
+    case MuonTrap.cmd("/bin/kill", ["-0", Integer.to_string(os_pid)],
+           stderr_to_stdout: true,
+           timeout: @signal_timeout
+         ) do
+      {_, 0} -> true
       _ -> false
-    catch
-      :exit, _ -> false
     end
+  rescue
+    _ -> false
+  catch
+    :exit, _ -> false
   end
 
   def alive?(_os_pid), do: false
@@ -43,43 +38,25 @@ defmodule Platform.Tools.OsPid do
   @doc """
   Sends a signal to a process with the given OS PID.
 
-  ## Parameters
-    - os_pid: Integer representing the operating system process ID
-    - signal: Signal to send (default: 9 for SIGKILL). Can be integer or string like "TERM", "KILL", "9"
-
-  ## Returns
-    - `:ok` if the signal was sent successfully
-    - `{:error, reason}` if the signal could not be sent
+  The signal is a number or a name — `9` (default, SIGKILL), `15`, `"TERM"`,
+  `"KILL"`. Returns `:ok` when `kill` exits cleanly, `{:error, reason}` with
+  the command output or the raised error otherwise.
 
   ## Examples
 
-      iex> Platform.Tools.OsPid.kill(12345)
-      :ok
-
-      iex> Platform.Tools.OsPid.kill(12345, "TERM")
-      :ok
-
-      iex> Platform.Tools.OsPid.kill(12345, 15)
-      :ok
+      OsPid.kill(12345)          #=> :ok
+      OsPid.kill(12345, "TERM")  #=> :ok
   """
   @spec kill(integer(), integer() | String.t()) :: :ok | {:error, term()}
-  def kill(os_pid, signal \\ 9) when is_integer(os_pid) and os_pid > 0 do
-    signal_str = signal_to_string(signal)
-
-    try do
-      case System.cmd("kill", ["-#{signal_str}", Integer.to_string(os_pid)],
-             stderr_to_stdout: true
-           ) do
-        {_, 0} -> :ok
-        {output, _} -> {:error, output}
-      end
-    rescue
-      e -> {:error, e}
-    catch
-      :exit, reason -> {:error, reason}
+  def kill(os_pid, signal \\ 9)
+      when is_integer(os_pid) and os_pid > 0 and (is_integer(signal) or is_binary(signal)) do
+    case System.cmd("kill", ["-#{signal}", Integer.to_string(os_pid)], stderr_to_stdout: true) do
+      {_, 0} -> :ok
+      {output, _} -> {:error, output}
     end
+  rescue
+    e -> {:error, e}
+  catch
+    :exit, reason -> {:error, reason}
   end
-
-  defp signal_to_string(signal) when is_integer(signal), do: Integer.to_string(signal)
-  defp signal_to_string(signal) when is_binary(signal), do: signal
 end

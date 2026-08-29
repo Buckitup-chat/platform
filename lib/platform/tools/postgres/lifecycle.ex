@@ -14,6 +14,13 @@ defmodule Platform.Tools.Postgres.Lifecycle do
 
   @postgres_user "postgres"
   @pg_host "localhost"
+  @default_pg_port 5432
+
+  # MuonTrap.cmd/3 blocks in a receive with no way out, and pg tools are invoked
+  # inline from boot-stage GenServers: one unbounded call wedges staged startup
+  # forever. Every invocation is time-boxed unless the caller asks for more.
+  @default_cmd_timeout :timer.seconds(60)
+  @base_cmd_opts [stderr_to_stdout: true, timeout: @default_cmd_timeout]
 
   @pg_minimal_settings ~w[
     -c shared_buffers=400kB
@@ -89,7 +96,7 @@ defmodule Platform.Tools.Postgres.Lifecycle do
   - `{:error, output}` if the PostgreSQL server failed to start
   """
   def start(opts) do
-    pg_port = Keyword.get(opts, :pg_port, 5432)
+    pg_port = Keyword.get(opts, :pg_port, @default_pg_port)
 
     check_if_running = fn
       true ->
@@ -124,6 +131,30 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     |> go_on(check_if_running)
     |> go_on(evaluate_pg_ctl_output)
     |> go_on(confirm_server_running)
+  end
+
+  defp start_pg_server(opts) do
+    pg_dir = Keyword.fetch!(opts, :pg_dir)
+    pg_port = Keyword.get(opts, :pg_port, @default_pg_port)
+    pg_data_dir = Path.join(pg_dir, "data")
+    run_dir = extract_pg_run_dir(pg_dir, opts)
+
+    settings = Enum.join(@pg_minimal_settings ++ @pg_recovery_optimized_settings, " ")
+
+    args = [
+      "-D",
+      pg_data_dir,
+      "-l",
+      "/dev/null",
+      "-o",
+      "#{settings} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
+      "start"
+    ]
+
+    ["Starting PostgreSQL server on port ", pg_port, " with run_dir ", run_dir]
+    |> log(:info)
+
+    run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
   end
 
   @doc """
@@ -177,14 +208,13 @@ defmodule Platform.Tools.Postgres.Lifecycle do
   - `:pg_port` - PostgreSQL port (default: 5432)
   """
   def server_running?(opts \\ []) do
-    pg_port = Keyword.get(opts, :pg_port, 5432)
-    sql = "SELECT 1"
+    pg_port = Keyword.get(opts, :pg_port, @default_pg_port)
 
+    # psql is probed as a liveness check, so any failure to even run it — a missing
+    # binary, a raising uid lookup, a timeout — just means "not running".
     try do
-      {_, status} =
-        run_pg("psql", ["-U", @postgres_user, "-h", @pg_host, "-p", "#{pg_port}", "-c", sql])
-
-      status == 0
+      run_pg("psql", ["-U", @postgres_user, "-h", @pg_host, "-p", "#{pg_port}", "-c", "SELECT 1"])
+      |> then(&match?({_, 0}, &1))
     catch
       _, _ -> false
     end
@@ -214,48 +244,32 @@ defmodule Platform.Tools.Postgres.Lifecycle do
 
   @doc false
   def run_pg(tool, args, opts \\ []) do
-    cmd_opts =
-      Enum.reduce(opts, [stderr_to_stdout: true], fn
-        {:as_postgres_user, true}, acc ->
-          acc
-          |> Keyword.put(:uid, get_postgres_uid())
-          |> Keyword.put(:gid, get_postgres_gid())
-
-        {:run_dir, run_dir}, acc ->
-          env = Keyword.get(acc, :env, [])
-          Keyword.put(acc, :env, [{"PGHOST", run_dir} | env])
-
-        {:timeout, ms}, acc ->
-          Keyword.put(acc, :timeout, ms)
-
-        _, acc ->
-          acc
-      end)
+    cmd_opts = Enum.reduce(opts, @base_cmd_opts, &apply_pg_opt/2)
 
     MuonTrap.cmd("/usr/bin/#{tool}", args, cmd_opts)
+    |> tap(&log_timeout(&1, tool, Keyword.fetch!(cmd_opts, :timeout)))
   end
 
-  defp start_pg_server(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_port = Keyword.get(opts, :pg_port, 5432)
-    pg_data_dir = Path.join(pg_dir, "data")
-    run_dir = extract_pg_run_dir(pg_dir, opts)
+  defp apply_pg_opt(opt, cmd_opts) do
+    case opt do
+      {:as_postgres_user, true} ->
+        cmd_opts
+        |> Keyword.put(:uid, get_postgres_uid())
+        |> Keyword.put(:gid, get_postgres_gid())
 
-    settings = Enum.join(@pg_minimal_settings ++ @pg_recovery_optimized_settings, " ")
+      {:run_dir, run_dir} ->
+        Keyword.update(cmd_opts, :env, [{"PGHOST", run_dir}], &[{"PGHOST", run_dir} | &1])
 
-    args = [
-      "-D",
-      pg_data_dir,
-      "-l",
-      "/dev/null",
-      "-o",
-      "#{settings} -c port=#{pg_port} -c listen_addresses='localhost' -c log_destination=stderr",
-      "start"
-    ]
+      {:timeout, ms} ->
+        Keyword.put(cmd_opts, :timeout, ms)
 
-    ["Starting PostgreSQL server on port ", pg_port, " with run_dir ", run_dir]
-    |> log(:info)
-
-    run_pg("pg_ctl", args, as_postgres_user: true, run_dir: run_dir)
+      _other ->
+        cmd_opts
+    end
   end
+
+  defp log_timeout({_output, :timeout}, tool, timeout_ms),
+    do: [tool, " timed out after ", to_string(timeout_ms), "ms"] |> log(:error)
+
+  defp log_timeout(_result, _tool, _timeout_ms), do: :ok
 end

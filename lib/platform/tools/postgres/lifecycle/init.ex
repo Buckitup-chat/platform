@@ -7,7 +7,7 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
 
   import Toolbox.Flow, only: [go_on: 2]
 
-  alias Platform.Tools.Postgres.{Lifecycle, Permissions, SharedMemory}
+  alias Platform.Tools.Postgres.{Database, Lifecycle, Permissions, SharedMemory}
 
   @doc """
   Initialize the PostgreSQL database with configurable options.
@@ -23,7 +23,7 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
     SharedMemory.cleanup_posix()
 
     pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_data_dir = Path.join(pg_dir, "data")
+    pg_data_dir = data_dir(opts)
     run_dir = Lifecycle.ensure_run_dir(pg_dir, opts)
 
     prepare_data_dir(pg_data_dir, pg_dir, run_dir)
@@ -58,7 +58,7 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
 
     setup_replication_if_valid = fn
       true ->
-        Platform.Tools.Postgres.Database.setup_replication(opts)
+        Database.setup_replication(opts)
         :ok
 
       false ->
@@ -92,9 +92,10 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
   - `:pg_dir` - Base directory for PostgreSQL data (required)
   """
   def initialized?(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_data_dir = Path.join(pg_dir, "data")
-    File.exists?(Path.join(pg_data_dir, "PG_VERSION"))
+    opts
+    |> data_dir()
+    |> Path.join("PG_VERSION")
+    |> File.exists?()
   end
 
   @doc """
@@ -109,17 +110,11 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
   - `false` if essential components are missing
   """
   def valid_init?(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_data_dir = Path.join(pg_dir, "data")
+    pg_data_dir = data_dir(opts)
 
-    required_paths = [
-      Path.join(pg_data_dir, "PG_VERSION"),
-      Path.join(pg_data_dir, "base/1"),
-      Path.join(pg_data_dir, "global"),
-      Path.join(pg_data_dir, "pg_hba.conf")
-    ]
-
-    Enum.all?(required_paths, &File.exists?/1)
+    ["PG_VERSION", "base/1", "global", "pg_hba.conf"]
+    |> Enum.map(&Path.join(pg_data_dir, &1))
+    |> Enum.all?(&File.exists?/1)
   end
 
   @doc """
@@ -133,8 +128,7 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
   - `{:error, reason}` if cleanup failed
   """
   def clean_data_dir(opts) do
-    pg_dir = Keyword.fetch!(opts, :pg_dir)
-    pg_data_dir = Path.join(pg_dir, "data")
+    pg_data_dir = data_dir(opts)
 
     ["Cleaning PostgreSQL data directory: ", pg_data_dir] |> log(:warning)
 
@@ -152,19 +146,17 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
   end
 
   defp prepare_data_dir(pg_data_dir, pg_dir, run_dir) do
-    log(["[initialize] pg_data_dir: ", pg_data_dir, ", run_dir: ", run_dir], :debug)
+    ["[initialize] pg_data_dir: ", pg_data_dir, ", run_dir: ", run_dir] |> log(:debug)
+
     File.mkdir_p!(pg_data_dir)
-    log(["[initialize] dir created"], :debug)
+    ["[initialize] dir created"] |> log(:debug)
 
     Permissions.log_permission_issues(pg_data_dir)
-
-    [pg_data_dir]
-    |> Permissions.ensure_dirs(Permissions.get_uid(), Permissions.get_gid())
-
-    log(["[initialize] permissions set"], :debug)
+    Permissions.ensure_dirs([pg_data_dir], Permissions.get_uid(), Permissions.get_gid())
+    ["[initialize] permissions set"] |> log(:debug)
 
     File.chmod!(pg_dir, 0o755)
-    log(["[initialize] dir permissions set"], :debug)
+    ["[initialize] dir permissions set"] |> log(:debug)
   end
 
   defp run_fresh_initdb(pg_data_dir, run_dir) do
@@ -177,6 +169,18 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
     ["Initializing PostgreSQL database at ", pg_data_dir, " with run_dir ", run_dir]
     |> log(:info)
 
-    Lifecycle.run_pg("initdb", args, as_postgres_user: true, run_dir: run_dir)
+    # initdb syncs the whole data dir, so it gets more room than the default pg
+    # command timeout: the attempt watchdog in Pg.Initializer stays the real bound.
+    Lifecycle.run_pg("initdb", args,
+      as_postgres_user: true,
+      run_dir: run_dir,
+      timeout: :timer.minutes(2)
+    )
+  end
+
+  defp data_dir(opts) do
+    opts
+    |> Keyword.fetch!(:pg_dir)
+    |> Path.join("data")
   end
 end

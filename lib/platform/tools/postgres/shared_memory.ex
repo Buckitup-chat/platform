@@ -4,6 +4,10 @@ defmodule Platform.Tools.Postgres.SharedMemory do
   Supports both POSIX shared memory (/dev/shm) and System V shared memory.
   """
 
+  # Best-effort cleanup running inline in boot stages: bounded so a wedged IPC
+  # tool degrades into a warning instead of blocking startup.
+  @ipc_timeout :timer.seconds(15)
+
   @doc """
   Clean up stale shared memory segments associated with a PostgreSQL data directory.
   This prevents "pre-existing shared memory block is still in use" errors when
@@ -31,7 +35,7 @@ defmodule Platform.Tools.Postgres.SharedMemory do
   def cleanup_posix do
     shm_dir = "/dev/shm"
 
-    with {_, true} <- {:is_dir, File.dir?(shm_dir)},
+    with {:is_dir, true} <- {:is_dir, File.dir?(shm_dir)},
          _ = log_shm_usage(),
          {:ok, files} <- File.ls(shm_dir) do
       files
@@ -52,55 +56,23 @@ defmodule Platform.Tools.Postgres.SharedMemory do
   defp cleanup_postgres_shm_files(files, shm_dir) do
     log(["Found POSIX shared memory files: ", inspect(files)], :debug)
 
-    Enum.each(files, fn file ->
-      path = Path.join(shm_dir, file)
-      {in_use, holder_pids} = shm_file_in_use_with_pids(path)
-
-      with {_, false} <- {:is_in_use, in_use},
-           :ok <- File.rm(path) do
-        log(["Removed stale POSIX shm: ", path], :info)
-      else
-        {:is_in_use, true} ->
-          log(["POSIX shm in use by pids ", inspect(holder_pids), ", skipping: ", path], :debug)
-
-        {:error, reason} ->
-          log(["Could not remove POSIX shm ", path, ": ", inspect(reason)], :warning)
-      end
-    end)
+    files
+    |> Enum.map(&Path.join(shm_dir, &1))
+    |> Enum.each(&remove_unused_shm_file/1)
   end
 
-  defp cleanup_sysv(pg_data_dir) do
-    {ipcs_output, 0} = MuonTrap.cmd("/usr/bin/ipcs", ["-m"], stderr_to_stdout: true)
+  defp remove_unused_shm_file(path) do
+    {in_use, holder_pids} = shm_file_in_use_with_pids(path)
 
-    stale_segments =
-      ipcs_output
-      |> String.split("\n")
-      |> Enum.filter(fn line ->
-        String.contains?(line, "postgres") && String.match?(line, ~r/^0x/)
-      end)
-      |> Enum.map(fn line ->
-        case String.split(line, ~r/\s+/, trim: true) do
-          [_key, shmid | _rest] -> shmid
-          _ -> nil
-        end
-      end)
-      |> Enum.reject(&is_nil/1)
+    with {_, false} <- {:is_in_use, in_use},
+         :ok <- File.rm(path) do
+      log(["Removed stale POSIX shm: ", path], :info)
+    else
+      {:is_in_use, true} ->
+        log(["POSIX shm in use by pids ", inspect(holder_pids), ", skipping: ", path], :debug)
 
-    postmaster_pid_file = Path.join(pg_data_dir, "postmaster.pid")
-
-    if !File.exists?(postmaster_pid_file) && stale_segments != [] do
-      log(["Found potentially stale shared memory segments: ", inspect(stale_segments)], :debug)
-
-      Enum.each(stale_segments, fn shmid ->
-        {rm_output, rm_status} =
-          MuonTrap.cmd("/usr/bin/ipcrm", ["-m", shmid], stderr_to_stdout: true)
-
-        if rm_status == 0 do
-          log(["Removed stale shared memory segment: ", shmid], :info)
-        else
-          log(["Could not remove shared memory segment ", shmid, ": ", rm_output], :debug)
-        end
-      end)
+      {:error, reason} ->
+        log(["Could not remove POSIX shm ", path, ": ", inspect(reason)], :warning)
     end
   end
 
@@ -112,50 +84,90 @@ defmodule Platform.Tools.Postgres.SharedMemory do
   end
 
   defp shm_file_in_use_with_pids(path) do
-    with {:ok, entries} <- File.ls("/proc") do
-      pids =
+    case File.ls("/proc") do
+      {:ok, entries} ->
         entries
         |> Enum.filter(&numeric_string?/1)
-        |> Enum.filter(fn pid -> process_uses_shm?(pid, path) end)
+        |> Enum.filter(&process_uses_shm?(&1, path))
+        |> then(&{&1 != [], &1})
 
-      {pids != [], pids}
-    else
-      _ -> {true, ["unknown"]}
+      _ ->
+        {true, ["unknown"]}
     end
   end
 
-  defp process_uses_shm?(pid, path) do
+  defp process_uses_shm?(pid, path),
+    do: process_has_open_fd?(pid, path) || process_maps_file?(pid, path)
+
+  defp process_has_open_fd?(pid, path) do
     fd_dir = "/proc/#{pid}/fd"
 
-    fd_match =
-      case File.ls(fd_dir) do
-        {:ok, fds} ->
-          Enum.any?(fds, fn fd ->
-            case File.read_link(Path.join(fd_dir, fd)) do
-              {:ok, target} -> target == path
-              _ -> false
-            end
-          end)
-
-        _ ->
-          false
-      end
-
-    maps_file = "/proc/#{pid}/maps"
-
-    maps_match =
-      case File.read(maps_file) do
-        {:ok, content} -> String.contains?(content, path)
-        _ -> false
-      end
-
-    fd_match || maps_match
+    case File.ls(fd_dir) do
+      {:ok, fds} -> Enum.any?(fds, &(File.read_link(Path.join(fd_dir, &1)) == {:ok, path}))
+      _ -> false
+    end
   end
 
-  defp numeric_string?(str) do
-    case Integer.parse(str) do
-      {_, ""} -> true
+  defp process_maps_file?(pid, path) do
+    case File.read("/proc/#{pid}/maps") do
+      {:ok, content} -> String.contains?(content, path)
       _ -> false
+    end
+  end
+
+  defp numeric_string?(str), do: match?({_, ""}, Integer.parse(str))
+
+  defp cleanup_sysv(pg_data_dir) do
+    case MuonTrap.cmd("/usr/bin/ipcs", ["-m"], stderr_to_stdout: true, timeout: @ipc_timeout) do
+      {ipcs_output, 0} ->
+        ipcs_output
+        |> postgres_segments()
+        |> remove_stale_segments(pg_data_dir)
+
+      {output, status} ->
+        log(["ipcs -m exited with status ", to_string(status), ": ", output], :warning)
+    end
+  end
+
+  defp postgres_segments(ipcs_output) do
+    ipcs_output
+    |> String.split("\n")
+    |> Enum.filter(&postgres_segment_line?/1)
+    |> Enum.flat_map(fn line ->
+      case String.split(line, ~r/\s+/, trim: true) do
+        [_key, shmid | _rest] -> [shmid]
+        _ -> []
+      end
+    end)
+  end
+
+  defp postgres_segment_line?(line),
+    do: String.contains?(line, "postgres") && String.match?(line, ~r/^0x/)
+
+  defp remove_stale_segments([], _pg_data_dir), do: :ok
+
+  defp remove_stale_segments(segments, pg_data_dir) do
+    postgres_running? = pg_data_dir |> Path.join("postmaster.pid") |> File.exists?()
+
+    if postgres_running? do
+      :ok
+    else
+      log(["Found potentially stale shared memory segments: ", inspect(segments)], :debug)
+
+      Enum.each(segments, &remove_segment/1)
+    end
+  end
+
+  defp remove_segment(shmid) do
+    case MuonTrap.cmd("/usr/bin/ipcrm", ["-m", shmid],
+           stderr_to_stdout: true,
+           timeout: @ipc_timeout
+         ) do
+      {_output, 0} ->
+        log(["Removed stale shared memory segment: ", shmid], :info)
+
+      {output, _status} ->
+        log(["Could not remove shared memory segment ", shmid, ": ", output], :debug)
     end
   end
 
