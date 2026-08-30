@@ -206,7 +206,8 @@ defmodule Platform.Storage.Pg.Daemon do
   def on_exit(reason, %{pg_port: pg_port, daemon_pid: daemon_pid, task_pid: task_pid}) do
     log("PostgreSQL daemon stage exiting: #{inspect(reason)}", :warning)
 
-    if daemon_pid, do: log("Stopping PostgreSQL daemon on port #{pg_port}", :info)
+    if daemon_pid && Process.alive?(daemon_pid),
+      do: log("Stopping PostgreSQL daemon on port #{pg_port}", :info)
 
     # Killing the task closes its MuonTrap port, which takes the OS child with
     # it - a wedged pg_ctl must not outlive the stage that spawned it.
