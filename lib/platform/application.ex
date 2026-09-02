@@ -166,6 +166,7 @@ defmodule Platform.Application do
           Platform.Storage.DriveIndication,
           Platform.App.DeviceSupervisor,
           Platform.App.DatabaseSupervisor,
+          Platform.Storage.BootWatchdog,
           Platform.App.ZeroTierSupervisor
         ]
     end

@@ -4,11 +4,11 @@ defmodule Platform.ChatBridge.Worker do
   use GenServer
 
   alias Phoenix.PubSub
+  alias Platform.ChatBridge
   alias Platform.ChatBridge.Lan
   alias Platform.ChatBridge.Logic
 
   @incoming_topic Application.compile_env!(:chat, :topic_to_platform)
-  @outgoing_topic Application.compile_env!(:chat, :topic_from_platform)
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, :ok, Keyword.merge([name: __MODULE__], opts))
@@ -88,6 +88,6 @@ defmodule Platform.ChatBridge.Worker do
 
   defp respond(message) do
     # Logger.info("Platform responds: " <> inspect(message, pretty: true))
-    PubSub.broadcast(Chat.PubSub, @outgoing_topic, {:platform_response, message})
+    ChatBridge.notify(message)
   end
 end
