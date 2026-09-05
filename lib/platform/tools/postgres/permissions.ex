@@ -23,11 +23,16 @@ defmodule Platform.Tools.Postgres.Permissions do
   """
   def get_gid, do: postgres_id("-g")
 
+  @default_uid 100
+  @default_gid 101
+
   defp postgres_id(flag) do
     {id_str, 0} =
       MuonTrap.cmd("id", [flag, @postgres_user], stderr_to_stdout: true, timeout: @id_timeout)
 
     id_str |> String.trim() |> String.to_integer()
+  catch
+    _, _ -> if flag == "-u", do: @default_uid, else: @default_gid
   end
 
   @doc """
