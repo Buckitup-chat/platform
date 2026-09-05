@@ -130,13 +130,12 @@ defmodule Platform.App.Drive.BootSupervisor do
     5432 + 1 + index - ?a
   end
 
+  @default_postgres_uid 100
+  @default_postgres_gid 101
+
   defp mount_options do
-    try do
-      uid = Platform.Tools.Postgres.get_postgres_uid()
-      gid = Platform.Tools.Postgres.get_postgres_gid()
-      [uid: uid, gid: gid]
-    rescue
-      _ -> []
-    end
+    uid = try do Platform.Tools.Postgres.get_postgres_uid() rescue _ -> @default_postgres_uid end
+    gid = try do Platform.Tools.Postgres.get_postgres_gid() rescue _ -> @default_postgres_gid end
+    [uid: uid, gid: gid]
   end
 end
