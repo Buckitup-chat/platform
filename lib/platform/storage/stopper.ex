@@ -6,7 +6,7 @@ defmodule Platform.Storage.Stopper do
   use Toolbox.OriginLog
 
   alias Platform.Leds
-  alias Platform.UsbDrives.Drive
+  alias Platform.UsbDrives.Detector
 
   @default_wait if(Application.compile_env(:platform, :target) == :host, do: 100, else: 5000)
 
@@ -20,7 +20,7 @@ defmodule Platform.Storage.Stopper do
       log("backup finished. Stopping supervisor", :info)
 
       Process.sleep(wait)
-      Drive.terminate(opts[:device])
+      Detector.eject(opts[:device])
 
       Leds.blink_done()
     end)

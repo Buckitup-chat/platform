@@ -18,10 +18,12 @@ defmodule Platform.UsbDrives.Detector do
   def insert(device) do
     eject(device)
 
-    Platform.Drives
-    |> DynamicSupervisor.start_child(
+    child_spec =
       {BootSupervisor, [device, Drive.registry_name(BootSupervisor, device)]}
-    )
+      |> Supervisor.child_spec(restart: :temporary)
+
+    Platform.Drives
+    |> DynamicSupervisor.start_child(child_spec)
   end
 
   def eject(nil), do: :none

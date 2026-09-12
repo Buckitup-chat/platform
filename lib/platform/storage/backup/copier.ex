@@ -161,8 +161,8 @@ defmodule Platform.Storage.Backup.Copier do
     _ = LogicalReplicator.drop_subscription_if_exists(backup_repo, "backup_from_internal")
     _ = LogicalReplicator.drop_slot_if_exists(Chat.Repo, "backup_from_internal")
     log("PG backup replication cleaned up", :info)
-  rescue
-    e -> log("PG replication cleanup error: #{inspect(e)}", :error)
+  catch
+    kind, reason -> log("PG replication cleanup #{kind}: #{inspect(reason)}", :error)
   end
 
   defp set_db_flag(flags) do
