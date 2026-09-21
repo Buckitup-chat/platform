@@ -109,6 +109,7 @@ else
 end
 
 config :chat, :domain, domain
+config :chat, :device_id_module, Platform.DeviceId
 
 File.write!("built_for_domain", domain)
 
