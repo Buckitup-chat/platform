@@ -49,9 +49,15 @@ make cover
 - Manages `Platform.Drives` DynamicSupervisor
 - Spawns `Platform.App.Drive.BootSupervisor` per detected USB drive
 
+**Platform.App.DatabaseSupervisor**: Staged startup for the internal PostgreSQL instance (chat DB on device). Mirrors `BootSupervisor`'s pattern with compile-time host/target module selection.
+
+**Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` handles internal→main replication and Phoenix.Sync init. `BackupDbSupervisor` handles backup copying.
+
 **Platform.App.Drive.BootSupervisor**: Per-drive staged startup sequence
 - Healer → Mounter → PostgreSQL initialization → DB creation → Repo → Migrations → Decider
 - Uses compile-time module selection: real modules on target, emulators on host
+
+**Platform.Storage.BootWatchdog**: Monitors staged boot trees from outside. Fingerprints each tree every 30s; if a stage stalls (alive but wedged), kills the deepest stuck stage so supervisors can recover. Watches internal DB tree and each drive tree up to `Decider`.
 
 ### Staged Supervision Pattern
 
@@ -59,6 +65,10 @@ The `Platform` module provides helpers for building staged supervision trees:
 - `{:stage, name, spec}`: Start stage supervisor, then child
 - `{:step, name, spec}`: Start child, then stage supervisor
 - `prepare_stages/2`: Builds nested supervision tree from spec list
+
+### Device Identity
+
+`Platform.DeviceId` reads the RPi hardware serial from `/proc/cpuinfo` to produce a stable device ID (e.g. `RPi4_<serial>`). Implements the `Chat.DeviceId` behaviour — on host/server the fallback `Chat.DeviceId.Default` uses HTTPS domain or MAC address. Device IDs anchor vouch token scopes (`device.<id>.*`).
 
 ### Inter-App Communication
 
