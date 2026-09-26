@@ -5,6 +5,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
   use GracefulGenServer
   use Toolbox.OriginLog
 
+  alias Chat.Data.Shapes
   alias Chat.Db.Copying
   alias Chat.Db.Switching
   alias Chat.Sync.DbBrokers
@@ -133,7 +134,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
     # Clean up stale slots from previous sessions before creating new ones
     _ = LogicalReplicator.drop_slot_if_exists(source_repo, "main_from_internal")
 
-    tables = Chat.Data.Shapes.sync_tables()
+    tables = Shapes.sync_tables()
 
     with :ok <- LogicalReplicator.create_publication(source_repo, tables, "internal_to_main"),
          :ok <-

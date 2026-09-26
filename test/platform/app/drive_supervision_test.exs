@@ -150,7 +150,8 @@ defmodule DriveSupervisionTest do
     Platform.App.DeviceSupervisor
     |> Process.whereis()
     |> build_supervision_tree()
-    |> IO.inspect(limit: :infinity)
+    |> inspect(limit: :infinity, pretty: true)
+    |> IO.puts()
   end
 
   defp build_supervision_tree(supervisor) do

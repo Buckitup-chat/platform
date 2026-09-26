@@ -10,7 +10,7 @@ defmodule Platform.Tools.Postgres.BatchSync.TableSyncRescueTest do
 
     @primary_key {:id, :integer, autogenerate: false}
     schema "test_table" do
-      field :name, :string
+      field(:name, :string)
     end
   end
 

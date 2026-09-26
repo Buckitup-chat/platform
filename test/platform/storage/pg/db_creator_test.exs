@@ -71,7 +71,11 @@ defmodule Platform.Storage.Pg.DbCreatorTest do
       end
     end)
 
-    {:ok, _pid} = start_db_creator(ctx, run: [notifying_next_stage(:next_stage_started)], initial_retry_delay: 10)
+    {:ok, _pid} =
+      start_db_creator(ctx,
+        run: [notifying_next_stage(:next_stage_started)],
+        initial_retry_delay: 10
+      )
 
     assert_receive {:ensure_db_exists_called, _, _}, 1_000
     assert_receive {:ensure_db_exists_called, _, _}, 1_000

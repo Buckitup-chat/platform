@@ -3,8 +3,12 @@ defmodule Platform.ChatBridge.Logic do
 
   alias Platform.Tools.Fwup
 
+  alias Chat.Db.Common
+  alias Chat.Db.Maintenance
   alias Platform.ChatBridge.Lan
   alias Platform.ChatBridge.Wifi
+  alias Platform.Sensor.Weigh
+  alias Platform.UsbDrives.Drive
 
   def get_wifi_settings do
     Wifi.get_wifi_settings()
@@ -54,16 +58,16 @@ defmodule Platform.ChatBridge.Logic do
   end
 
   def unmount_main do
-    if Chat.Db.Common.get_chat_db_env(:mode) == :main do
+    if Common.get_chat_db_env(:mode) == :main do
       Chat.Db.MainDb
       |> CubDB.data_dir()
-      |> Chat.Db.Maintenance.path_to_device()
+      |> Maintenance.path_to_device()
       |> then(fn
         "/dev/" <> device -> device
         "/" <> device -> device
         device -> device
       end)
-      |> Platform.UsbDrives.Drive.terminate()
+      |> Drive.terminate()
 
       :unmounted
     else
@@ -88,7 +92,7 @@ defmodule Platform.ChatBridge.Logic do
   end
 
   def connect_to_weight_sensor({type, name}, opts) do
-    Platform.Sensor.Weigh.poll(type, name, opts)
+    Weigh.poll(type, name, opts)
     |> mark(:weight_sensor_connection)
   end
 

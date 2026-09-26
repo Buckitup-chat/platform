@@ -21,7 +21,8 @@ defmodule Platform.DeviceIdTest do
     end
 
     test "extracts Model from RPi4 cpuinfo" do
-      assert {:ok, "Raspberry Pi 4 Model B Rev 1.4"} = DeviceId.parse_field(@rpi4_cpuinfo, "Model")
+      assert {:ok, "Raspberry Pi 4 Model B Rev 1.4"} =
+               DeviceId.parse_field(@rpi4_cpuinfo, "Model")
     end
 
     test "extracts Serial from RPi5 cpuinfo" do

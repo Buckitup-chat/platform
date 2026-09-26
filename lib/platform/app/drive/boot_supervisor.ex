@@ -8,7 +8,9 @@ defmodule Platform.App.Drive.BootSupervisor do
 
   alias Platform.Storage.DriveIndicationStarter
   alias Platform.Storage.InternalDbAwaiter
+  alias Platform.Tools.Postgres
   alias Platform.UsbDrives.Decider
+  alias Platform.UsbDrives.Drive
 
   def start_link([device, name]) do
     Supervisor.start_link(__MODULE__, [device],
@@ -121,7 +123,7 @@ defmodule Platform.App.Drive.BootSupervisor do
   end
 
   defp name(stage, device) do
-    Platform.UsbDrives.Drive.registry_name(stage, device)
+    Drive.registry_name(stage, device)
   end
 
   defp pg_port_for_device(device) do
@@ -131,6 +133,6 @@ defmodule Platform.App.Drive.BootSupervisor do
   end
 
   defp mount_options do
-    [uid: Platform.Tools.Postgres.get_postgres_uid(), gid: Platform.Tools.Postgres.get_postgres_gid()]
+    [uid: Postgres.get_postgres_uid(), gid: Postgres.get_postgres_gid()]
   end
 end

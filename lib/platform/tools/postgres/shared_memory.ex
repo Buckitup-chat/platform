@@ -87,8 +87,7 @@ defmodule Platform.Tools.Postgres.SharedMemory do
     case File.ls("/proc") do
       {:ok, entries} ->
         entries
-        |> Enum.filter(&numeric_string?/1)
-        |> Enum.filter(&process_uses_shm?(&1, path))
+        |> Enum.filter(&(numeric_string?(&1) and process_uses_shm?(&1, path)))
         |> then(&{&1 != [], &1})
 
       _ ->

@@ -11,6 +11,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
   alias Chat.Sync.CargoRoom
 
   alias Phoenix.PubSub
+  alias Platform.Sensor.Weigh
 
   @cargo_topic "chat::cargo_room"
 
@@ -110,7 +111,7 @@ defmodule Platform.App.Sync.Cargo.SensorsDataCollector do
          name <- weight_sensor[:name],
          true <- is_binary(name) and byte_size(name) > 0,
          opts <- Map.drop(weight_sensor, [:name, :type]) |> Map.to_list(),
-         {:ok, content} <- Platform.Sensor.Weigh.poll(type, name, opts |> fix_parity()),
+         {:ok, content} <- Weigh.poll(type, name, opts |> fix_parity()),
          {:ok, keys_set} <- CargoRoom.write_text(cargo_user, content, get_room_identity_fn) do
       keys_set
     else

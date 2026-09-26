@@ -3,6 +3,8 @@ defmodule Platform.DeviceId do
 
   @behaviour Chat.DeviceId
 
+  alias Chat.DeviceId.Default, as: DefaultDeviceId
+
   @impl true
   def id do
     with {:ok, content} <- read_cpuinfo(),
@@ -10,7 +12,7 @@ defmodule Platform.DeviceId do
          {:ok, serial} <- parse_field(content, "Serial") do
       "#{short_model(model)}_#{serial}"
     else
-      _ -> Chat.DeviceId.Default.id()
+      _ -> DefaultDeviceId.id()
     end
   end
 

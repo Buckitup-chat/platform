@@ -18,6 +18,8 @@ defmodule Platform.Tools.Postgres.BatchSync do
   use Toolbox.OriginLog
 
   alias __MODULE__.TableSync
+  alias Chat.Data.Shapes
+  alias Platform.Storage.Sync
 
   # Batch size for insert_all operations
   @batch_size 500
@@ -81,7 +83,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
   def sync(opts) do
     source_repo = Keyword.fetch!(opts, :source_repo)
     target_repo = Keyword.fetch!(opts, :target_repo)
-    schemas = Keyword.get(opts, :schemas, Platform.Storage.Sync.schemas())
+    schemas = Keyword.get(opts, :schemas, Sync.schemas())
     batch_size = Keyword.get(opts, :batch_size, @batch_size)
     schema_config = Keyword.get(opts, :schema_config, %{})
 
@@ -156,7 +158,7 @@ defmodule Platform.Tools.Postgres.BatchSync do
   end
 
   defp config_for(schema_module, custom_config) do
-    primary_key_fields = Chat.Data.Shapes.primary_key(schema_module)
+    primary_key_fields = Shapes.primary_key(schema_module)
 
     default =
       case primary_key_fields do

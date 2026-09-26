@@ -4,6 +4,8 @@ defmodule Platform.App.DrivesTest do
   import Support.Admin.Settings
   import Support.Drive.Manipulation
 
+  alias Chat.Sync.UsbDriveDumpRoom
+
   test "main creation on empty drives" do
     prepare()
     media_settings_set_to(main: true, scenario: :backup)
@@ -145,6 +147,6 @@ defmodule Platform.App.DrivesTest do
       |> DateTime.to_unix()
       |> Chat.Time.monotonic_offset()
 
-    Chat.Sync.UsbDriveDumpRoom.activate(room_key, room_identity, monotonic_offset)
+    UsbDriveDumpRoom.activate(room_key, room_identity, monotonic_offset)
   end
 end

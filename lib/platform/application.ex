@@ -79,11 +79,13 @@ defmodule Platform.Application do
     end
   else
     defp more_target_children(kids) do
+      alias Platform.Tools.Postgres
+
       Chat.Time.set_initial_system_time()
 
       pg_run_dir = "/tmp/pg_run"
       File.mkdir_p!(pg_run_dir)
-      Platform.Tools.Postgres.make_accessible(pg_run_dir)
+      Postgres.make_accessible(pg_run_dir)
 
       kids ++
         [

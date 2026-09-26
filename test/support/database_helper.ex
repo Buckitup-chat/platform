@@ -9,6 +9,8 @@ defmodule Platform.Test.DatabaseHelper do
   - Manage database connections for integration tests
   """
 
+  alias Ecto.Adapters.SQL
+  alias Ecto.Adapters.SQL.Sandbox
   alias Platform.Test.{InternalRepo, MainRepo}
 
   @internal_db "platform_test_internal"
@@ -74,12 +76,12 @@ defmodule Platform.Test.DatabaseHelper do
     start_repo(MainRepo)
 
     # Checkout sandbox connections
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(InternalRepo)
-    :ok = Ecto.Adapters.SQL.Sandbox.checkout(MainRepo)
+    :ok = Sandbox.checkout(InternalRepo)
+    :ok = Sandbox.checkout(MainRepo)
 
     # Set sandbox mode to manual for explicit control
-    Ecto.Adapters.SQL.Sandbox.mode(InternalRepo, {:shared, self()})
-    Ecto.Adapters.SQL.Sandbox.mode(MainRepo, {:shared, self()})
+    Sandbox.mode(InternalRepo, {:shared, self()})
+    Sandbox.mode(MainRepo, {:shared, self()})
 
     :ok
   end
@@ -98,8 +100,8 @@ defmodule Platform.Test.DatabaseHelper do
   Useful for cleaning state between tests.
   """
   def truncate_all_tables do
-    Ecto.Adapters.SQL.query!(InternalRepo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
-    Ecto.Adapters.SQL.query!(MainRepo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
+    SQL.query!(InternalRepo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
+    SQL.query!(MainRepo, "TRUNCATE TABLE users RESTART IDENTITY CASCADE")
     :ok
   end
 

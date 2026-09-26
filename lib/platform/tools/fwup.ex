@@ -3,6 +3,8 @@ defmodule Platform.Tools.Fwup do
 
   use Toolbox.OriginLog
 
+  alias Nerves.Runtime.KV
+
   @firmware_source_path "/data/platform.fw"
 
   def upgrade(binary) do
@@ -46,7 +48,7 @@ defmodule Platform.Tools.Fwup do
     System.cmd("sh", [
       "-c",
       "fwup -i #{path} --apply --task upgrade " <>
-        "--no-unmount -d #{Nerves.Runtime.KV.get("nerves_fw_devpath")}"
+        "--no-unmount -d #{KV.get("nerves_fw_devpath")}"
     ])
   end
 

@@ -1,6 +1,7 @@
 defmodule Platform.Storage.SyncTest do
   use ExUnit.Case, async: true
 
+  alias Chat.Data.Shapes
   alias Platform.Storage.Sync
 
   test "status transitions active -> done" do
@@ -24,6 +25,6 @@ defmodule Platform.Storage.SyncTest do
     assert Chat.Data.Schemas.UserCard in schemas
     assert Chat.Data.Schemas.FileChunk in schemas
     assert Chat.Data.Schemas.DialogMessage in schemas
-    assert schemas == Chat.Data.Shapes.sync_schemas()
+    assert schemas == Shapes.sync_schemas()
   end
 end

@@ -9,6 +9,7 @@ defmodule Platform.UsbDrives.Decider do
 
   alias Chat.Admin.MediaSettings
   alias Chat.AdminRoom
+  alias Chat.Db.Common
   alias Chat.Sync.UsbDriveDumpRoom
   alias Platform.App.Drive.BackupDbSupervisor
   alias Platform.App.Drive.CargoSyncSupervisor
@@ -89,7 +90,7 @@ defmodule Platform.UsbDrives.Decider do
   end
 
   defp on_internal_db? do
-    Chat.Db.Common.get_chat_db_env(:mode) == :internal
+    Common.get_chat_db_env(:mode) == :internal
   end
 
   defp create_first_main? do

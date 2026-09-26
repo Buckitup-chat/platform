@@ -8,7 +8,9 @@ defmodule Platform.Network.IptablesMonitor do
   use GenServer
   use Toolbox.OriginLog
 
-  @check_interval_ms 60_000
+  alias Platform.ChatBridge.Lan
+
+  @check_interval_ms 300_000
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, nil, name: __MODULE__)
@@ -37,7 +39,7 @@ defmodule Platform.Network.IptablesMonitor do
   end
 
   defp check_rules do
-    case Platform.ChatBridge.Lan.get_profile() do
+    case Lan.get_profile() do
       :internet -> verify_iptables()
       profile -> log(["LAN profile is ", inspect(profile), ", skipping iptables check"], :debug)
     end
@@ -83,5 +85,6 @@ defmodule Platform.Network.IptablesMonitor do
     do: System.cmd("iptables", ~w[--append FORWARD --in-interface wlan0 -j ACCEPT])
 
   defp apply_rule(:input),
-    do: System.cmd("iptables", ~w[-A INPUT -i eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT])
+    do:
+      System.cmd("iptables", ~w[-A INPUT -i eth0 -m state --state RELATED,ESTABLISHED -j ACCEPT])
 end

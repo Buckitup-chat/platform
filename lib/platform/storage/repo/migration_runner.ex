@@ -6,6 +6,7 @@ defmodule Platform.Storage.Repo.MigrationRunner do
   use GracefulGenServer, timeout: :timer.minutes(3)
   use Toolbox.OriginLog
 
+  alias Chat.Db.Boot.RepoReady
   alias Platform.Tools.Postgres.LogicalReplicator
 
   @impl true
@@ -35,7 +36,7 @@ defmodule Platform.Storage.Repo.MigrationRunner do
     %{ref: ref} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
         wait_for_repo_ready(repo_name)
-        Chat.Db.Boot.RepoReady.run_migrations(repo_name)
+        RepoReady.run_migrations(repo_name)
       end)
 
     {:noreply, %{state | task_ref: ref}}

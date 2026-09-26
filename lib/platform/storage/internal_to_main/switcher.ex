@@ -5,7 +5,11 @@ defmodule Platform.Storage.InternalToMain.Switcher do
   use GracefulGenServer
   use Toolbox.OriginLog
 
+  alias Chat.Data.Shapes
   alias Chat.Db.Common
+  alias Chat.Sync.DbBrokers
+  alias Platform.Storage.Sync
+  alias Platform.Tools.Postgres
   alias Platform.Tools.Postgres.LogicalReplicator
 
   @impl true
@@ -53,20 +57,20 @@ defmodule Platform.Storage.InternalToMain.Switcher do
       # Sync existing users from main→internal before setting up replication
       # This ensures any users created on USB before this session are copied
       _ =
-        Platform.Storage.Sync.run_local_sync(
+        Sync.run_local_sync(
           source_repo: main_repo,
           target_repo: Chat.Repo,
-          schemas: Platform.Storage.Sync.schemas()
+          schemas: Sync.schemas()
         )
 
       _ = LogicalReplicator.drop_subscription_if_exists(Chat.Repo, "internal_from_main")
       _ = LogicalReplicator.drop_slot_if_exists(main_repo, "internal_from_main")
-      tables = Chat.Data.Shapes.sync_tables()
+      tables = Shapes.sync_tables()
       _ = LogicalReplicator.create_publication(main_repo, tables, "main_to_internal")
 
       # Create subscription on internal for main→internal
       # Use port from pg_opts since repo.config() may have compile-time port
-      conn_string = Platform.Tools.Postgres.build_connection_string(main_repo, port: main_port)
+      conn_string = Postgres.build_connection_string(main_repo, port: main_port)
 
       case LogicalReplicator.create_subscription(
              Chat.Repo,
@@ -109,7 +113,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     else
       _ -> args
     end
-    |> tap(fn _ -> Chat.Sync.DbBrokers.refresh() end)
+    |> tap(fn _ -> DbBrokers.refresh() end)
   end
 
   defp revert_db_repo(args) do
@@ -125,7 +129,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     end
 
     try do
-      Chat.Sync.DbBrokers.refresh()
+      DbBrokers.refresh()
     catch
       _, _ -> :ok
     end

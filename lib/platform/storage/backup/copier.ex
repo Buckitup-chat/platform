@@ -5,6 +5,7 @@ defmodule Platform.Storage.Backup.Copier do
   use GracefulGenServer
   use Toolbox.OriginLog
 
+  alias Chat.Data.Shapes
   alias Chat.Db
   alias Chat.Db.{Common, Copying, Switching}
   alias Chat.Ordering
@@ -116,9 +117,14 @@ defmodule Platform.Storage.Backup.Copier do
       log("PG #{label} sync", :info)
 
       case BatchSync.sync(source_repo: source, target_repo: target, schemas: schemas) do
-        {:ok, _} -> log("PG #{label} complete", :info)
-        {:partial, _, failures} -> log("PG #{label} partial: #{inspect(Map.keys(failures))}", :warning)
-        {:error, reason} -> log("PG #{label} failed: #{inspect(reason)}", :error)
+        {:ok, _} ->
+          log("PG #{label} complete", :info)
+
+        {:partial, _, failures} ->
+          log("PG #{label} partial: #{inspect(Map.keys(failures))}", :warning)
+
+        {:error, reason} ->
+          log("PG #{label} failed: #{inspect(reason)}", :error)
       end
     end)
   rescue
@@ -132,7 +138,7 @@ defmodule Platform.Storage.Backup.Copier do
     conn_string = Postgres.build_connection_string(source_repo)
 
     _ = LogicalReplicator.drop_slot_if_exists(source_repo, "backup_from_internal")
-    tables = Chat.Data.Shapes.sync_tables()
+    tables = Shapes.sync_tables()
 
     with :ok <- LogicalReplicator.create_publication(source_repo, tables, "internal_to_backup"),
          :ok <-

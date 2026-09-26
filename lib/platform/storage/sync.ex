@@ -3,6 +3,10 @@ defmodule Platform.Storage.Sync do
 
   use Toolbox.OriginLog
 
+  alias Chat.Data.Shapes
+  alias Ecto.Adapters.SQL
+  alias Platform.Tools.Postgres.BatchSync
+
   @key {__MODULE__, :status}
 
   @type state :: :inactive | :active | :done | {:partial, map()} | {:error, term()}
@@ -10,7 +14,7 @@ defmodule Platform.Storage.Sync do
   @spec schemas(keyword()) :: [module()]
   def schemas(opts \\ []) do
     case config() |> Keyword.get(:schemas) do
-      nil -> Keyword.get(opts, :default, Chat.Data.Shapes.sync_schemas())
+      nil -> Keyword.get(opts, :default, Shapes.sync_schemas())
       configured -> configured
     end
   end
@@ -73,7 +77,7 @@ defmodule Platform.Storage.Sync do
     )
 
     # Perform unidirectional diff+copy using BatchSync
-    case Platform.Tools.Postgres.BatchSync.sync(
+    case BatchSync.sync(
            source_repo: source,
            target_repo: target,
            schemas: schemas
@@ -119,7 +123,7 @@ defmodule Platform.Storage.Sync do
   end
 
   defp query_system_id(repo) do
-    case Ecto.Adapters.SQL.query(repo, "SELECT system_identifier FROM pg_control_system()", []) do
+    case SQL.query(repo, "SELECT system_identifier FROM pg_control_system()", []) do
       {:ok, %{rows: [[id]]}} -> to_string(id)
       _ -> nil
     end
