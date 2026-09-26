@@ -4,9 +4,9 @@ defmodule Platform.App.Drive.UsbDriveDumpSupervisor do
   use Toolbox.OriginLog
   import Platform
 
+  alias Platform.App.Drive.UsbDriveDumpSupervisor.Tasks
   alias Platform.App.Sync.UsbDriveDump.Completer
   alias Platform.App.Sync.UsbDriveDump.Dumper
-  alias Platform.App.Drive.UsbDriveDumpSupervisor.Tasks
   alias Platform.Storage.Backup.Starter
 
   def start_link(init_arg) do

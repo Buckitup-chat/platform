@@ -8,8 +8,8 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   import Platform
 
   alias Chat.Db.MediaDbSupervisor
-  alias Platform.App.Sync.Onliners.ScopeProvider
   alias Platform.App.Drive.OnlinersSyncSupervisor.Tasks
+  alias Platform.App.Sync.Onliners.ScopeProvider
   alias Platform.Storage.Backup.Starter
   alias Platform.Storage.Bouncer
   alias Platform.Storage.Copier

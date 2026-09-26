@@ -1,5 +1,5 @@
 defmodule Support.Drive.Manipulation do
-  @moduledoc ""
+  @moduledoc false
 
   @registry Platform.Drives.Registry
 

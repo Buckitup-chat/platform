@@ -8,10 +8,10 @@ defmodule Platform.Storage.InternalToMain.Copier do
   alias Chat.Db.Copying
   alias Chat.Db.Switching
   alias Chat.Sync.DbBrokers
+  alias Platform.Leds
   alias Platform.Storage.Sync
   alias Platform.Tools.Postgres
   alias Platform.Tools.Postgres.LogicalReplicator
-  alias Platform.Leds
 
   @impl true
   def on_init(opts) do

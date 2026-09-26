@@ -1,9 +1,9 @@
 defmodule Platform.Storage.SyncIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias Platform.Test.{InternalRepo, MainRepo, DatabaseHelper}
-  alias Platform.Storage.Sync
   alias Chat.Data.Schemas.User
+  alias Platform.Storage.Sync
+  alias Platform.Test.{DatabaseHelper, InternalRepo, MainRepo}
 
   @moduletag :integration
   @moduletag :postgres

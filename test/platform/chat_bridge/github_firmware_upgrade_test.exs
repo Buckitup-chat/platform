@@ -3,8 +3,8 @@ defmodule PlatformTest.ChatBridge.GithubFirmwareUpgradeTest do
 
   import Rewire
 
-  alias Platform.ChatBridge.FirmwareDownloader
   alias Phoenix.PubSub
+  alias Platform.ChatBridge.FirmwareDownloader
 
   @outgoing_topic Application.compile_env!(:chat, :topic_from_platform)
   @firmware_url "https://github.com/Buckitup-chat/platform/releases/download/v0.4.1/platform.fw"

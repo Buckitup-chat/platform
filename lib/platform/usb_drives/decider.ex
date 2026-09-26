@@ -4,15 +4,15 @@ defmodule Platform.UsbDrives.Decider do
   use GenServer
   use Toolbox.OriginLog
 
-  alias Platform.Tools.Mount
   alias Platform.Tools.Mkfs
+  alias Platform.Tools.Mount
 
   alias Chat.Admin.MediaSettings
   alias Chat.AdminRoom
   alias Chat.Sync.UsbDriveDumpRoom
   alias Platform.App.Drive.BackupDbSupervisor
-  alias Platform.App.Drive.MainDbSupervisor
   alias Platform.App.Drive.CargoSyncSupervisor
+  alias Platform.App.Drive.MainDbSupervisor
   alias Platform.App.Drive.OnlinersSyncSupervisor
   alias Platform.App.Drive.UsbDriveDumpSupervisor
   alias Platform.Storage.DriveIndication

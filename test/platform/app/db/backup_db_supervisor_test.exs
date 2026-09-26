@@ -4,8 +4,8 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
 
   import Support.RetryHelper
 
-  alias Chat.{AdminRoom, ChunkedFiles, FileIndex, Messages, Rooms, User}
   alias Chat.Admin.{BackupSettings, MediaSettings}
+  alias Chat.{AdminRoom, ChunkedFiles, FileIndex, Messages, Rooms, User}
   alias Chat.Content.Files
 
   alias Chat.Db.{

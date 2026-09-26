@@ -1,9 +1,9 @@
 defmodule Platform.Tools.Postgres.BatchSyncIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias Platform.Test.{InternalRepo, MainRepo, DatabaseHelper}
-  alias Platform.Tools.Postgres.BatchSync
   alias Chat.Data.Schemas.User
+  alias Platform.Test.{DatabaseHelper, InternalRepo, MainRepo}
+  alias Platform.Tools.Postgres.BatchSync
 
   @moduletag :integration
   @moduletag :postgres

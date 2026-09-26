@@ -132,7 +132,7 @@ defmodule PlatformTest.Lan.ZeroTierWorkerTest do
     context
   end
 
-  defp flush_messages() do
+  defp flush_messages do
     receive do
       _ -> flush_messages()
     after

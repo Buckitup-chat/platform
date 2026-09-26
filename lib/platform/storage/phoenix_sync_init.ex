@@ -44,12 +44,10 @@ defmodule Platform.Storage.PhoenixSyncInit do
   end
 
   defp reinit_phoenix_sync(context) do
-    try do
-      log("Reinitializing Phoenix.Sync (#{context})", :info)
-      Chat.PhoenixSyncReinit.reinit()
-    catch
-      kind, error ->
-        log("Phoenix.Sync reinit failed (#{context}): #{kind} #{inspect(error)}", :error)
-    end
+    log("Reinitializing Phoenix.Sync (#{context})", :info)
+    Chat.PhoenixSyncReinit.reinit()
+  catch
+    kind, error ->
+      log("Phoenix.Sync reinit failed (#{context}): #{kind} #{inspect(error)}", :error)
   end
 end

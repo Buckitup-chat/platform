@@ -4,7 +4,7 @@ defmodule Platform.Tools.Postgres do
   All configuration is passed as options rather than using hardcoded values.
   """
 
-  alias Platform.Tools.Postgres.{Lifecycle, Database, Permissions, SharedMemory}
+  alias Platform.Tools.Postgres.{Database, Lifecycle, Permissions, SharedMemory}
 
   # Lifecycle operations
   defdelegate initialize(opts, retries \\ 5), to: Lifecycle

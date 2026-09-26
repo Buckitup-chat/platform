@@ -106,7 +106,7 @@ defmodule Platform.PlatformTest do
           O,
           %{
             id: Test.First,
-            shutdown: 10000,
+            shutdown: 10_000,
             start:
               {DynamicSupervisor, :start_link,
                [[name: Test.First, strategy: :one_for_one, max_restarts: 0]]},
