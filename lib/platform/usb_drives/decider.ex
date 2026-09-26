@@ -75,7 +75,7 @@ defmodule Platform.UsbDrives.Decider do
       File.exists?("#{path}/cargo_db") -> CargoSyncSupervisor
       File.exists?("#{path}/onliners_db") -> OnlinersSyncSupervisor
       File.exists?("#{path}/backup_db") -> BackupDbSupervisor
-      File.exists?("#{path}/main_db") -> (on_internal_db?() && MainDbSupervisor) || nil
+      File.exists?("#{path}/main_db") -> main_db_scenario_when_internal()
       create_first_main?() -> MainDbSupervisor |> may_optimimize_if_blank(path)
       true -> default_scenario() |> may_optimimize_if_blank(path)
     end
@@ -87,6 +87,10 @@ defmodule Platform.UsbDrives.Decider do
     end
 
     scenario
+  end
+
+  defp main_db_scenario_when_internal do
+    if on_internal_db?(), do: MainDbSupervisor
   end
 
   defp on_internal_db? do

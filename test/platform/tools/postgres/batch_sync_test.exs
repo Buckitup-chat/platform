@@ -11,56 +11,37 @@ defmodule Platform.Tools.Postgres.BatchSyncTest do
       test_pid = Process.get(:test_pid)
       send(test_pid, {:source_repo_all, query})
 
-      # Determine if this is an ID query or full row query based on query type
-      # ID queries return strings, full row queries return structs
-      is_full_row_query = Process.get(:is_full_row_query, false)
+      source_data = Process.get(:source_data, :default)
 
-      if is_full_row_query do
-        # Reset flag for next query
-        Process.put(:is_full_row_query, false)
+      # Queries alternate: ID query first, then full row query for the missing IDs
+      case Process.get(:is_full_row_query, false) do
+        true ->
+          Process.put(:is_full_row_query, false)
+          full_row_response(source_data)
 
-        # Return full user structs for missing IDs
-        case Process.get(:source_data, :default) do
-          :full_users ->
-            # Return full user structs
-            [
-              %Chat.Data.Schemas.User{
-                pub_key: "pk4",
-                name: "user4"
-              }
-            ]
+        false ->
+          Process.put(:is_full_row_query, true)
+          id_response(source_data)
+      end
+    end
 
-          :empty ->
-            []
+    defp full_row_response(source_data) do
+      case source_data do
+        :full_users -> [%Chat.Data.Schemas.User{pub_key: "pk4", name: "user4"}]
+        :empty -> []
+        # pk3 is the missing one in default scenario
+        _ -> [%Chat.Data.Schemas.User{pub_key: "pk3", name: "user3"}]
+      end
+    end
 
-          _ ->
-            # Return structs for pk3 (the missing one in default scenario)
-            [%Chat.Data.Schemas.User{pub_key: "pk3", name: "user3"}]
-        end
-      else
-        # This is an ID query - return public keys
-        # Set flag for next query to return full rows
-        Process.put(:is_full_row_query, true)
-
-        case Process.get(:source_data, :default) do
-          :default ->
-            ["pk1", "pk2", "pk3"]
-
-          :empty ->
-            []
-
-          :with_missing ->
-            ["pk1", "pk2", "pk3", "pk4"]
-
-          :full_users ->
-            ["pk4"]
-
-          :same_as_source ->
-            ["pk1", "pk2", "pk3"]
-
-          custom when is_list(custom) ->
-            custom
-        end
+    defp id_response(source_data) do
+      case source_data do
+        :default -> ["pk1", "pk2", "pk3"]
+        :empty -> []
+        :with_missing -> ["pk1", "pk2", "pk3", "pk4"]
+        :full_users -> ["pk4"]
+        :same_as_source -> ["pk1", "pk2", "pk3"]
+        custom when is_list(custom) -> custom
       end
     end
   end

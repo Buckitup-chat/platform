@@ -55,26 +55,27 @@ defmodule Platform.UsbDrives.Detector.Watcher do
   def handle_info(_task_results, state), do: {:noreply, state}
 
   defp terminate_devices(state, devices) do
-    devices
-    |> Enum.reduce(state, fn device, state ->
-      cond do
-        State.has_connected?(state, device) ->
-          state
-          |> tap(&cancel_connecting_timer(&1, device))
-          |> State.delete_device(device)
-          |> tap(fn _ -> Detector.eject(device) end)
+    Enum.reduce(devices, state, &terminate_device(&2, &1))
+  end
 
-        State.has_connecting?(state, device) ->
-          state
-          |> tap(&cancel_connecting_timer(&1, device))
-          |> State.discard_connecting([device])
+  defp terminate_device(state, device) do
+    cond do
+      State.has_connected?(state, device) ->
+        state
+        |> tap(&cancel_connecting_timer(&1, device))
+        |> State.delete_device(device)
+        |> tap(fn _ -> Detector.eject(device) end)
 
-        # coveralls-ignore-start
-        true ->
-          state
-          # coveralls-ignore-stop
-      end
-    end)
+      State.has_connecting?(state, device) ->
+        state
+        |> tap(&cancel_connecting_timer(&1, device))
+        |> State.discard_connecting([device])
+
+      # coveralls-ignore-start
+      true ->
+        state
+        # coveralls-ignore-stop
+    end
   end
 
   defp start_connecting_timers(devices) do

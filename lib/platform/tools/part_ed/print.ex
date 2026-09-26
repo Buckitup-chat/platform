@@ -40,30 +40,28 @@ defmodule Platform.Tools.PartEd.Print do
     |> String.split("Flags\n", parts: 2)
     |> Enum.at(1)
     |> String.split("\n")
-    |> Enum.map(fn
-      "   " <> line ->
-        line
+    |> Enum.map(&parse_print_line/1)
+  end
+
+  defp parse_print_line(line) do
+    case line do
+      "   " <> free_space ->
+        free_space
         |> String.split(" ", trim: true)
         |> Enum.take(3)
         |> Enum.map(&bytes/1)
-        |> then(&[:free | &1])
-        |> List.to_tuple()
+        |> then(&List.to_tuple([:free | &1]))
 
-      line ->
-        line
-        |> String.split(" ", trim: true)
-        |> Enum.take(5)
-        |> then(fn x ->
-          x
-          |> Enum.take(4)
-          |> Enum.map(&bytes/1)
-          |> then(fn list ->
-            partition_type = (Enum.at(x, 4) == "primary" && :primary) || :logical
-            list ++ [partition_type]
-          end)
-          |> List.to_tuple()
-        end)
-    end)
+      _ ->
+        fields = line |> String.split(" ", trim: true) |> Enum.take(5)
+        partition_type = if Enum.at(fields, 4) == "primary", do: :primary, else: :logical
+
+        fields
+        |> Enum.take(4)
+        |> Enum.map(&bytes/1)
+        |> Kernel.++([partition_type])
+        |> List.to_tuple()
+    end
   end
 
   defp bytes(str) do

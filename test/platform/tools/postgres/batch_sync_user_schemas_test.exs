@@ -38,40 +38,41 @@ defmodule Platform.Tools.Postgres.BatchSyncUserSchemasTest do
       String.contains?(query_str, "select:") and not String.contains?(query_str, "where:")
     end
 
+    @composite_to_plain %{
+      composite_default: :default,
+      composite_with_missing: :with_missing,
+      composite_full: :full
+    }
+
     defp source_id_response(query_str, source_data) do
-      case {composite_query?(query_str), source_data} do
-        {true, :default} ->
+      cond do
+        is_list(source_data) ->
+          source_data
+
+        Map.has_key?(@composite_to_plain, source_data) ->
+          id_pairs(@composite_to_plain[source_data])
+
+        composite_query?(query_str) ->
+          id_pairs(source_data)
+
+        true ->
+          source_data |> id_pairs() |> Enum.map(fn {id, _uuid} -> id end)
+      end
+    end
+
+    defp id_pairs(source_data) do
+      case source_data do
+        :default ->
           [{<<1, 2, 3>>, "uuid-1"}, {<<4, 5, 6>>, "uuid-2"}]
 
-        {false, :default} ->
-          [<<1, 2, 3>>, <<4, 5, 6>>]
-
-        {_composite?, :empty} ->
+        :empty ->
           []
 
-        {true, :with_missing} ->
+        :with_missing ->
           [{<<1, 2, 3>>, "uuid-1"}, {<<4, 5, 6>>, "uuid-2"}, {<<7, 8, 9>>, "uuid-3"}]
 
-        {false, :with_missing} ->
-          [<<1, 2, 3>>, <<4, 5, 6>>, <<7, 8, 9>>]
-
-        {true, :full} ->
+        :full ->
           [{<<1, 2, 3>>, "uuid-1"}]
-
-        {false, :full} ->
-          [<<1, 2, 3>>]
-
-        {_composite?, :composite_default} ->
-          [{<<1, 2, 3>>, "uuid-1"}, {<<4, 5, 6>>, "uuid-2"}]
-
-        {_composite?, :composite_with_missing} ->
-          [{<<1, 2, 3>>, "uuid-1"}, {<<4, 5, 6>>, "uuid-2"}, {<<7, 8, 9>>, "uuid-3"}]
-
-        {_composite?, :composite_full} ->
-          [{<<1, 2, 3>>, "uuid-1"}]
-
-        {_composite?, custom} when is_list(custom) ->
-          custom
       end
     end
 

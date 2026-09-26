@@ -42,47 +42,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
         Switching.mirror(internal, main)
         Copying.await_copied(internal, main)
 
-        # Start local in-process sync after bootstrap copy completes
-        source_repo = Chat.Repo
-
-        target_repo =
-          case pg_opts do
-            nil -> nil
-            opts -> Map.get(opts, :repo)
-          end
-
-        if is_nil(target_repo) do
-          log("skipping local sync target_repo_present?=false", :debug)
-        else
-          Sync.set_active()
-
-          Sync.run_local_sync(
-            source_repo: source_repo,
-            target_repo: target_repo,
-            schemas: Sync.schemas()
-          )
-          |> case do
-            :ok ->
-              setup_logical_replication(source_repo, target_repo)
-              broadcast_pg_diff_copied()
-
-            {:partial, failures} ->
-              # Some tables were skipped (constraint/data errors). The tables that did
-              # sync are on the drive, and logical replication plus the next attach heal
-              # the rest — so continue, but the status stays :partial (not :done).
-              log("local sync incomplete, skipped tables=#{inspect(Map.keys(failures))}", :error)
-              setup_logical_replication(source_repo, target_repo)
-              broadcast_pg_diff_copied()
-
-            {:error, reason} ->
-              # Connection/infra failure: do not set up replication against a target we
-              # could not sync. Status stays {:error, _} and is not overwritten by :done.
-              log(
-                "local sync aborted, skipping replication setup reason=#{inspect(reason)}",
-                :error
-              )
-          end
-        end
+        sync_pg_to_main(pg_opts)
 
         device = Map.get(pg_opts, :device)
         Switching.set_default(main, drive_id: device)
@@ -121,6 +81,39 @@ defmodule Platform.Storage.InternalToMain.Copier do
     |> Switching.set_default(drive_id: :internal)
 
     DbBrokers.refresh()
+  end
+
+  # Local in-process PG sync after bootstrap copy completes
+  defp sync_pg_to_main(pg_opts) do
+    case pg_opts && Map.get(pg_opts, :repo) do
+      nil -> log("skipping local sync target_repo_present?=false", :debug)
+      target_repo -> sync_and_replicate_pg(Chat.Repo, target_repo)
+    end
+  end
+
+  defp sync_and_replicate_pg(source_repo, target_repo) do
+    Sync.set_active()
+
+    [source_repo: source_repo, target_repo: target_repo, schemas: Sync.schemas()]
+    |> Sync.run_local_sync()
+    |> case do
+      :ok ->
+        setup_logical_replication(source_repo, target_repo)
+        broadcast_pg_diff_copied()
+
+      {:partial, failures} ->
+        # Some tables were skipped (constraint/data errors). The tables that did
+        # sync are on the drive, and logical replication plus the next attach heal
+        # the rest — so continue, but the status stays :partial (not :done).
+        log("local sync incomplete, skipped tables=#{inspect(Map.keys(failures))}", :error)
+        setup_logical_replication(source_repo, target_repo)
+        broadcast_pg_diff_copied()
+
+      {:error, reason} ->
+        # Connection/infra failure: do not set up replication against a target we
+        # could not sync. Status stays {:error, _} and is not overwritten by :done.
+        log("local sync aborted, skipping replication setup reason=#{inspect(reason)}", :error)
+    end
   end
 
   defp broadcast_pg_diff_copied do

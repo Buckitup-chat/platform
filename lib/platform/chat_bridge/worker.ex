@@ -29,6 +29,19 @@ defmodule Platform.ChatBridge.Worker do
   end
 
   def handle_info(message, state) do
+    message
+    |> handle_chat_request()
+    |> respond()
+
+    noreply(state)
+  rescue
+    _ -> noreply(state)
+  end
+
+  # Flat dispatch table — each branch is a one-line delegation, so the branch count
+  # is not real complexity.
+  # credo:disable-for-next-line Credo.Check.Refactor.CyclomaticComplexity
+  defp handle_chat_request(message) do
     case message do
       :get_wifi_settings ->
         Logic.get_wifi_settings()
@@ -75,11 +88,6 @@ defmodule Platform.ChatBridge.Worker do
       {:upgrade_firmware_from_url, url} ->
         Logic.upgrade_firmware_from_url(url)
     end
-    |> respond()
-
-    noreply(state)
-  rescue
-    _ -> noreply(state)
   end
 
   defp noreply(x), do: {:noreply, x}
