@@ -1,7 +1,5 @@
 defmodule Platform.App.Drive.BackupDbSupervisor do
-  @moduledoc """
-  Main DB device mount
-  """
+  @moduledoc "Backup DB device mount — starts CubDB, chunk pipeline, and Copier for a backup USB drive."
   use Supervisor
   use Toolbox.OriginLog
 
@@ -9,6 +7,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
 
   alias Chat.Admin.BackupSettings
   alias Chat.AdminRoom
+  alias Chat.Data.File.ChunkPipelineSupervisor
   alias Platform.Storage.Backup.Copier
   alias Platform.Storage.Bouncer
 
@@ -30,16 +29,36 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
     db = Chat.Db.BackupDb
     continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
     backup_repo = Map.get(pg_opts, :repo)
+    backup_base_dir = full_path <> "_files"
 
-    [
-      {Task.Supervisor, name: tasks},
-      {Task, fn -> File.mkdir_p!(full_path) end},
-      {Chat.Db.MediaDbSupervisor, [db, full_path]} |> exit_takes(20_000),
-      {Bouncer, db: db, type: type},
-      {Copier,
-       continuous?: continuous?, tasks_name: tasks, device: device, backup_repo: backup_repo}
-      |> exit_takes(35_000)
-    ]
+    chunk_pipeline =
+      case backup_repo do
+        nil ->
+          []
+
+        _ ->
+          [
+            {ChunkPipelineSupervisor,
+             drive_id: device, base_dir: backup_base_dir, repo: backup_repo}
+          ]
+      end
+
+    ([
+       {Task.Supervisor, name: tasks},
+       {Task, fn -> File.mkdir_p!(full_path) end},
+       {Chat.Db.MediaDbSupervisor, [db, full_path]} |> exit_takes(20_000),
+       {Bouncer, db: db, type: type}
+     ] ++
+       chunk_pipeline ++
+       [
+         {Copier,
+          continuous?: continuous?,
+          tasks_name: tasks,
+          device: device,
+          backup_repo: backup_repo,
+          backup_base_dir: backup_base_dir}
+         |> exit_takes(35_000)
+       ])
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->
       log("init result #{inspect(res)}", :debug)

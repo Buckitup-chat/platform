@@ -3,8 +3,9 @@ defmodule Platform.Storage.Sync do
 
   use Toolbox.OriginLog
 
+  alias Chat.Data.File.ChunkPresence
   alias Chat.Data.Shapes
-  alias Ecto.Adapters.SQL
+  alias Platform.Tools.Postgres
   alias Platform.Tools.Postgres.BatchSync
 
   @key {__MODULE__, :status}
@@ -13,7 +14,7 @@ defmodule Platform.Storage.Sync do
 
   @spec schemas(keyword()) :: [module()]
   def schemas(opts \\ []) do
-    case config() |> Keyword.get(:schemas) do
+    case config()[:schemas] do
       nil -> Keyword.get(opts, :default, Shapes.sync_schemas())
       configured -> configured
     end
@@ -36,11 +37,7 @@ defmodule Platform.Storage.Sync do
     # Never downgrade a recorded failure to "done" — a partial or aborted sync must
     # stay visible. set_active/0 resets the status at the start of each attempt.
     case :persistent_term.get(@key, :inactive) do
-      {:error, _} = status ->
-        log("keeping state=#{inspect(status)} (not overwriting with done)", :warning)
-        :ok
-
-      {:partial, _} = status ->
+      {tag, _} = status when tag in [:error, :partial] ->
         log("keeping state=#{inspect(status)} (not overwriting with done)", :warning)
         :ok
 
@@ -110,25 +107,16 @@ defmodule Platform.Storage.Sync do
   end
 
   defp backfill_target_missing_chunks(source_repo, target_repo) do
-    source_id = query_system_id(source_repo)
+    source_id = Postgres.system_identifier(source_repo)
 
     count =
-      Chat.Data.File.backfill_missing_chunks_from_file_chunks(
+      ChunkPresence.backfill_missing_from_file_chunks(
         source_id,
         Chat.TimeKeeper.now_unix(),
         repo: target_repo
       )
 
     if count > 0, do: log("backfilled #{count} missing_chunks on target", :info)
-  end
-
-  defp query_system_id(repo) do
-    case SQL.query(repo, "SELECT system_identifier FROM pg_control_system()", []) do
-      {:ok, %{rows: [[id]]}} -> to_string(id)
-      _ -> nil
-    end
-  rescue
-    _ -> nil
   end
 
   defp config do

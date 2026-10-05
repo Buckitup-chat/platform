@@ -59,6 +59,16 @@ defmodule Platform.Tools.Postgres do
     "host=#{host} port=#{port} dbname=#{database} user=#{username} password=#{password}"
   end
 
+  @doc "Returns the PostgreSQL system identifier for the given repo as a string, or nil on failure."
+  def system_identifier(repo) do
+    case Ecto.Adapters.SQL.query(repo, "SELECT system_identifier FROM pg_control_system()", []) do
+      {:ok, %{rows: [[id]]}} -> to_string(id)
+      _ -> nil
+    end
+  rescue
+    _ -> nil
+  end
+
   @doc """
   Create a daemon specification for running PostgreSQL server under supervision.
 

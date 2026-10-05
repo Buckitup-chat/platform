@@ -12,6 +12,7 @@ defmodule Platform.Storage.Backup.Copier do
   alias Chat.Sync.DbBrokers
 
   alias Platform.Leds
+  alias Platform.Storage.Backup.ChunkAwaiter
   alias Platform.Storage.Stopper
   alias Platform.Storage.Sync
   alias Platform.Tools.Postgres
@@ -21,11 +22,12 @@ defmodule Platform.Storage.Backup.Copier do
   @impl true
   def on_init(opts) do
     %{
-      task_in: opts |> Keyword.fetch!(:tasks_name),
-      continuous?: opts |> Keyword.fetch!(:continuous?),
+      task_in: Keyword.fetch!(opts, :tasks_name),
+      continuous?: Keyword.fetch!(opts, :continuous?),
       task_ref: nil,
       device: opts[:device],
-      backup_repo: opts[:backup_repo]
+      backup_repo: opts[:backup_repo],
+      backup_base_dir: opts[:backup_base_dir]
     }
     |> tap(fn _ -> send(self(), :start) end)
   end
@@ -33,19 +35,17 @@ defmodule Platform.Storage.Backup.Copier do
   @impl true
   def on_msg(
         :start,
-        %{task_in: tasks_name, continuous?: continuous?, backup_repo: backup_repo} = state
+        %{
+          task_in: tasks_name,
+          continuous?: continuous?,
+          backup_repo: backup_repo
+        } = state
       ) do
     log("syncing", :info)
-
-    internal = Chat.Db.InternalDb
-    main = Chat.Db.MainDb
-    backup = Chat.Db.BackupDb
-
     set_db_flag(backup: true)
 
     %{ref: ref} =
-      tasks_name
-      |> Task.Supervisor.async_nolink(fn ->
+      Task.Supervisor.async_nolink(tasks_name, fn ->
         Leds.blink_read()
         Copying.await_copied(Chat.Db.BackupDb, Db.db())
         Ordering.reset()
@@ -56,9 +56,11 @@ defmodule Platform.Storage.Backup.Copier do
 
         if continuous? do
           Process.sleep(1_000)
-          Switching.mirror(main, [internal, backup])
+          Switching.mirror(Chat.Db.MainDb, [Chat.Db.InternalDb, Chat.Db.BackupDb])
           setup_pg_replication(backup_repo)
           Process.sleep(3_000)
+        else
+          ChunkAwaiter.await(backup_repo)
         end
 
         DbBrokers.refresh()
@@ -96,13 +98,10 @@ defmodule Platform.Storage.Backup.Copier do
 
   @impl true
   def on_exit(_reason, state) do
-    internal = Chat.Db.InternalDb
-    main = Chat.Db.MainDb
-
     set_db_flag(backup: false)
     Leds.blink_done()
     cleanup_pg_replication(state[:backup_repo])
-    Switching.mirror(main, internal)
+    Switching.mirror(Chat.Db.MainDb, Chat.Db.InternalDb)
     Ordering.reset()
     DbBrokers.refresh()
   end
