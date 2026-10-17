@@ -94,7 +94,7 @@ defmodule Platform.App.Drive.BootSupervisor do
       {:step, name(DbCreated, device),
        {@pg_db_creator, db_name: "chat", pg_port: port, task_in: task_supervisor}
        |> exit_takes(15_000)},
-      {:stage, name(RepoStarted, device),
+      {:step, name(RepoStarted, device),
        {@pg_repo_starter, name: repo_name, port: port, task_in: task_supervisor}
        |> exit_takes(30_000)},
       {:step, name(MigrationsRun, device),

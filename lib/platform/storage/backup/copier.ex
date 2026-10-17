@@ -163,11 +163,19 @@ defmodule Platform.Storage.Backup.Copier do
   defp cleanup_pg_replication(nil), do: :ok
 
   defp cleanup_pg_replication(backup_repo) do
-    _ = LogicalReplicator.drop_subscription_if_exists(backup_repo, "backup_from_internal")
-    _ = LogicalReplicator.drop_slot_if_exists(Chat.Repo, "backup_from_internal")
+    try do
+      _ = LogicalReplicator.drop_subscription_if_exists(backup_repo, "backup_from_internal")
+    catch
+      kind, reason -> log("PG subscription cleanup #{kind}: #{inspect(reason)}", :warning)
+    end
+
+    try do
+      _ = LogicalReplicator.drop_slot_if_exists(Chat.Repo, "backup_from_internal")
+    catch
+      kind, reason -> log("PG slot cleanup #{kind}: #{inspect(reason)}", :warning)
+    end
+
     log("PG backup replication cleaned up", :info)
-  catch
-    kind, reason -> log("PG replication cleanup #{kind}: #{inspect(reason)}", :error)
   end
 
   defp set_db_flag(flags) do
