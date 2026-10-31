@@ -19,20 +19,14 @@ defmodule Platform.Storage.PhoenixSyncInit do
   def on_init(opts) do
     task_supervisor = Keyword.get(opts, :task_in)
     next = Keyword.get(opts, :next)
-    init_peers = Keyword.get(opts, :init_peers, false)
 
-    %{task_in: task_supervisor, next: next, init_peers: init_peers}
+    %{task_in: task_supervisor, next: next}
     |> tap(fn _ -> send(self(), :start) end)
   end
 
   @impl GracefulGenServer
   def on_msg(:start, state) do
     reinit_phoenix_sync("on_init")
-
-    if state.init_peers do
-      Chat.NetworkSynchronization.init_electric_peers()
-    end
-
     if state.next, do: Platform.start_next_stage(state.next[:under], state.next[:run])
     {:noreply, state}
   end

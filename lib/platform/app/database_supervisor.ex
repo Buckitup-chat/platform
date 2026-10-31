@@ -61,7 +61,7 @@ defmodule Platform.App.DatabaseSupervisor do
        {@pg_migration_runner, repo_name: Chat.Repo, task_in: task_supervisor}
        |> exit_takes(60_000)},
       {:step, PhoenixSyncReady,
-       {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor, init_peers: true}
+       {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor}
        |> exit_takes(15_000)},
       {Chat.Data.File.ChunkPipelineSupervisor,
        drive_id: :internal, repo: Chat.Repo, base_dir: DriveDirs.internal_files_dir()}
