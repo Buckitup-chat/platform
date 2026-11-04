@@ -164,6 +164,7 @@ defmodule Platform.Application do
              end
            end},
           Platform.Network.IptablesMonitor,
+          Platform.Network.TurnRelay,
           Chat.TimeKeeper,
           Platform.Storage.DriveIndication,
           Platform.App.DeviceSupervisor,
