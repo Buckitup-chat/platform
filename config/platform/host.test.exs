@@ -22,6 +22,12 @@ config :chat, Chat.Db.ChangeTracker, expire_seconds: 3
 # :info, not :warning - some tests assert on info logs.
 config :logger, level: :info
 
+# Drive repos on host derive their database names from this one
+# (platform_test_chat_<device>), keeping tests off the dev "chat" databases.
+config :chat, Chat.Repo,
+  database: "platform_test_chat",
+  password: System.get_env("POSTGRES_PASSWORD", "postgres")
+
 # Test repositories for integration testing
 config :platform, Platform.Test.InternalRepo,
   database: "platform_test_internal",

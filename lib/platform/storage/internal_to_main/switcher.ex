@@ -72,18 +72,19 @@ defmodule Platform.Storage.InternalToMain.Switcher do
       # Use port from pg_opts since repo.config() may have compile-time port
       conn_string = Pg.build_connection_string(main_repo, port: main_port)
 
+      # Slot first, so the subscription reuses it instead of creating one itself —
+      # that would hang when both DBs share a cluster (host drive emulation)
+      _ = LogicalReplicator.ensure_slot_on_source(main_repo, "internal_from_main")
+
       case LogicalReplicator.create_subscription(
              Chat.Repo,
              conn_string,
              "main_to_internal",
              "internal_from_main",
              copy_data: false,
-             # Create disabled, enable after ensuring slot
              enabled: false
            ) do
         :ok ->
-          # Ensure slot exists on source (main) before enabling subscription
-          _ = LogicalReplicator.ensure_slot_on_source(main_repo, "internal_from_main")
           _ = LogicalReplicator.enable_subscription(Chat.Repo, "internal_from_main")
           log("PG replication switched to main→internal", :info)
 

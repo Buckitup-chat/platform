@@ -121,6 +121,9 @@ defmodule DriveSupervisionTest do
     else
       _ -> false
     end
+  catch
+    # The supervisor went down while being asked: the tree is still restarting
+    :exit, _ -> false
   end
 
   defp find_next_stage(supervisor) do
@@ -133,6 +136,8 @@ defmodule DriveSupervisionTest do
     else
       _ -> false
     end
+  catch
+    :exit, _ -> false
   end
 
   defp prepare do

@@ -54,9 +54,11 @@ defmodule Support.Drive.Manipulation do
     get_registered_drives(Platform.App.Drive.BootSupervisor)
     |> Enum.each(fn {drive, _pid} -> Detector.eject(drive) end)
 
-    await_till(fn ->
-      [] == get_registered_drives(Platform.App.Drive.BootSupervisor)
-    end)
+    # Main drive teardown (replication cleanup, Phoenix.Sync reinit) takes seconds
+    await_till(
+      fn -> [] == get_registered_drives(Platform.App.Drive.BootSupervisor) end,
+      time: 15_000
+    )
   end
 
   def clean_filesystem do
@@ -101,7 +103,8 @@ defmodule Support.Drive.Manipulation do
     Scenario
     |> get_registered_drives()
     |> Enum.map(fn {drive, pid} ->
-      Supervisor.which_children(pid)
+      pid
+      |> which_children()
       |> case do
         [{_, _, _, [supervisor]}] -> {drive, supervisor}
         _ -> nil
@@ -109,6 +112,13 @@ defmodule Support.Drive.Manipulation do
     end)
     |> Enum.reject(&is_nil/1)
     |> Map.new()
+  end
+
+  # A scenario supervisor can go down while being asked
+  defp which_children(pid) do
+    Supervisor.which_children(pid)
+  catch
+    :exit, _ -> []
   end
 
   defp check_scenario(total, started) do
