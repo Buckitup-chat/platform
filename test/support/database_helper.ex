@@ -189,11 +189,34 @@ defmodule Platform.Test.DatabaseHelper do
       {"PGPASSWORD", password}
     ]
 
-    # Create users table schema
+    # users: test-only sync schema (Platform.Test.User).
+    # file_chunks / missing_chunks: read by Sync.run_local_sync/1's chunk backfill;
+    # mirror chat's columns, without FKs and triggers.
     sql = """
     CREATE TABLE IF NOT EXISTS users (
       pub_key bytea PRIMARY KEY,
       name text NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS file_chunks (
+      file_id text NOT NULL,
+      chunk_index integer NOT NULL,
+      size integer NOT NULL,
+      uploader_hash text NOT NULL,
+      owner_timestamp bigint NOT NULL,
+      sign_b64 bytea NOT NULL,
+      data_hash text NOT NULL,
+      PRIMARY KEY (file_id, chunk_index)
+    );
+    CREATE TABLE IF NOT EXISTS missing_chunks (
+      file_id text NOT NULL,
+      chunk_index integer NOT NULL,
+      data_hash text,
+      size integer,
+      peer_url text,
+      attempts integer DEFAULT 0 NOT NULL,
+      updated_at bigint NOT NULL,
+      source_drive_id text,
+      PRIMARY KEY (file_id, chunk_index)
     );
     """
 

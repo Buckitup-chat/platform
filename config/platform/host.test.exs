@@ -17,6 +17,11 @@ config :platform,
 
 config :chat, Chat.Db.ChangeTracker, expire_seconds: 3
 
+# At :debug the Ecto query flood pushes Logger into sync mode, where
+# AdminLogger's CubDB writes can wedge every logging process.
+# :info, not :warning - some tests assert on info logs.
+config :logger, level: :info
+
 # Test repositories for integration testing
 config :platform, Platform.Test.InternalRepo,
   database: "platform_test_internal",

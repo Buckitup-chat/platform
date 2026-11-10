@@ -3,7 +3,7 @@ defmodule DriveSupervisionTest do
 
   import Support.Drive.Manipulation
 
-  @drive "main_drive"
+  @drive "sde1"
 
   test "main dies by last stage" do
     prepare()

@@ -10,10 +10,10 @@ defmodule Platform.App.DrivesTest do
     prepare()
     media_settings_set_to(main: true, scenario: :backup)
 
-    insert_empty_drive("drive1")
+    insert_empty_drive("sdb1")
     assert only_main_scenario_started?()
 
-    insert_backup_drive("backup_drive")
+    insert_backup_drive("sdd1")
     assert main_and_non_main_scenario_started?()
 
     cleanup()
@@ -23,7 +23,7 @@ defmodule Platform.App.DrivesTest do
     prepare()
     media_settings_set_to(main: false, scenario: :backup)
 
-    insert_empty_drive("drive1")
+    insert_empty_drive("sdb1")
     assert only_backup_scenario_started?()
 
     cleanup()
@@ -33,10 +33,10 @@ defmodule Platform.App.DrivesTest do
     prepare()
     media_settings_set_to(main: true, scenario: :backup)
 
-    insert_main_drive("main_drive")
+    insert_main_drive("sde1")
     assert only_main_scenario_started?()
 
-    insert_main_drive("main_drive2")
+    insert_main_drive("sdf1")
     assert only_main_scenario_started?()
 
     cleanup()
@@ -46,10 +46,10 @@ defmodule Platform.App.DrivesTest do
     prepare()
     media_settings_set_to(main: true, scenario: :backup)
 
-    insert_main_drive("main_drive")
+    insert_main_drive("sde1")
     assert only_main_scenario_started?()
 
-    insert_empty_drive("drive2")
+    insert_empty_drive("sdc1")
     assert main_and_backup_scenario_started?()
 
     cleanup()
@@ -59,10 +59,10 @@ defmodule Platform.App.DrivesTest do
     prepare()
     media_settings_set_to(main: true, scenario: :backup)
 
-    insert_main_drive("main_drive")
+    insert_main_drive("sde1")
     assert only_main_scenario_started?()
 
-    insert_cargo_drive("cargo_drive")
+    insert_cargo_drive("sdg1")
     assert main_and_cargo_scenario_started?()
 
     cleanup()
@@ -71,7 +71,7 @@ defmodule Platform.App.DrivesTest do
   test "cargo starts cargo" do
     prepare()
 
-    insert_cargo_drive("cargo_drive")
+    insert_cargo_drive("sdg1")
     assert only_cargo_scenario_started?()
 
     cleanup()
@@ -81,7 +81,7 @@ defmodule Platform.App.DrivesTest do
     prepare()
     media_settings_set_to(main: false, scenario: :onliners)
 
-    insert_onliners_drive("onliners_drive")
+    insert_onliners_drive("sdh1")
     assert only_onliners_scenario_started?()
 
     cleanup()
@@ -91,10 +91,10 @@ defmodule Platform.App.DrivesTest do
     prepare()
     media_settings_set_to(main: true, scenario: :backup)
 
-    insert_empty_drive("drive1")
+    insert_empty_drive("sdb1")
     assert only_main_scenario_started?()
 
-    insert_onliners_drive("onliners_drive")
+    insert_onliners_drive("sdh1")
     assert main_and_onliners_scenario_started?()
 
     cleanup()
@@ -104,7 +104,7 @@ defmodule Platform.App.DrivesTest do
     prepare()
 
     create_room_and_set_it_to_receive_dump()
-    insert_dump_drive("camera")
+    insert_dump_drive("sdi1")
     assert only_dump_scenario_started?()
 
     cleanup()
@@ -114,7 +114,7 @@ defmodule Platform.App.DrivesTest do
     prepare()
     media_settings_set_to(main: false, scenario: :backup)
 
-    insert_dump_drive("camera")
+    insert_dump_drive("sdi1")
     assert only_backup_scenario_started?()
 
     cleanup()
