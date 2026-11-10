@@ -7,7 +7,7 @@ defmodule Platform.Storage.Repo.MigrationRunner do
   use Toolbox.OriginLog
 
   alias Chat.Db.Boot.RepoReady
-  alias Platform.Tools.Postgres.LogicalReplicator
+  alias Chat.Storage.Pg.LogicalReplicator
 
   @impl true
   def on_init(opts) do

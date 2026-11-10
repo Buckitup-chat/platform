@@ -7,10 +7,10 @@ defmodule Platform.Storage.InternalToMain.Switcher do
 
   alias Chat.Data.Shapes
   alias Chat.Db.Common
+  alias Chat.Storage.Pg
+  alias Chat.Storage.Pg.LogicalReplicator
   alias Chat.Sync.DbBrokers
   alias Platform.Storage.Sync
-  alias Platform.Tools.Postgres
-  alias Platform.Tools.Postgres.LogicalReplicator
 
   @impl true
   def on_init(args) do
@@ -70,7 +70,7 @@ defmodule Platform.Storage.InternalToMain.Switcher do
 
       # Create subscription on internal for main→internal
       # Use port from pg_opts since repo.config() may have compile-time port
-      conn_string = Postgres.build_connection_string(main_repo, port: main_port)
+      conn_string = Pg.build_connection_string(main_repo, port: main_port)
 
       case LogicalReplicator.create_subscription(
              Chat.Repo,

@@ -1,9 +1,8 @@
 defmodule Platform.Storage.SyncIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias Chat.Data.Schemas.User
   alias Platform.Storage.Sync
-  alias Platform.Test.{DatabaseHelper, InternalRepo, MainRepo}
+  alias Platform.Test.{DatabaseHelper, InternalRepo, MainRepo, User}
 
   @moduletag :integration
   @moduletag :postgres
@@ -41,7 +40,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded
@@ -64,7 +63,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded
@@ -91,7 +90,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded
@@ -107,7 +106,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InvalidRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify error was returned
@@ -122,7 +121,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
       result =
         Sync.run_local_sync(
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Should return error due to missing source_repo
@@ -133,7 +132,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
       result =
         Sync.run_local_sync(
           source_repo: InternalRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Should return error due to missing target_repo
@@ -169,7 +168,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded
@@ -189,7 +188,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded (even with 0 rows copied)
@@ -246,7 +245,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
 
     @tag :no_db
     test "returns configured schemas even when default is provided" do
-      # Config has schemas: [:users], so it should return that
+      # Config has schemas: [User], so it should return that
       # even when a different default is provided
       schemas = Sync.schemas(default: [:users, :messages])
       assert schemas == [:users]

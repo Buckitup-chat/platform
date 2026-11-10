@@ -8,11 +8,11 @@ defmodule Platform.Storage.InternalToMain.Copier do
   alias Chat.Data.Shapes
   alias Chat.Db.Copying
   alias Chat.Db.Switching
+  alias Chat.Storage.Pg
+  alias Chat.Storage.Pg.LogicalReplicator
   alias Chat.Sync.DbBrokers
   alias Platform.Leds
   alias Platform.Storage.Sync
-  alias Platform.Tools.Postgres
-  alias Platform.Tools.Postgres.LogicalReplicator
 
   @impl true
   def on_init(opts) do
@@ -122,7 +122,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
   # Private helper to set up logical replication after sync
   defp setup_logical_replication(source_repo, target_repo) do
-    conn_string = Postgres.build_connection_string(source_repo)
+    conn_string = Pg.build_connection_string(source_repo)
 
     # Clean up stale slots from previous sessions before creating new ones
     _ = LogicalReplicator.drop_slot_if_exists(source_repo, "main_from_internal")

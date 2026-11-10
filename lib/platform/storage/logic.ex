@@ -6,7 +6,7 @@ defmodule Platform.Storage.Logic do
   alias Chat.Db.Common
   alias Chat.Db.Copying
   alias Chat.Db.Switching
-  alias Platform.Tools.Postgres.LogicalReplicator
+  alias Chat.Storage.Pg.LogicalReplicator
 
   def replicate_main_to_internal do
     case get_db_mode() do
