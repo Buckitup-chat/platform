@@ -9,4 +9,10 @@ defmodule Support.Admin.Settings do
     |> Map.put(:functionality, scenario)
     |> AdminRoom.store_media_settings()
   end
+
+  def media_optimize_set_to(optimize?) do
+    AdminRoom.get_media_settings()
+    |> Map.put(:optimize, optimize?)
+    |> AdminRoom.store_media_settings()
+  end
 end

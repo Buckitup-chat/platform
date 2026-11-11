@@ -54,7 +54,8 @@ make cover
 **Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` handles internal→main replication and Phoenix.Sync init. `BackupDbSupervisor` handles backup copying.
 
 **Platform.App.Drive.BootSupervisor**: Per-drive staged startup sequence
-- Healer → Mounter → PostgreSQL initialization → DB creation → Repo → Migrations → Decider
+- Healer → Mounter → InternalDbAwaiter → Resolver → [PG init → daemon → DB creation → Repo → Migrations] → Decider
+- `Platform.UsbDrives.Resolver` resolves the role first (`Chat.Storage.Role.from_mount/1`; blank drive → optional `optimize_fs` → role from `MediaSettings` → role dir; a taken role is ignored), then builds the rest of the tree: PG stages only for roles with `:pg`. `Decider` starts the scenario.
 - Uses compile-time module selection: real modules on target, emulators on host
 
 **Platform.Storage.BootWatchdog**: Monitors staged boot trees from outside. Fingerprints each tree every 30s; if a stage stalls (alive but wedged), kills the deepest stuck stage so supervisors can recover. Watches internal DB tree and each drive tree up to `Decider`.
@@ -94,6 +95,7 @@ Compile-time switches in `BootSupervisor`:
 | `Platform.Storage.Pg.*` (initdb, daemon, db creator) | `Platform.Emulator.EmptyBypass` |
 | `Platform.Storage.Repo.Starter` | `Platform.Emulator.Drive.RepoStarter` |
 | `Platform.Storage.Repo.MigrationRunner` | `Platform.Emulator.Drive.MigrationRunner` |
+| `Platform.Storage.FsOptimizer` | `Platform.Emulator.Drive.FsOptimizer` |
 
 On host each drive repo uses its own database (`<Chat.Repo database>_<device>`) on the local PG server, so drive scenarios run real sync and logical replication. In tests `Chat.Repo` uses `platform_test_chat` (created and migrated by the `mix test` alias); `DatabaseHelper.drop_drive_databases/0` drops drive DBs and their subscriptions/slots.
 
