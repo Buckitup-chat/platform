@@ -31,6 +31,9 @@ defmodule Platform.Storage.PhoenixSyncInit do
     {:noreply, state}
   end
 
+  # Electric's in-memory KV notifies the process that (re)started the stack
+  def on_msg(_msg, state), do: {:noreply, state}
+
   @impl true
   def on_exit(_reason, _state) do
     # Reinit on exit to handle repo revert (e.g., USB ejected)

@@ -30,6 +30,8 @@ defmodule Platform.Test.DatabaseHelper do
     hostname = config[:hostname]
     port = config[:port]
 
+    drop_drive_databases()
+
     # Create databases using psql
     create_database(@internal_db, username, password, hostname, port)
     create_database(@main_db, username, password, hostname, port)
@@ -55,8 +57,66 @@ defmodule Platform.Test.DatabaseHelper do
 
     drop_database(@internal_db, username, password, hostname, port)
     drop_database(@main_db, username, password, hostname, port)
+    drop_drive_databases()
 
     :ok
+  end
+
+  @doc """
+  Drops the per-drive databases that host drive emulation creates
+  (`<Chat.Repo database>_<device>`), so each run starts from blank drives.
+
+  Drive scenarios set up logical replication between those databases and
+  `Chat.Repo`'s one. Slots are cluster-wide and pin WAL, so subscriptions and
+  slots of all these databases go first.
+  """
+  def drop_drive_databases do
+    config = Application.get_env(:platform, InternalRepo)
+    chat_db = Application.get_env(:chat, Chat.Repo)[:database]
+
+    "SELECT d.datname || ' ' || s.subname FROM pg_subscription s
+       JOIN pg_database d ON d.oid = s.subdbid WHERE starts_with(d.datname, '#{chat_db}')"
+    |> psql_rows(config)
+    |> Enum.each(fn row ->
+      [db, sub] = String.split(row)
+
+      ["DISABLE", "SET (slot_name = NONE)"]
+      |> Enum.each(&psql_rows("ALTER SUBSCRIPTION #{sub} #{&1}", config, db))
+
+      psql_rows("DROP SUBSCRIPTION #{sub}", config, db)
+    end)
+
+    # Electric (running on Chat.Repo's database) manages its own slot
+    slots =
+      "starts_with(database, '#{chat_db}') AND NOT starts_with(slot_name, 'electric_')"
+
+    "SELECT pg_terminate_backend(active_pid) FROM pg_replication_slots WHERE active AND #{slots}"
+    |> psql_rows(config)
+
+    "SELECT slot_name FROM pg_replication_slots WHERE #{slots}"
+    |> psql_rows(config)
+    |> Enum.each(&psql_rows("SELECT pg_drop_replication_slot('#{&1}')", config))
+
+    "SELECT datname FROM pg_database WHERE starts_with(datname, '#{chat_db}_sd')"
+    |> psql_rows(config)
+    |> Enum.each(&psql_rows("DROP DATABASE IF EXISTS #{&1} WITH (FORCE)", config))
+  end
+
+  defp psql_rows(sql, config, db_name \\ "postgres") do
+    {output, 0} = psql(config, db_name, sql)
+    String.split(output, "\n", trim: true)
+  end
+
+  defp psql(config, db_name, sql) do
+    System.cmd(
+      "psql",
+      [
+        ["-h", config[:hostname], "-p", to_string(config[:port]), "-U", config[:username]],
+        ["-d", db_name, "-Atc", sql]
+      ]
+      |> Enum.concat(),
+      env: [{"PGPASSWORD", config[:password]}]
+    )
   end
 
   @doc """
@@ -189,11 +249,34 @@ defmodule Platform.Test.DatabaseHelper do
       {"PGPASSWORD", password}
     ]
 
-    # Create users table schema
+    # users: test-only sync schema (Platform.Test.User).
+    # file_chunks / missing_chunks: read by Sync.run_local_sync/1's chunk backfill;
+    # mirror chat's columns, without FKs and triggers.
     sql = """
     CREATE TABLE IF NOT EXISTS users (
       pub_key bytea PRIMARY KEY,
       name text NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS file_chunks (
+      file_id text NOT NULL,
+      chunk_index integer NOT NULL,
+      size integer NOT NULL,
+      uploader_hash text NOT NULL,
+      owner_timestamp bigint NOT NULL,
+      sign_b64 bytea NOT NULL,
+      data_hash text NOT NULL,
+      PRIMARY KEY (file_id, chunk_index)
+    );
+    CREATE TABLE IF NOT EXISTS missing_chunks (
+      file_id text NOT NULL,
+      chunk_index integer NOT NULL,
+      data_hash text,
+      size integer,
+      peer_url text,
+      attempts integer DEFAULT 0 NOT NULL,
+      updated_at bigint NOT NULL,
+      source_drive_id text,
+      PRIMARY KEY (file_id, chunk_index)
     );
     """
 

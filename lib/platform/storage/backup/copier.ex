@@ -9,15 +9,15 @@ defmodule Platform.Storage.Backup.Copier do
   alias Chat.Db
   alias Chat.Db.{Common, Copying, Switching}
   alias Chat.Ordering
+  alias Chat.Storage.Pg
+  alias Chat.Storage.Pg.BatchSync
+  alias Chat.Storage.Pg.LogicalReplicator
   alias Chat.Sync.DbBrokers
 
   alias Platform.Leds
   alias Platform.Storage.Backup.ChunkAwaiter
   alias Platform.Storage.Stopper
   alias Platform.Storage.Sync
-  alias Platform.Tools.Postgres
-  alias Platform.Tools.Postgres.BatchSync
-  alias Platform.Tools.Postgres.LogicalReplicator
 
   @impl true
   def on_init(opts) do
@@ -134,7 +134,7 @@ defmodule Platform.Storage.Backup.Copier do
 
   defp setup_pg_replication(backup_repo) do
     source_repo = Chat.Repo
-    conn_string = Postgres.build_connection_string(source_repo)
+    conn_string = Pg.build_connection_string(source_repo)
 
     _ = LogicalReplicator.drop_slot_if_exists(source_repo, "backup_from_internal")
     tables = Shapes.sync_tables()

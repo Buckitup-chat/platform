@@ -5,8 +5,8 @@ defmodule Platform.Storage.Sync do
 
   alias Chat.Data.File.ChunkPresence
   alias Chat.Data.Shapes
-  alias Platform.Tools.Postgres
-  alias Platform.Tools.Postgres.BatchSync
+  alias Chat.Storage.Pg
+  alias Chat.Storage.Pg.BatchSync
 
   @key {__MODULE__, :status}
 
@@ -107,7 +107,7 @@ defmodule Platform.Storage.Sync do
   end
 
   defp backfill_target_missing_chunks(source_repo, target_repo) do
-    source_id = Postgres.system_identifier(source_repo)
+    source_id = Pg.system_identifier(source_repo)
 
     count =
       ChunkPresence.backfill_missing_from_file_chunks(

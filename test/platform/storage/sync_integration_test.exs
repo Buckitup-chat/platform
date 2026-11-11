@@ -1,9 +1,9 @@
 defmodule Platform.Storage.SyncIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias Chat.Data.Schemas.User
+  alias Chat.Data.Shapes
   alias Platform.Storage.Sync
-  alias Platform.Test.{DatabaseHelper, InternalRepo, MainRepo}
+  alias Platform.Test.{DatabaseHelper, InternalRepo, MainRepo, User}
 
   @moduletag :integration
   @moduletag :postgres
@@ -41,7 +41,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded
@@ -64,7 +64,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded
@@ -91,7 +91,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded
@@ -107,7 +107,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InvalidRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify error was returned
@@ -122,7 +122,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
       result =
         Sync.run_local_sync(
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Should return error due to missing source_repo
@@ -133,18 +133,26 @@ defmodule Platform.Storage.SyncIntegrationTest do
       result =
         Sync.run_local_sync(
           source_repo: InternalRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Should return error due to missing target_repo
       assert {:error, _reason} = result
     end
 
-    test "uses default schemas when not specified" do
-      # Insert users in source
+    test "uses configured schemas when not specified" do
+      # Test DBs only have the `users` table, so point the configured schemas at it
+      original = Application.get_env(:platform, Sync)
+      Application.put_env(:platform, Sync, schemas: [User])
+
+      on_exit(fn ->
+        if original,
+          do: Application.put_env(:platform, Sync, original),
+          else: Application.delete_env(:platform, Sync)
+      end)
+
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk1", name: "Alice"})
 
-      # Run sync without specifying schemas (should default to [:users])
       result =
         Sync.run_local_sync(
           source_repo: InternalRepo,
@@ -169,7 +177,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded
@@ -189,7 +197,7 @@ defmodule Platform.Storage.SyncIntegrationTest do
         Sync.run_local_sync(
           source_repo: InternalRepo,
           target_repo: MainRepo,
-          schemas: [:users]
+          schemas: [User]
         )
 
       # Verify sync succeeded (even with 0 rows copied)
@@ -230,26 +238,29 @@ defmodule Platform.Storage.SyncIntegrationTest do
     end
   end
 
-  describe "enabled?/0" do
-    @tag :no_db
-    test "returns true by default" do
-      assert Sync.enabled?() == true
-    end
-  end
-
   describe "schemas/1" do
     @tag :no_db
-    test "returns default schemas" do
-      schemas = Sync.schemas()
-      assert schemas == [:users]
+    test "returns chat's sync schemas when not configured" do
+      assert Sync.schemas() == Shapes.sync_schemas()
+    end
+
+    @tag :no_db
+    test "returns the given default when not configured" do
+      assert Sync.schemas(default: [User]) == [User]
     end
 
     @tag :no_db
     test "returns configured schemas even when default is provided" do
-      # Config has schemas: [:users], so it should return that
-      # even when a different default is provided
-      schemas = Sync.schemas(default: [:users, :messages])
-      assert schemas == [:users]
+      original = Application.get_env(:platform, Sync)
+      Application.put_env(:platform, Sync, schemas: [User])
+
+      on_exit(fn ->
+        if original,
+          do: Application.put_env(:platform, Sync, original),
+          else: Application.delete_env(:platform, Sync)
+      end)
+
+      assert Sync.schemas(default: [:users, :messages]) == [User]
     end
   end
 end

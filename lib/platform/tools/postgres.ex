@@ -37,39 +37,6 @@ defmodule Platform.Tools.Postgres do
   defdelegate cleanup_posix_shared_memory(), to: SharedMemory, as: :cleanup_posix
 
   @doc """
-  Build a PostgreSQL connection string from an Ecto repo configuration.
-
-  ## Parameters
-  - `repo` - An Ecto repository module
-  - `opts` - Optional keyword list with overrides:
-    - `:port` - Override the port from repo config (useful for dynamically started repos)
-
-  ## Returns
-  A connection string in the format: "host=... port=... dbname=... user=... password=..."
-  """
-  def build_connection_string(repo, opts \\ []) do
-    config = repo.config()
-    host = Keyword.get(config, :hostname, "localhost")
-    # Allow port override for dynamically started repos
-    port = Keyword.get(opts, :port) || Keyword.get(config, :port, 5432)
-    database = Keyword.get(config, :database, "chat")
-    username = Keyword.get(config, :username, "postgres")
-    password = Keyword.get(config, :password, "")
-
-    "host=#{host} port=#{port} dbname=#{database} user=#{username} password=#{password}"
-  end
-
-  @doc "Returns the PostgreSQL system identifier for the given repo as a string, or nil on failure."
-  def system_identifier(repo) do
-    case Ecto.Adapters.SQL.query(repo, "SELECT system_identifier FROM pg_control_system()", []) do
-      {:ok, %{rows: [[id]]}} -> to_string(id)
-      _ -> nil
-    end
-  rescue
-    _ -> nil
-  end
-
-  @doc """
   Create a daemon specification for running PostgreSQL server under supervision.
 
   ## Options

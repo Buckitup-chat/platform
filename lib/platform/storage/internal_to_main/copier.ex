@@ -8,11 +8,11 @@ defmodule Platform.Storage.InternalToMain.Copier do
   alias Chat.Data.Shapes
   alias Chat.Db.Copying
   alias Chat.Db.Switching
+  alias Chat.Storage.Pg
+  alias Chat.Storage.Pg.LogicalReplicator
   alias Chat.Sync.DbBrokers
   alias Platform.Leds
   alias Platform.Storage.Sync
-  alias Platform.Tools.Postgres
-  alias Platform.Tools.Postgres.LogicalReplicator
 
   @impl true
   def on_init(opts) do
@@ -122,7 +122,7 @@ defmodule Platform.Storage.InternalToMain.Copier do
 
   # Private helper to set up logical replication after sync
   defp setup_logical_replication(source_repo, target_repo) do
-    conn_string = Postgres.build_connection_string(source_repo)
+    conn_string = Pg.build_connection_string(source_repo)
 
     # Clean up stale slots from previous sessions before creating new ones
     _ = LogicalReplicator.drop_slot_if_exists(source_repo, "main_from_internal")
@@ -130,6 +130,9 @@ defmodule Platform.Storage.InternalToMain.Copier do
     tables = Shapes.sync_tables()
 
     with :ok <- LogicalReplicator.create_publication(source_repo, tables, "internal_to_main"),
+         # Slot first, so the subscription reuses it instead of creating one itself —
+         # that would hang when both DBs share a cluster (host drive emulation)
+         _ <- LogicalReplicator.ensure_slot_on_source(source_repo, "main_from_internal"),
          :ok <-
            LogicalReplicator.create_subscription(
              target_repo,
@@ -137,11 +140,8 @@ defmodule Platform.Storage.InternalToMain.Copier do
              "internal_to_main",
              "main_from_internal",
              copy_data: false,
-             # Create disabled, enable after ensuring slot
              enabled: false
            ) do
-      # Ensure slot exists on source before enabling subscription
-      _ = LogicalReplicator.ensure_slot_on_source(source_repo, "main_from_internal")
       _ = LogicalReplicator.enable_subscription(target_repo, "main_from_internal")
       log("logical replication setup complete", :info)
     else

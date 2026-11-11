@@ -82,7 +82,7 @@ The `Platform` module provides helpers for building staged supervision trees:
 - **USB drive detection**: `Platform.UsbDrives.Detector` watches for device insert/eject
 - **PostgreSQL**: Per-drive instances with port = 5432 + (device letter - 'a' + 1)
 - **Replication**: `Platform.Storage.Logic` handles main→internal DB replication
-- **Logical replication**: `Platform.Tools.Postgres.LogicalReplicator` for PostgreSQL streaming
+- **Logical replication / diff-copy**: `Chat.Storage.Pg.LogicalReplicator` and `Chat.Storage.Pg.BatchSync` (live in chat)
 
 ### Target vs Host Modules
 
@@ -91,7 +91,11 @@ Compile-time switches in `BootSupervisor`:
 |--------------|---------------|
 | `Platform.Storage.Healer` | `Platform.Emulator.Drive.Healer` |
 | `Platform.Storage.Mounter` | `Platform.Emulator.Drive.Mounter` |
-| `Platform.Storage.Pg.*` | `Platform.Emulator.EmptyBypass` |
+| `Platform.Storage.Pg.*` (initdb, daemon, db creator) | `Platform.Emulator.EmptyBypass` |
+| `Platform.Storage.Repo.Starter` | `Platform.Emulator.Drive.RepoStarter` |
+| `Platform.Storage.Repo.MigrationRunner` | `Platform.Emulator.Drive.MigrationRunner` |
+
+On host each drive repo uses its own database (`<Chat.Repo database>_<device>`) on the local PG server, so drive scenarios run real sync and logical replication. In tests `Chat.Repo` uses `platform_test_chat` (created and migrated by the `mix test` alias); `DatabaseHelper.drop_drive_databases/0` drops drive DBs and their subscriptions/slots.
 
 ## Dependencies
 

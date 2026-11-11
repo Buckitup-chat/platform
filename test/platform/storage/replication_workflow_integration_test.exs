@@ -2,18 +2,15 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
   @moduledoc """
   Integration tests for the complete PostgreSQL replication workflow.
 
-  Tests the full lifecycle of replication setup, mode transitions, and subscription management:
-  - Internal→main replication during :internal_to_main mode
-  - Main→internal replication during :main mode
-  - Subscription disable/enable on mode transitions
-  - Drive plug/unplug scenarios
+  Bootstrap sync (`Platform.Storage.Sync.run_local_sync/1`) on drive plug and after divergence.
+
+  Publication / slot / subscription behaviour of `Chat.Storage.Pg.LogicalReplicator` is
+  tested in chat (`Chat.Storage.Pg.LogicalReplicatorIntegrationTest`).
   """
   use ExUnit.Case, async: false
 
-  alias Chat.Data.Schemas.User
   alias Platform.Storage.Sync
-  alias Platform.Test.{DatabaseHelper, InternalRepo, MainRepo}
-  alias Platform.Tools.Postgres.LogicalReplicator
+  alias Platform.Test.{DatabaseHelper, InternalRepo, MainRepo, User}
 
   @moduletag :integration
   @moduletag :postgres
@@ -35,22 +32,7 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
     :ok
   end
 
-  describe "internal→main replication during :internal_to_main mode" do
-    test "sets up publication on internal and subscription on main" do
-      # Simulate the Copier setup_logical_replication flow
-      # Create publication on internal (source)
-      assert :ok =
-               LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
-
-      # Verify publication exists
-      assert publication_exists?(InternalRepo, "internal_to_main")
-
-      # Note: We skip subscription creation in tests because it requires
-      # actual replication slots and background workers which don't work
-      # well in the test environment. The LogicalReplicator module is
-      # already tested separately.
-    end
-
+  describe "bootstrap sync during :internal_to_main mode" do
     test "bootstrap sync works before replication setup" do
       # Insert users in internal
       {:ok, _} = InternalRepo.insert(%User{pub_key: "pk1", name: "Alice"})
@@ -64,7 +46,7 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
                Sync.run_local_sync(
                  source_repo: InternalRepo,
                  target_repo: MainRepo,
-                 schemas: [:users]
+                 schemas: [User]
                )
 
       # Verify users were copied to main
@@ -72,37 +54,6 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
       users = MainRepo.all(User) |> Enum.sort_by(& &1.pub_key)
       assert Enum.at(users, 0).name == "Alice"
       assert Enum.at(users, 1).name == "Bob"
-    end
-  end
-
-  describe "main→internal replication during :main mode" do
-    test "creates publication on main for reverse replication" do
-      # Simulate Switcher.switch_pg_replication (mode → :main)
-      # Create publication on main for main→internal
-      assert :ok = LogicalReplicator.create_publication(MainRepo, ["users"], "main_to_internal")
-
-      # Verify publication exists
-      assert publication_exists?(MainRepo, "main_to_internal")
-
-      # Note: Subscription creation skipped in tests (requires replication slots)
-    end
-  end
-
-  describe "subscription disable/enable on mode transitions" do
-    test "publication management during mode transitions" do
-      # Phase 1: Create internal→main publication (:internal_to_main mode)
-      assert :ok =
-               LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
-
-      assert publication_exists?(InternalRepo, "internal_to_main")
-
-      # Phase 2: Create main→internal publication (:main mode)
-      assert :ok = LogicalReplicator.create_publication(MainRepo, ["users"], "main_to_internal")
-      assert publication_exists?(MainRepo, "main_to_internal")
-
-      # Both publications can coexist
-      assert publication_exists?(InternalRepo, "internal_to_main")
-      assert publication_exists?(MainRepo, "main_to_internal")
     end
   end
 
@@ -121,17 +72,11 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
                Sync.run_local_sync(
                  source_repo: InternalRepo,
                  target_repo: MainRepo,
-                 schemas: [:users]
+                 schemas: [User]
                )
 
       # Verify bootstrap copied existing data
       assert MainRepo.aggregate(User, :count) == 2
-
-      # Setup replication for ongoing changes
-      assert :ok =
-               LogicalReplicator.create_publication(InternalRepo, ["users"], "internal_to_main")
-
-      assert publication_exists?(InternalRepo, "internal_to_main")
     end
 
     test "handles data divergence during unplug period" do
@@ -148,7 +93,7 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
                Sync.run_local_sync(
                  source_repo: InternalRepo,
                  target_repo: MainRepo,
-                 schemas: [:users]
+                 schemas: [User]
                )
 
       # Main should have all 4 users (CRDT-like merge)
@@ -190,12 +135,5 @@ defmodule Platform.Storage.ReplicationWorkflowIntegrationTest do
     end
 
     :ok
-  end
-
-  defp publication_exists?(repo, publication_name) do
-    case repo.query("SELECT 1 FROM pg_publication WHERE pubname = '#{publication_name}'") do
-      {:ok, %{rows: [[1]]}} -> true
-      _ -> false
-    end
   end
 end

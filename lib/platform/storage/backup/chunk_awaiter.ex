@@ -4,7 +4,7 @@ defmodule Platform.Storage.Backup.ChunkAwaiter do
   use Toolbox.OriginLog
 
   alias Chat.Data.File.ChunkPresence
-  alias Platform.Tools.Postgres
+  alias Chat.Storage.Pg
 
   @stall_limit 60
   @poll_interval 1_000
@@ -13,7 +13,7 @@ defmodule Platform.Storage.Backup.ChunkAwaiter do
   def await(nil), do: :ok
 
   def await(backup_repo) do
-    source_id = Postgres.system_identifier(Chat.Repo)
+    source_id = Pg.system_identifier(Chat.Repo)
 
     count =
       ChunkPresence.backfill_missing_from_file_chunks(

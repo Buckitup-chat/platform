@@ -6,7 +6,7 @@ defmodule Platform.Storage.Repo.Starter do
   use GracefulGenServer, timeout: :timer.minutes(3)
   use Toolbox.OriginLog
 
-  alias Platform.Tools.Postgres.LogicalReplicator
+  alias Chat.Storage.Pg.LogicalReplicator
 
   @impl true
   def on_init(opts) do

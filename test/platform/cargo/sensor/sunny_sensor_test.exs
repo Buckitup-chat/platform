@@ -9,6 +9,9 @@ defmodule Platform.Cargo.Sensor.SunnySensorTest do
   """
   use ExUnit.Case, async: true
 
+  # Placeholders: the scenario is not written yet
+  @moduletag :skip
+
   test "sensor messages should be written into cargo_room"
   test "indication is correct"
 end

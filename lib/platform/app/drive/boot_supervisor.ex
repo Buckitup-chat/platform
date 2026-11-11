@@ -35,8 +35,16 @@ defmodule Platform.App.Drive.BootSupervisor do
     @pg_daemon Platform.Emulator.EmptyBypass
     @pg_db_creator Platform.Emulator.EmptyBypass
     @pg_initializer Platform.Emulator.EmptyBypass
-    @pg_repo_starter Platform.Emulator.EmptyBypass
-    @pg_migration_runner Platform.Emulator.EmptyBypass
+    @pg_repo_starter Platform.Emulator.Drive.RepoStarter
+    @pg_migration_runner Platform.Emulator.Drive.MigrationRunner
+
+    # No per-drive PG server on host: each drive gets its own database on the local one
+    defp pg_port_for_device(_device), do: Application.get_env(:chat, Chat.Repo)[:port]
+
+    defp drive_repo_config(device, _port) do
+      config = Application.get_env(:chat, Chat.Repo)
+      Keyword.put(config, :database, "#{config[:database]}_#{device}")
+    end
   else
     @healer Platform.Storage.Healer
     @mounter Platform.Storage.Mounter
@@ -45,6 +53,16 @@ defmodule Platform.App.Drive.BootSupervisor do
     @pg_initializer Platform.Storage.Pg.Initializer
     @pg_repo_starter Platform.Storage.Repo.Starter
     @pg_migration_runner Platform.Storage.Repo.MigrationRunner
+
+    defp pg_port_for_device(device) do
+      "sd" <> <<index::8>> <> _ = device
+
+      5432 + 1 + index - ?a
+    end
+
+    defp drive_repo_config(_device, port) do
+      Application.get_env(:chat, Chat.Repo) |> Keyword.put(:port, port)
+    end
   end
 
   @mount_path Application.compile_env(:platform, :mount_path_media)
@@ -58,8 +76,8 @@ defmodule Platform.App.Drive.BootSupervisor do
     port = pg_port_for_device(device)
     repo_name = atom_name(Repo, device)
 
-    Application.get_env(:chat, Chat.Repo)
-    |> Keyword.put(:port, port)
+    device
+    |> drive_repo_config(port)
     |> then(&Application.put_env(:platform, repo_name, &1))
 
     repo_module_content =
@@ -124,12 +142,6 @@ defmodule Platform.App.Drive.BootSupervisor do
 
   defp name(stage, device) do
     Drive.registry_name(stage, device)
-  end
-
-  defp pg_port_for_device(device) do
-    "sd" <> <<index::8>> <> _ = device
-
-    5432 + 1 + index - ?a
   end
 
   defp mount_options do

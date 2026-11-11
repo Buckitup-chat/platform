@@ -14,7 +14,11 @@ defmodule Platform.MixProject do
       listeners: listeners(Mix.target(), Mix.env()),
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      releases: [{@app, release()}]
+      releases: [{@app, release()}],
+      # Chat.Repo is used right at boot on host: its DB must exist and be migrated first
+      aliases: [
+        test: ["ecto.create --quiet -r Chat.Repo", "ecto.migrate --quiet -r Chat.Repo", "test"]
+      ]
     ]
     |> more_project()
   end
