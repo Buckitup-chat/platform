@@ -11,6 +11,11 @@ config :phoenix, :json_library, Jason
 
 config :chat, file_chunk_size: 10 * 1024 * 1024
 config :chat, :usb_media_root, "/root/media"
+
+# Storage unit roots (Chat.Storage.Unit): internal CubDB at /root/db/v.10.1
+config :chat, Chat.Storage,
+  internal_root: "/root",
+  media_root: "/root/media"
 config :chat, Chat.Db.ChangeTracker, expire_seconds: 31
 
 config :chat,
