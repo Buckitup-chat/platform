@@ -1,7 +1,6 @@
 import Config
 
 config :chat, :admin_cub_db_file, "priv/test_admin_db"
-config :chat, :usb_media_root, "priv/test_media"
 
 # Internal CubDB stays at priv/test_db/v.10.1
 config :chat, Chat.Storage,

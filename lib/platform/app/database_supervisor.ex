@@ -8,7 +8,7 @@ defmodule Platform.App.DatabaseSupervisor do
 
   import Platform
 
-  alias Chat.Data.File.DriveDirs
+  alias Chat.Storage.Unit
 
   @db_name Application.compile_env(:chat, Chat.Repo, database: "chat")[:database]
   @pg_port Application.compile_env(:chat, :pg_port, 5432)
@@ -63,8 +63,7 @@ defmodule Platform.App.DatabaseSupervisor do
       {:step, PhoenixSyncReady,
        {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor}
        |> exit_takes(15_000)},
-      {Chat.Data.File.ChunkPipelineSupervisor,
-       drive_id: :internal, repo: Chat.Repo, base_dir: DriveDirs.internal_files_dir()}
+      {Chat.Data.File.ChunkPipelineSupervisor, unit: Unit.internal()}
     ]
     |> prepare_stages(Platform.App.DatabaseStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)

@@ -26,8 +26,7 @@ defmodule Platform.Storage.Backup.Copier do
       continuous?: Keyword.fetch!(opts, :continuous?),
       task_ref: nil,
       device: opts[:device],
-      backup_repo: opts[:backup_repo],
-      backup_base_dir: opts[:backup_base_dir]
+      backup_repo: opts[:backup_repo]
     }
     |> tap(fn _ -> send(self(), :start) end)
   end
