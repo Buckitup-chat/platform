@@ -268,7 +268,6 @@ maybe_nerves_local =
     do: ["http://nerves.local"],
     else: []
 
-config :chat, :cub_db_file, "/root/db"
 config :chat, :admin_cub_db_file, "/root/admin_db_v2"
 
 config :chat, :set_time, true
