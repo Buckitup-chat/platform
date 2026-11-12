@@ -15,13 +15,26 @@ defmodule Platform.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       releases: [{@app, release()}],
-      # Chat.Repo is used right at boot on host: its DB must exist and be migrated first
-      aliases: [
-        test: ["ecto.create --quiet -r Chat.Repo", "ecto.migrate --quiet -r Chat.Repo", "test"]
-      ]
+      aliases: aliases()
     ]
     |> more_project()
   end
+
+  # Chat.Repo is used right at boot on host: its DB must exist and be migrated first.
+  # Admin CubDB is wiped here, not in test_helper.exs: by then the app has already
+  # opened it, and a later compaction into the deleted dir crashes with :enoent.
+  defp aliases do
+    [
+      test: [
+        &wipe_test_admin_db/1,
+        "ecto.create --quiet -r Chat.Repo",
+        "ecto.migrate --quiet -r Chat.Repo",
+        "test"
+      ]
+    ]
+  end
+
+  defp wipe_test_admin_db(_args), do: File.rm_rf!("priv/test_admin_db")
 
   # Run "mix help compile.app" to learn about applications.
   def application do
