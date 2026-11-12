@@ -1,6 +1,9 @@
 defmodule Platform.App.DrivesTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureLog
+
+  require Logger
   import Support.Admin.Settings
   import Support.Drive.Manipulation
 
@@ -12,9 +15,37 @@ defmodule Platform.App.DrivesTest do
 
     insert_empty_drive("sdb1")
     assert only_main_scenario_started?()
+    assert pg_started?("sdb1")
 
     insert_backup_drive("sdd1")
     assert main_and_non_main_scenario_started?()
+    assert pg_started?("sdd1")
+
+    cleanup()
+  end
+
+  test "blank drive with optimize enabled is formatted, then gets its role dir" do
+    prepare()
+    media_settings_set_to(main: false, scenario: :cargo)
+    media_optimize_set_to(true)
+    # test_helper.exs keeps :platform at :error
+    traced = [Platform.Emulator.Drive.FsOptimizer, Platform.UsbDrives.Resolver]
+    Enum.each(traced, &Logger.put_module_level(&1, :info))
+
+    on_exit(fn ->
+      media_optimize_set_to(false)
+      Enum.each(traced, &Logger.put_module_level(&1, :error))
+    end)
+
+    {_, log} = with_log(fn -> insert_empty_drive("sdg1") end)
+    assert only_cargo_scenario_started?()
+    assert File.dir?(drive_path("sdg1") |> Path.join("cargo_db"))
+
+    [formatted, resolved] =
+      ["F2FS optimization emulated for", "sdg1 resolved as {:role, :cargo}"]
+      |> Enum.map(fn line -> log |> :binary.match(line) |> elem(0) end)
+
+    assert formatted < resolved
 
     cleanup()
   end
@@ -37,7 +68,9 @@ defmodule Platform.App.DrivesTest do
     assert only_main_scenario_started?()
 
     insert_main_drive("sdf1")
+    assert await_resolved("sdf1")
     assert only_main_scenario_started?()
+    refute pg_started?("sdf1")
 
     cleanup()
   end
@@ -73,6 +106,7 @@ defmodule Platform.App.DrivesTest do
 
     insert_cargo_drive("sdg1")
     assert only_cargo_scenario_started?()
+    refute pg_started?("sdg1")
 
     cleanup()
   end
@@ -83,6 +117,7 @@ defmodule Platform.App.DrivesTest do
 
     insert_onliners_drive("sdh1")
     assert only_onliners_scenario_started?()
+    refute pg_started?("sdh1")
 
     cleanup()
   end
@@ -106,6 +141,8 @@ defmodule Platform.App.DrivesTest do
     create_room_and_set_it_to_receive_dump()
     insert_dump_drive("sdi1")
     assert only_dump_scenario_started?()
+    refute pg_started?("sdi1")
+    refute File.exists?(drive_path("sdi1") |> Path.join("backup_db"))
 
     cleanup()
   end

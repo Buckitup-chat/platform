@@ -38,6 +38,18 @@ defmodule Support.Drive.Manipulation do
   def main_and_onliners_scenario_started?, do: check_scenario(2, main: 1, onliners: 1)
   def main_and_backup_scenario_started?, do: check_scenario(2, main: 1, backup: 1)
 
+  @doc "PG stages run for the drive (only roles with `:pg` get them)"
+  def pg_started?(drive), do: InitPg |> get_registered_drives() |> List.keymember?(drive, 0)
+
+  @doc "Waits till the drive's boot tree reaches `Decider`, even with no scenario"
+  def await_resolved(drive) do
+    await_till(fn -> Scenario |> get_registered_drives() |> List.keymember?(drive, 0) end,
+      step: 50
+    )
+  end
+
+  def drive_path(drive), do: Application.get_env(:platform, :mount_path_media) |> Path.join(drive)
+
   def await_supervision_started do
     await_till(
       fn ->
@@ -59,6 +71,10 @@ defmodule Support.Drive.Manipulation do
       fn -> [] == get_registered_drives(Platform.App.Drive.BootSupervisor) end,
       time: 15_000
     )
+
+    # A finished sync ejects its drive by name from an unlinked task (`Stopper`);
+    # left running, it ejects the next test's drive of the same name
+    await_till(fn -> [] == Task.Supervisor.children(Platform.TaskSupervisor) end, step: 50)
   end
 
   def clean_filesystem do
