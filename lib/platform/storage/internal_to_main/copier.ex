@@ -10,7 +10,6 @@ defmodule Platform.Storage.InternalToMain.Copier do
   alias Chat.Db.Switching
   alias Chat.Storage.Pg
   alias Chat.Storage.Pg.LogicalReplicator
-  alias Chat.Sync.DbBrokers
   alias Platform.Leds
   alias Platform.Storage.Sync
 
@@ -43,12 +42,6 @@ defmodule Platform.Storage.InternalToMain.Copier do
         Copying.await_copied(internal, main)
 
         sync_pg_to_main(pg_opts)
-
-        device = Map.get(pg_opts, :device)
-        Switching.set_default(main, drive_id: device)
-        Process.sleep(1_000)
-        Switching.mirror(main, internal)
-        DbBrokers.refresh()
       end)
 
     {:noreply, %{state | task: task}}
@@ -76,11 +69,6 @@ defmodule Platform.Storage.InternalToMain.Copier do
     log("copier cleanup #{inspect(reason)}", :warning)
 
     Leds.blink_done()
-
-    Chat.Db.InternalDb
-    |> Switching.set_default(drive_id: :internal)
-
-    DbBrokers.refresh()
   end
 
   # Local in-process PG sync after bootstrap copy completes

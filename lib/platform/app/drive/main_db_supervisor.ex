@@ -18,8 +18,6 @@ defmodule Platform.App.Drive.MainDbSupervisor do
     Switcher
   }
 
-  alias Platform.Storage.PhoenixSyncInit
-
   alias Chat.Storage.Unit
 
   def start_link(init_arg) do
@@ -47,9 +45,9 @@ defmodule Platform.App.Drive.MainDbSupervisor do
       {:stage, Copying,
        {Copier, task_in: task_supervisor, pg_opts: pg_opts} |> exit_takes(25_000)},
       MainReplicator,
-      {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
-      {:step, PhoenixSyncReady, PhoenixSyncInit |> exit_takes(5000)},
-      {Chat.Data.File.ChunkPipelineSupervisor, unit: Unit.usb(device, :main)}
+      # The upload writer is up before Switcher makes main the Default
+      {Chat.Data.File.ChunkPipelineSupervisor, unit: Unit.usb(device, :main)},
+      {Switcher, pg_opts: pg_opts} |> exit_takes(5000)
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->
