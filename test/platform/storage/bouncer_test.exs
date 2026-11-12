@@ -4,7 +4,7 @@ defmodule Platform.Storage.BouncerTest do
   alias Platform.App.Db.MainDbSupervisor
 
   @storage_mount_path Application.compile_env(:platform, :mount_path_storage)
-  @media_mount_path Application.compile_env(:platform, :mount_path_media)
+  @media_mount_path Application.compile_env!(:chat, Chat.Storage)[:media_root]
 
   #  setup do
   #    start_supervised!(

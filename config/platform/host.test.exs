@@ -16,7 +16,6 @@ config :chat,
 config :chat, ChatWeb.Endpoint, pubsub_server: Chat.PubSub
 
 config :platform,
-  mount_path_media: "priv/test_media",
   mount_path_storage: "priv/test_storage"
 
 config :chat, Chat.Db.ChangeTracker, expire_seconds: 3

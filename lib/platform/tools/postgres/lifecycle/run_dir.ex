@@ -1,29 +1,23 @@
 defmodule Platform.Tools.Postgres.Lifecycle.RunDir do
   @moduledoc """
-  PostgreSQL run directory (`/tmp/pg_run/<device>`) management.
+  PostgreSQL run directory (`Chat.Storage.Unit.pg_run/1`) management.
   Handles per-device socket directory creation, permissions, and cleanup.
   """
   use Toolbox.OriginLog
 
   alias Platform.Tools.Postgres.Permissions
 
-  @pg_run_dir "/tmp/pg_run"
-  @media_mount_path Application.compile_env(:platform, :mount_path_media)
-  @media_prefix @media_mount_path |> String.split("/", trim: true)
-
   @doc """
   Ensure the PostgreSQL run directory exists with correct permissions.
 
   ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data (required)
-  - `:run_dir` - Override run directory path (optional)
-  - `:device` - Device name for run directory (optional)
+  - `:run_dir` - Run directory path, `Chat.Storage.Unit.pg_run/1` (required)
 
   ## Returns
   The run directory path.
   """
-  def ensure_run_dir(pg_dir, opts \\ []) do
-    run_dir = extract_pg_run_dir(pg_dir, opts)
+  def ensure_run_dir(opts) do
+    run_dir = extract_pg_run_dir(opts)
 
     File.mkdir_p!(run_dir)
 
@@ -57,24 +51,8 @@ defmodule Platform.Tools.Postgres.Lifecycle.RunDir do
   end
 
   @doc """
-  Extract the PostgreSQL run directory path from options.
+  The PostgreSQL run directory from options. Callers derive it from the unit
+  (`Chat.Storage.Unit.pg_run/1`), so nothing here parses paths.
   """
-  def extract_pg_run_dir(pg_dir, opts \\ []) do
-    cond do
-      run_dir = Keyword.get(opts, :run_dir) ->
-        run_dir
-
-      device = Keyword.get(opts, :device) ->
-        Path.join(@pg_run_dir, device)
-
-      true ->
-        device =
-          case String.split(pg_dir, "/", trim: true) do
-            @media_prefix ++ [device | _] -> device
-            _ -> "internal"
-          end
-
-        Path.join(@pg_run_dir, device)
-    end
-  end
+  def extract_pg_run_dir(opts), do: Keyword.fetch!(opts, :run_dir)
 end

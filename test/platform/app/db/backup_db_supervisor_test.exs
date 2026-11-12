@@ -23,7 +23,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
   alias Platform.App.Db.{BackupDbSupervisor, MainDbSupervisor}
   alias Support.FakeData
 
-  @media_mount_path Application.compile_env(:platform, :mount_path_media)
+  @media_mount_path Application.compile_env!(:chat, Chat.Storage)[:media_root]
   @storage_mount_path Application.compile_env(:platform, :mount_path_storage)
 
   setup do

@@ -56,6 +56,7 @@ make cover
 **Platform.App.Drive.BootSupervisor**: Per-drive staged startup sequence
 - Healer → Mounter → InternalDbAwaiter → Resolver → [PG init → daemon → DB creation → Repo → Migrations] → Decider
 - `Platform.UsbDrives.Resolver` resolves the role first (`Chat.Storage.Role.from_mount/1`; blank drive → optional `optimize_fs` → role from `MediaSettings` → role dir; a taken role is ignored), then builds the rest of the tree: PG stages only for roles with `:pg`. `Decider` starts the scenario.
+- Paths, PG port, run dir and repo come from `Chat.Storage.Unit` (PG at `<mount>/<role_dir>/pg`). The one-time `Platform.Storage.PqReset` drops the pre-unit PQ generation (`<mount>/pg`, `…/v.10.1_files/pq_files`) in Resolve; `DatabaseSupervisor` runs it for the internal unit before `InitPg`.
 - Uses compile-time module selection: real modules on target, emulators on host
 
 **Platform.Storage.BootWatchdog**: Monitors staged boot trees from outside. Fingerprints each tree every 30s; if a stage stalls (alive but wedged), kills the deepest stuck stage so supervisors can recover. Watches internal DB tree and each drive tree up to `Decider`.

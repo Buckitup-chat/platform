@@ -26,7 +26,7 @@ defmodule Platform.App.Sync.CargoSyncSupervisorTest do
   alias Support.FakeData
 
   @cub_db_file Application.compile_env(:chat, :cub_db_file)
-  @mount_path Application.compile_env(:platform, :mount_path_media)
+  @mount_path Application.compile_env!(:chat, Chat.Storage)[:media_root]
 
   #  setup do
   #    CubDB.clear(AdminDb.db())

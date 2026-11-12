@@ -31,10 +31,11 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   end
 
   @impl true
-  def init([device, path, pg_opts]) do
+  def init([device, _path, pg_opts]) do
     log("start", :debug)
 
-    full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()
+    unit = Unit.usb(device, :main)
+    full_path = Unit.path(unit, :cub_db)
     task_supervisor = Platform.App.Drive.MainDbSupervisor.Tasks
     pg_opts = Map.put(pg_opts, :device, device)
 
@@ -49,7 +50,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
       MainReplicator,
       {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
       {:step, PhoenixSyncReady, PhoenixSyncInit |> exit_takes(5000)},
-      {Chat.Data.File.ChunkPipelineSupervisor, unit: Unit.usb(device, :main)}
+      {Chat.Data.File.ChunkPipelineSupervisor, unit: unit}
     ]
     |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->
