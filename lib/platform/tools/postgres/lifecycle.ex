@@ -31,7 +31,6 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     -c max_files_per_process=64
     -c work_mem=1MB
     -c wal_level=logical
-    -c max_slot_wal_keep_size=1024MB
     -c listen_addresses=localhost
     -c wal_sender_timeout=600s
     -c tcp_keepalives_idle=60
