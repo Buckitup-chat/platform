@@ -275,7 +275,6 @@ config :chat, :timekeeper_path, "/root/timekeeper_time"
 
 config :chat,
   data_pid: nil,
-  files_base_dir: "/root/db/files",
   write_budget: 0,
   mode: :internal,
   flags: [],

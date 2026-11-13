@@ -9,7 +9,6 @@ config :chat, Chat.Storage,
   media_root: "priv/test_media"
 
 config :chat,
-  files_base_dir: "priv/test_db/files",
   write_budget: 100_000_000,
   writable: :yes
 

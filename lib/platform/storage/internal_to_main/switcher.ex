@@ -7,9 +7,12 @@ defmodule Platform.Storage.InternalToMain.Switcher do
 
   alias Chat.Data.Shapes
   alias Chat.Db.Common
+  alias Chat.Db.Switching
+  alias Chat.Storage.Default
   alias Chat.Storage.Pg
   alias Chat.Storage.Pg.LogicalReplicator
-  alias Chat.Sync.DbBrokers
+  alias Chat.Storage.Unit
+  alias Chat.Storage.Units
   alias Platform.Storage.Sync
 
   @impl true
@@ -17,7 +20,8 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     log("on start #{inspect(args)}", :warning)
     set_db_mode(:main)
     switch_pg_replication(args)
-    switch_db_repo(args)
+    switch_default_to_main(args)
+    args
   end
 
   @impl true
@@ -33,10 +37,10 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     end
 
     try do
-      revert_db_repo(state)
+      Default.switch_to(Unit.internal())
     catch
       kind, error ->
-        log("revert_db_repo failed: #{kind} #{inspect(error)}", :error)
+        log("switching Default back to internal failed: #{kind} #{inspect(error)}", :error)
     end
 
     log("cleanup done", :warning)
@@ -103,36 +107,17 @@ defmodule Platform.Storage.InternalToMain.Switcher do
     log("PG replication cleaned up on internal (USB ejected)", :info)
   end
 
-  defp switch_db_repo(args) do
-    with pg_opts <- Keyword.get(args, :pg_opts),
-         false <- is_nil(pg_opts),
-         repo <- Map.get(pg_opts, :repo),
-         false <- is_nil(repo),
-         original_repo <- Chat.Repo.get_dynamic_repo() do
-      Chat.Db.set_repo(repo)
-      Keyword.put(args, :original_repo, original_repo)
-    else
-      _ -> args
-    end
-    |> tap(fn _ -> DbBrokers.refresh() end)
-  end
+  # The single switch of CubDB queue, repo, upload writer and Electric to main.
+  # Writes then mirror back to internal.
+  defp switch_default_to_main(args) do
+    device = args |> Keyword.get(:pg_opts, %{}) |> Map.get(:device)
 
-  defp revert_db_repo(args) do
-    original_repo = Keyword.get(args, :original_repo)
-
-    if original_repo do
-      # Force set the repo back - don't rely on Chat.Db.set_repo's process check
-      # because during shutdown the process might be terminating
-      Application.put_env(:chat, :repo, original_repo)
-      log("repo reverted to #{inspect(original_repo)}", :info)
-    else
-      log("no original_repo in state, cannot revert", :warning)
+    case Units.by_role(:main) do
+      {:ok, unit} -> unit
+      :error -> Unit.usb(device, :main)
     end
+    |> Default.switch_to()
 
-    try do
-      DbBrokers.refresh()
-    catch
-      _, _ -> :ok
-    end
+    Switching.mirror(Chat.Db.MainDb, Chat.Db.InternalDb)
   end
 end
