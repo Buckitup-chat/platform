@@ -13,7 +13,6 @@ config :chat, Chat.Storage,
 
 config :chat,
   data_pid: nil,
-  files_base_dir: "priv/db/files",
   write_budget: 1_000_000,
   mode: :internal,
   flags: [],

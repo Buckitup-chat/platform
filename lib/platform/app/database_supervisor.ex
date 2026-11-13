@@ -8,6 +8,7 @@ defmodule Platform.App.DatabaseSupervisor do
 
   import Platform
 
+  alias Chat.Storage.Default
   alias Chat.Storage.Unit
 
   @db_name Application.compile_env(:chat, Chat.Repo, database: "chat")[:database]
@@ -40,7 +41,7 @@ defmodule Platform.App.DatabaseSupervisor do
 
     # Staging order:
     # 1. Initialize PG -> 2. Start PG Daemon -> 3. Create Chat DB -> 4. Start Chat.Repo
-    # 5. Run Chat migrations -> 6. Initialize PhoenixSync -> 7. Start ChunkPipeline
+    # 5. Run Chat migrations -> 6. Start ChunkPipeline -> 7. Electric via Default (internal)
 
     [
       use_task(task_supervisor),
@@ -60,12 +61,19 @@ defmodule Platform.App.DatabaseSupervisor do
       {:step, ChatMigrationsRun,
        {@pg_migration_runner, repo_name: Chat.Repo, task_in: task_supervisor}
        |> exit_takes(60_000)},
-      {:step, PhoenixSyncReady,
-       {Platform.Storage.PhoenixSyncInit, task_in: task_supervisor}
-       |> exit_takes(15_000)},
-      {Chat.Data.File.ChunkPipelineSupervisor, unit: Unit.internal()}
+      {Chat.Data.File.ChunkPipelineSupervisor, unit: Unit.internal()},
+      {Task, &start_electric_on_internal/0}
     ]
     |> prepare_stages(Platform.App.DatabaseStages)
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 10, max_seconds: 30)
+  end
+
+  # Internal PG is (re)up. Electric follows Default, so a restart while main is
+  # Default leaves it on main.
+  defp start_electric_on_internal do
+    case Default.unit() do
+      %Unit{id: :internal} -> Default.switch_to(Unit.internal())
+      %Unit{id: id} -> log("internal PG up, Default stays #{inspect(id)}", :info)
+    end
   end
 end
