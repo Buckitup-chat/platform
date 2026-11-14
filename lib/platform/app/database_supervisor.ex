@@ -10,6 +10,7 @@ defmodule Platform.App.DatabaseSupervisor do
 
   alias Chat.Storage.Default
   alias Chat.Storage.Unit
+  alias Chat.Storage.Units
 
   @db_name Application.compile_env(:chat, Chat.Repo, database: "chat")[:database]
 
@@ -83,8 +84,16 @@ defmodule Platform.App.DatabaseSupervisor do
   # Default leaves it on main.
   defp start_electric_on_internal do
     case Default.unit() do
-      %Unit{id: :internal} -> Default.switch_to(Unit.internal())
+      %Unit{id: :internal} -> Default.switch_to(internal_unit())
       %Unit{id: id} -> log("internal PG up, Default stays #{inspect(id)}", :info)
+    end
+  end
+
+  # The registered unit carries the PG system id (UnitAnnouncer, started above)
+  defp internal_unit do
+    case Units.by_role(:internal) do
+      {:ok, unit} -> unit
+      :error -> Unit.internal()
     end
   end
 end

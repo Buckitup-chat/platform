@@ -8,6 +8,7 @@ defmodule Platform.Storage.Repo.Starter do
 
   alias Chat.Storage.Link
   alias Chat.Storage.Pg.LogicalReplicator
+  alias Chat.Storage.Role
 
   @impl true
   def on_init(opts) do
@@ -54,14 +55,32 @@ defmodule Platform.Storage.Repo.Starter do
     :ok
   end
 
-  # Leftovers of a main ~> internal link from a previous session
-  defp cleanup_stale_replication(Chat.Repo) do
-    _ = LogicalReplicator.disable_subscription_if_exists(Chat.Repo, stale_link_name())
-  end
-
+  # Leftovers of links from a previous session
   defp cleanup_stale_replication(repo) do
-    _ = LogicalReplicator.drop_slot_if_exists(repo, stale_link_name())
+    if repo == Chat.Repo,
+      do: LogicalReplicator.disable_subscription_if_exists(repo, stale_subscription())
+
+    drop_stale_slots(repo)
   end
 
-  defp stale_link_name, do: Link.name({:main, :internal}, :subscription)
+  defp stale_subscription, do: Link.name({:main, :internal}, :subscription)
+
+  # A physically ejected `to` never drops its slot on `from`, and an inactive
+  # slot pins WAL forever. Active ones belong to a link that is still up.
+  defp drop_stale_slots(repo) do
+    "SELECT slot_name FROM pg_replication_slots WHERE NOT active AND slot_name = ANY($1)"
+    |> repo.query([link_slot_names()])
+    |> case do
+      {:ok, %{rows: rows}} ->
+        rows |> Enum.each(fn [slot] -> LogicalReplicator.drop_slot_if_exists(repo, slot) end)
+
+      {:error, reason} ->
+        log("stale slots lookup failed: #{inspect(reason)}", :warning)
+    end
+  end
+
+  defp link_slot_names do
+    roles = Role.all() |> Enum.filter(&(:pg in Role.capabilities(&1)))
+    for from <- roles, to <- roles, from != to, do: Link.name({from, to}, :slot)
+  end
 end
