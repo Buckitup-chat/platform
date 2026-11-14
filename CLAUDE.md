@@ -51,7 +51,7 @@ make cover
 
 **Platform.App.DatabaseSupervisor**: Staged startup for the internal PostgreSQL instance (chat DB on device). Mirrors `BootSupervisor`'s pattern with compile-time host/target module selection.
 
-**Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` runs the main drive as link plans (`Platform.Storage.MainPlan`: `:main_attach` on start, `:main_eject` on exit) via chat's `Chat.Storage.PlanRunner`. `BackupDbSupervisor` handles backup copying.
+**Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` runs the main drive as link plans (`Platform.Storage.MainPlan`: `:main_attach` on start, `:main_eject` on exit) via chat's `Chat.Storage.PlanRunner`. `BackupDbSupervisor` runs the backup drive as link plans (`Platform.Storage.BackupPlan`: `:backup_once` or `:backup_continuous`, following the Default and re-homing on `{:default_switched, _}`).
 
 **Platform.App.Drive.BootSupervisor**: Per-drive staged startup sequence
 - Healer → Mounter → InternalDbAwaiter → Resolver → [PG init → daemon → DB creation → Repo → Migrations] → Decider
