@@ -14,7 +14,7 @@ defmodule Platform.Storage.BackupPlan do
 
   Options: `device:` (required), `continuous?:` (required).
 
-  See `chat/docs/pq/reqs/files/pq_storage_units.proposed.md` §2.7.3.
+  See `chat/docs/pq/reqs/files/pq_storage_units.done.md` §2.7.3.
   """
 
   use GracefulGenServer

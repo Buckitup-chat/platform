@@ -53,9 +53,11 @@ make cover
 
 **Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` runs the main drive as link plans (`Platform.Storage.MainPlan`: `:main_attach` on start, `:main_eject` on exit) via chat's `Chat.Storage.PlanRunner`. `BackupDbSupervisor` runs the backup drive as link plans (`Platform.Storage.BackupPlan`: `:backup_once` or `:backup_continuous`, following the Default and re-homing on `{:default_switched, _}`).
 
+**CargoSyncSupervisor / OnlinersSyncSupervisor / UsbDriveDumpSupervisor**: not on links yet. Cargo and onliners copy scoped CubDB data with `Platform.Storage.Copier`; they, the dump and `BackupDbSupervisor` start through `Platform.Storage.Backup.Starter`.
+
 **Platform.App.Drive.BootSupervisor**: Per-drive staged startup sequence
 - Healer → Mounter → InternalDbAwaiter → Resolver → [PG init → daemon → DB creation → Repo → Migrations] → Decider
-- `Platform.UsbDrives.Resolver` resolves the role first (`Chat.Storage.Role.from_mount/1`; blank drive → optional `optimize_fs` → role from `MediaSettings` → role dir; a taken role is ignored), then builds the rest of the tree: PG stages only for roles with `:pg`. `Decider` starts the scenario.
+- `Platform.UsbDrives.Resolver` resolves the role first (`Chat.Storage.Role.from_mount/1`; blank drive → optional `optimize_fs` → role from `MediaSettings` → role dir; a taken role is ignored), then builds the rest of the tree: PG stages only for roles with `:pg`. Resolver also handles the dump override (`UsbDriveDumpRoom`). `Decider` maps the resolution to a scenario supervisor and starts it.
 - Paths, PG port, run dir and repo come from `Chat.Storage.Unit` (PG at `<mount>/<role_dir>/pg`). The one-time `Platform.Storage.PqReset` moves the pre-unit PQ generation (`<mount>/pg`, `…/v.10.1_files/pq_files`) under the role dir in Resolve (removes what has no home); `DatabaseSupervisor` runs it for the internal unit before `InitPg`.
 - Uses compile-time module selection: real modules on target, emulators on host
 
@@ -83,7 +85,8 @@ The `Platform` module provides helpers for building staged supervision trees:
 
 - **USB drive detection**: `Platform.UsbDrives.Detector` watches for device insert/eject
 - **PostgreSQL**: Per-drive instances with port = 5432 + (device letter - 'a' + 1)
-- **Replication**: chat's `Chat.Storage.Link` (bootstrap/replicate/stop across CubDB, PG, blobs); status in `Chat.Storage.Links`, read by `Platform.Storage.Logic.info/0`
+- **Storage units**: a unit is one `(drive, role)` (`Chat.Storage.Unit`, `Role`, registry `Units`); the unit the system writes to is `Chat.Storage.Default`, switched only by `Default.switch_to/1`. Design: `../chat/docs/pq/reqs/files/pq_storage_units.done.md`
+- **Replication**: chat's `Chat.Storage.Link` (bootstrap/replicate/stop across CubDB, PG, blobs); status in `Chat.Storage.Links`, read by `Platform.Storage.Logic.info/0`. Spec: `openspec/specs/storage-sync/spec.md`
 - **Logical replication / diff-copy**: `Chat.Storage.Pg.LogicalReplicator` and `Chat.Storage.Pg.BatchSync` (live in chat)
 
 ### Target vs Host Modules

@@ -10,7 +10,7 @@ defmodule Platform.UsbDrives.Resolver do
 
   The resolution builds the rest of the boot tree (`:tree` option), so PG stages
   run only for roles with `:pg`. The one-time PQ relocation (`PqReset`, §7.2)
-  runs before the role is read. See `pq_storage_units.proposed.md` §1.5, §3.
+  runs before the role is read. See `pq_storage_units.done.md` §1.5, §3.
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
   use Toolbox.OriginLog
