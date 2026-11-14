@@ -1,117 +1,205 @@
 # storage-sync Specification
 
 ## Purpose
-Keep PostgreSQL data, CubDB data and chunk blobs consistent between storage units (internal SD, main USB, backup USB) through **links**: directed `from ~> to` flows that carry all three layers at once. Links, their status and the PG tooling live in chat (`Chat.Storage.Link`, `Chat.Storage.Links`, `Chat.Storage.Pg.*`); platform decides which link plan runs per drive (`Platform.Storage.MainPlan`, `Platform.Storage.BackupPlan`).
-
-Full design: `chat/docs/pq/reqs/files/pq_storage_units.done.md` (§2.7). This spec replaces the earlier mode-driven design (`Platform.Storage.Sync`, `InternalToMain.Copier` / `Switcher`, `MainReplicator`), which has been removed.
-
+TBD - created by archiving change add-pg-sync. Update Purpose after archive.
 ## Requirements
-### Requirement: Row-Level Diff and Copy (Link Bootstrap)
-The system SHALL bring unit `to` up to date from unit `from` with a one-shot, row-level diff and copy, without dropping or recreating databases. Direction is given by the link, not by a global mode.
+### Requirement: Row-Level Diff and Copy
+The system SHALL perform unidirectional row-level diff and copy synchronization between PostgreSQL clusters using Electric Sync, without dropping or recreating databases. Sync direction is determined by mode.
 
-#### Scenario: Bootstrap internal ~> main
-- **GIVEN** internal PG has users A, B
-- **AND** main PG has user B
-- **WHEN** `Chat.Storage.Link.bootstrap/1` runs for `internal ~> main`
-- **THEN** `Chat.Storage.Pg.BatchSync` copies user A to main
-- **AND** user B on main is preserved (`ON CONFLICT DO NOTHING`)
+#### Scenario: Bootstrap sync from internal to main
+- **GIVEN** mode is `:internal_to_main`
+- **AND** internal PG has users A, B (with public keys)
+- **AND** main PG has user B (with public key)
+- **WHEN** `Platform.Storage.Sync.run_local_sync/1` is called with source=internal, target=main
+- **THEN** Electric Sync copies user A to main (missing on target)
+- **AND** user B on main is preserved (existing user kept, not replaced)
 - **AND** no databases are dropped or recreated
 
-#### Scenario: Bootstrap queues missing blobs
-- **GIVEN** a `file_chunks` row is copied to `to`
-- **AND** `to` has no blob for it under `Unit.path(to, :pq_files)`
-- **WHEN** the bootstrap finishes its row layer
-- **THEN** a `missing_chunks` row is created on `to` with `source_drive_id = from.system_id`
-- **AND** `{:chunk_pipeline, :pg_diff_copied}` is broadcast so `to`'s chunk pipeline pulls the blob
+#### Scenario: Bootstrap sync from main to internal
+- **GIVEN** mode is `:main`
+- **AND** main PG has users B, C (with public keys)
+- **AND** internal PG has user B (with public key)
+- **WHEN** `Platform.Storage.Sync.run_local_sync/1` is called with source=main, target=internal
+- **THEN** Electric Sync copies user C to internal (missing on target)
+- **AND** user B on internal is preserved (existing user kept, not replaced)
+- **AND** no databases are dropped or recreated
 
-#### Scenario: CubDB layer
-- **GIVEN** both units have the `:cub` capability and both CubDBs are running
-- **WHEN** the link bootstraps
-- **THEN** CubDB data is copied with `Chat.Db.Copying.await_copied/3` before the PG layer
+#### Scenario: Initial sync to empty target
+- **GIVEN** mode is `:internal_to_main`
+- **AND** internal PG has users A, B, C
+- **AND** main PG has no users
+- **WHEN** `Platform.Storage.Sync.run_local_sync/1` is called with source=internal, target=main
+- **THEN** Electric Sync copies all users A, B, C to main
+- **AND** sync completes successfully
 
-#### Scenario: Failure stops later layers
-- **WHEN** a bootstrap layer returns `{:error, reason}`
-- **THEN** the layers after it do not run
-- **AND** a full disk on `to` is reported as `{:error, :disk_full}`
+#### Scenario: Sync with no changes needed
+- **GIVEN** source and target have identical user data
+- **WHEN** `Platform.Storage.Sync.run_local_sync/1` is called
+- **THEN** Electric Sync detects no differences
+- **AND** no rows are copied or updated
+- **AND** sync completes successfully
 
 ### Requirement: Configurable Schema List
-The system SHALL sync only the schemas the link's filter selects; with no filter, the schemas from `Chat.Data.Shapes.sync_schemas/0`.
+The system SHALL support configurable list of schemas/tables to synchronize, each with its own conflict resolution identifier.
 
-#### Scenario: Filtered link
-- **GIVEN** a link with `%Chat.Storage.Link.Filter{schemas: [...]}`
-- **WHEN** it bootstraps or replicates
-- **THEN** only those tables are diff-copied and published
+#### Scenario: Sync only users schema
+- **GIVEN** config has `schemas: [:users]`
+- **WHEN** `Platform.Storage.Sync.run_local_sync/1` is called
+- **THEN** only users table is synchronized
+- **AND** other tables are not affected
 
-### Requirement: PostgreSQL Logical Replication (Link Replicate)
-The system SHALL stream ongoing changes from `from` to `to` with PostgreSQL logical replication after bootstrap.
+#### Scenario: Sync multiple schemas
+- **GIVEN** config has `schemas: [:users, :messages, :files]`
+- **WHEN** `Platform.Storage.Sync.run_local_sync/1` is called
+- **THEN** all three tables are synchronized in order
+- **AND** each table uses its own conflict resolution identifier (e.g., public key for users)
 
-#### Scenario: Start replication
-- **WHEN** `Chat.Storage.Link.replicate/1` runs for `internal ~> main`
+### Requirement: Conflict Resolution
+The system SHALL use Electric Sync's CRDT-like "keep existing" strategy based on immutable identifiers (public keys for users) for unidirectional sync.
+
+#### Scenario: User exists on both sides
+- **GIVEN** source PG has user A with public key PK1
+- **AND** target PG has user A with public key PK1
+- **WHEN** Electric Sync runs
+- **THEN** existing user A on target is preserved (not replaced)
+- **AND** no update is performed
+
+#### Scenario: User exists only on source
+- **GIVEN** source PG has user A with public key PK1
+- **AND** target PG does not have user with public key PK1
+- **WHEN** Electric Sync runs
+- **THEN** user A is copied to target
+- **AND** Electric Sync uses conflict resolution based on public key
+
+#### Scenario: User exists only on target
+- **GIVEN** target PG has user B with public key PK2
+- **AND** source PG does not have user with public key PK2
+- **WHEN** Electric Sync runs
+- **THEN** user B remains on target (unidirectional sync, no reverse copy)
+- **AND** user B will be synced in opposite direction when mode changes
+
+### Requirement: PostgreSQL Logical Replication
+The system SHALL use PostgreSQL logical replication for ongoing change streaming after bootstrap sync.
+
+#### Scenario: Enable internal to main replication
+- **GIVEN** bootstrap sync from internal to main is complete
+- **AND** mode is `:internal_to_main`
+- **WHEN** `Platform.Storage.Pg.LogicalReplicator.create_publication/3` is called on internal repo
+- **AND** `Platform.Storage.Pg.LogicalReplicator.create_subscription/4` is called on main repo with `copy_data: false`
 - **THEN** publication `internal_to_main` is created on internal PG
-- **AND** a fresh slot and subscription `main_from_internal` are created (names from `Link.name/2`)
-- **AND** internal is registered as the replication source of main, so `ReplicationListener` stamps `missing_chunks.source_drive_id` with internal's `system_id`
-- **AND** internal's CubDB writes are mirrored to main
+- **AND** subscription `main_from_internal` is created on main PG
+- **AND** changes to internal PG are streamed to main PG
 
-#### Scenario: Stop replication
-- **WHEN** `Chat.Storage.Link.stop/1` runs
-- **THEN** the CubDB mirror is removed
-- **AND** the subscription on `to` is dropped if `to` is still up
-- **AND** the slot on `from` is always dropped, so an ejected `to` leaves no WAL retained on `from`
+#### Scenario: Switch replication direction on mode change
+- **GIVEN** mode changes from `:internal_to_main` to `:main`
+- **WHEN** `Platform.Storage.InternalToMain.Switcher` initializes
+- **THEN** internal→main subscription is disabled
+- **AND** main→internal publication is created on main PG
+- **AND** internal→main subscription is created on internal PG
+- **AND** changes to main PG are streamed to internal PG
 
 #### Scenario: Check replication lag
-- **GIVEN** a link is replicating
-- **WHEN** `LinkRunner` polls `Chat.Storage.Link.lag/1`
-- **THEN** lag in bytes is read via `Chat.Storage.Pg.LogicalReplicator.check_replication_lag/2`
-- **AND** recorded in `Chat.Storage.Links` as `lag_bytes`
+- **GIVEN** logical replication is active
+- **WHEN** `Platform.Storage.Pg.LogicalReplicator.check_replication_lag/2` is called
+- **THEN** lag is queried from `pg_stat_subscription`
+- **AND** lag value in bytes and seconds is returned
 
-### Requirement: Main Drive Plans
-The system SHALL attach and eject a main drive by running link plans with `Chat.Storage.PlanRunner`.
+### Requirement: Sync Status Tracking
+The system SHALL track synchronization status using persistent_term.
 
-#### Scenario: Attach main
-- **WHEN** `Platform.Storage.MainPlan` starts for a main drive
-- **THEN** it runs `:main_attach`: bootstrap `internal ~> main`, replicate `internal ~> main`, bootstrap `main ~> internal`, stop `internal ~> main`, replicate `main ~> internal`, switch Default to main
-- **AND** the Default switch goes through `Chat.Storage.Default.switch_to/1`
+#### Scenario: Sync lifecycle states
+- **GIVEN** sync is not running
+- **WHEN** `Platform.Storage.Sync.status/0` is called
+- **THEN** state is `:inactive`
+- **WHEN** `Platform.Storage.Sync.set_active/0` is called
+- **THEN** state changes to `:active`
+- **WHEN** sync completes successfully
+- **AND** `Platform.Storage.Sync.set_done/0` is called
+- **THEN** state changes to `:done`
 
-#### Scenario: Eject main
-- **WHEN** `MainPlan` exits for any reason (eject, crash, restart)
-- **THEN** it stops the attach runner's links and runs `:main_eject`: stop `main ~> internal`, switch Default to internal
+#### Scenario: Sync error handling
+- **GIVEN** sync is running
+- **WHEN** an error occurs during sync
+- **AND** `Platform.Storage.Sync.set_error/1` is called with reason
+- **THEN** state changes to `{:error, reason}`
+- **AND** error is logged
 
-### Requirement: Backup Drive Plans
-The system SHALL back up to a backup drive against the current Default unit.
+### Requirement: Integration with InternalToMain Workflow
+The system SHALL integrate PostgreSQL sync into the existing internal-to-main copy workflow.
 
-#### Scenario: One-shot backup
-- **GIVEN** backup settings are not continuous
-- **WHEN** `Platform.Storage.BackupPlan` starts
-- **THEN** it runs `:backup_once`: bootstrap `backup ~> default` (restore), bootstrap `default ~> backup`, await chunks on both links, eject
+#### Scenario: PG sync after CubDB copy
+- **GIVEN** `Platform.Storage.InternalToMain.Copier` is running
+- **AND** CubDB copy completes successfully
+- **WHEN** PG sync is enabled
+- **THEN** `Platform.Storage.Sync.run_local_sync/1` is called with source=internal repo, target=main repo
+- **AND** sync runs before mode switches to `:main`
+- **AND** logical replication is enabled after sync completes
 
-#### Scenario: Continuous backup
-- **GIVEN** backup settings are continuous
-- **WHEN** `BackupPlan` starts
-- **THEN** it runs `:backup_continuous`: the one-shot steps without eject, then replicate `default ~> backup`
+#### Scenario: Skip PG sync when disabled
+- **GIVEN** config has `enabled: false`
+- **WHEN** `Platform.Storage.InternalToMain.Copier` runs
+- **THEN** PG sync is skipped
+- **AND** only CubDB copy runs
 
-#### Scenario: Default switches during backup
-- **WHEN** `{:default_switched, new}` is broadcast on `"storage"`
-- **THEN** a running plan is restarted against the new Default
-- **AND** a finished continuous plan re-homes with `:backup_rehome` (stop `old ~> backup`, bootstrap `new ~> backup`, replicate `new ~> backup`)
+### Requirement: Integration with MainReplicator
+The system SHALL integrate PostgreSQL replication into periodic main-to-internal replication.
 
-### Requirement: Link Status Tracking
-The system SHALL track the status of every link in one place, `Chat.Storage.Links`.
+#### Scenario: Periodic replication health check
+- **GIVEN** mode is `:main`
+- **AND** `Platform.Storage.MainReplicator` triggers periodic replication
+- **WHEN** `Platform.Storage.Logic.replicate_main_to_internal/0` is called
+- **THEN** replication lag is checked via `LogicalReplicator.check_replication_lag/2`
+- **AND** if lag is acceptable, no action is taken
+- **AND** CubDB replication continues to run
 
-#### Scenario: Status lifecycle
-- **THEN** a link's status is one of `:idle`, `{:bootstrapping, progress}`, `:replicating`, `{:awaiting, {done, total}}`, `:stopped`, `{:partial, map}`, `{:error, term}`
-- **AND** `Platform.Storage.Logic.info/0` reports the Default unit's role and `Links.list()`
+#### Scenario: Catch-up sync on high lag
+- **GIVEN** replication lag exceeds threshold
+- **WHEN** periodic replication runs
+- **THEN** light-weight `Platform.Storage.Sync.run_local_sync/1` is called to reconcile drift
+- **AND** logical replication continues afterward
 
-### Requirement: Replication Setup
-The system SHALL configure each PostgreSQL cluster for logical replication when it is initialized.
+### Requirement: Replication User Setup
+The system SHALL create and configure a PostgreSQL replication user during initialization.
 
-#### Scenario: Initialize cluster
-- **GIVEN** `Platform.Tools.Postgres.Lifecycle` initializes a new cluster
-- **THEN** the cluster runs with `wal_level=logical`
-- **AND** replication is set up by `Platform.Tools.Postgres.Database.setup_replication/1`
+#### Scenario: Initialize replication user
+- **GIVEN** `Platform.Storage.Pg.Initializer` is initializing a new PostgreSQL cluster
+- **WHEN** initialization runs
+- **THEN** replication user is created with REPLICATION privilege
+- **AND** `pg_hba.conf` is updated to allow replication connections
+- **AND** replication user credentials are stored in config
 
 ### Requirement: Observability and Logging
-The system SHALL log link operations.
+The system SHALL provide detailed logging for synchronization operations.
 
-#### Scenario: Log link steps
-- **WHEN** a link bootstraps, replicates, stops or fails
-- **THEN** the log names the link id (`{from_role, to_role}`) and the result
+#### Scenario: Log sync operations
+- **GIVEN** sync is running
+- **WHEN** `Platform.Storage.Sync.run_local_sync/1` starts
+- **THEN** log includes source repo, target repo, and schemas
+- **WHEN** sync completes
+- **THEN** log includes row counts, duration, and final status
+
+#### Scenario: Log replication events
+- **GIVEN** logical replication is active
+- **WHEN** publication or subscription is created/modified
+- **THEN** log includes operation, publication/subscription name, and result
+- **WHEN** replication lag is checked
+- **THEN** log includes lag value and timestamp
+
+### Requirement: Backward Compatibility
+The system SHALL run PostgreSQL sync alongside existing CubDB sync without breaking changes.
+
+#### Scenario: Coexistence with CubDB sync
+- **GIVEN** both CubDB and PG sync are enabled
+- **WHEN** `Platform.Storage.InternalToMain.Copier` runs
+- **THEN** CubDB copy runs first
+- **AND** PG sync runs second
+- **AND** both complete successfully
+- **AND** mode switches to `:main` only after both complete
+
+#### Scenario: Gradual schema migration (future expansion)
+- **GIVEN** some schemas are in CubDB, others in PostgreSQL
+- **WHEN** sync runs
+- **THEN** only PostgreSQL schemas listed in config are synchronized
+- **AND** CubDB schemas continue to use CubDB replication
+- **NOTE**: This scenario is for future expansion when migrating schemas from CubDB to PostgreSQL
+

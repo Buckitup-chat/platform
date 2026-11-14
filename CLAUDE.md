@@ -86,7 +86,7 @@ The `Platform` module provides helpers for building staged supervision trees:
 - **USB drive detection**: `Platform.UsbDrives.Detector` watches for device insert/eject
 - **PostgreSQL**: Per-drive instances with port = 5432 + (device letter - 'a' + 1)
 - **Storage units**: a unit is one `(drive, role)` (`Chat.Storage.Unit`, `Role`, registry `Units`); the unit the system writes to is `Chat.Storage.Default`, switched only by `Default.switch_to/1`. Design: `../chat/docs/pq/reqs/files/pq_storage_units.done.md`
-- **Replication**: chat's `Chat.Storage.Link` (bootstrap/replicate/stop across CubDB, PG, blobs); status in `Chat.Storage.Links`, read by `Platform.Storage.Logic.info/0`. Spec: `openspec/specs/storage-sync/spec.md`
+- **Replication**: chat's `Chat.Storage.Link` (bootstrap/replicate/stop across CubDB, PG, blobs); status in `Chat.Storage.Links`, read by `Platform.Storage.Logic.info/0`
 - **Logical replication / diff-copy**: `Chat.Storage.Pg.LogicalReplicator` and `Chat.Storage.Pg.BatchSync` (live in chat)
 
 ### Target vs Host Modules
