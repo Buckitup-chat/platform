@@ -28,7 +28,6 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   def init([device | _]) do
     log("start", :info)
 
-    type = "onliners_db"
     full_path = device |> Unit.usb(:onliners) |> Unit.path(:cub_db)
     tasks = Tasks
     target_db = Chat.Db.OnlinersDb
@@ -37,7 +36,7 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
       use_task(tasks),
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
-      {Bouncer, db: target_db, type: type},
+      {Bouncer, db: target_db, role: :onliners},
       Starter,
       {:stage, Ready, {ScopeProvider, target: target_db}},
       {:stage, Copying,

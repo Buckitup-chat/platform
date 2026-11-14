@@ -25,7 +25,6 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
     log("start", :info)
 
     unit = Unit.usb(device, :backup)
-    type = "backup_db"
     full_path = Unit.path(unit, :cub_db)
     db = Chat.Db.BackupDb
     continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
@@ -40,7 +39,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
     ([
        {Task, fn -> File.mkdir_p!(full_path) end},
        {Chat.Db.MediaDbSupervisor, [db, full_path]} |> exit_takes(20_000),
-       {Bouncer, db: db, type: type}
+       {Bouncer, db: db, role: :backup}
      ] ++
        chunk_pipeline ++
        [
