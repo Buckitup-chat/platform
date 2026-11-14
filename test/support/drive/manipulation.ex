@@ -48,7 +48,8 @@ defmodule Support.Drive.Manipulation do
     )
   end
 
-  def drive_path(drive), do: Application.get_env(:platform, :mount_path_media) |> Path.join(drive)
+  def drive_path(drive),
+    do: Application.fetch_env!(:chat, Chat.Storage)[:media_root] |> Path.join(drive)
 
   def await_supervision_started do
     await_till(
@@ -78,18 +79,18 @@ defmodule Support.Drive.Manipulation do
   end
 
   def clean_filesystem do
-    Application.get_env(:platform, :mount_path_media)
+    Application.fetch_env!(:chat, Chat.Storage)[:media_root]
     |> Path.join("*")
     |> Path.wildcard()
     |> Enum.each(&File.rm_rf!/1)
   end
 
   defp insert_drive(drive, type \\ :empty) do
-    Application.get_env(:platform, :mount_path_media)
+    Application.fetch_env!(:chat, Chat.Storage)[:media_root]
     |> File.ls()
 
     if type != :empty do
-      base = Application.get_env(:platform, :mount_path_media)
+      base = Application.fetch_env!(:chat, Chat.Storage)[:media_root]
 
       [base, drive, @type_folder |> Map.fetch!(type)]
       |> Path.join()

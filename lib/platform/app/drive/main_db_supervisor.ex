@@ -20,17 +20,18 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   end
 
   @impl true
-  def init([device, path, _pg_opts]) do
+  def init([device, _path, _pg_opts]) do
     log("start", :debug)
 
-    full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()
+    unit = Unit.usb(device, :main)
+    full_path = Unit.path(unit, :cub_db)
 
     [
       dir_creator(full_path),
       {Chat.Db.MainDbSupervisor, full_path} |> exit_takes(20_000),
       {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
       # Registers the main unit and is the upload writer once the plan makes main the Default
-      {Chat.Data.File.ChunkPipelineSupervisor, unit: Unit.usb(device, :main)},
+      {Chat.Data.File.ChunkPipelineSupervisor, unit: unit},
       # Attach plan on start, eject plan on exit: stops links + switches Default back
       {MainPlan, device: device} |> exit_takes(25_000)
     ]

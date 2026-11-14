@@ -2,7 +2,6 @@ import Config
 
 config :platform,
   env: Mix.env(),
-  mount_path_media: "/root/media",
   target: Mix.target()
 
 config :tzdata, :autoupdate, :disabled
@@ -15,6 +14,7 @@ config :chat, file_chunk_size: 10 * 1024 * 1024
 config :chat, Chat.Storage,
   internal_root: "/root",
   media_root: "/root/media"
+
 config :chat, Chat.Db.ChangeTracker, expire_seconds: 31
 
 config :chat,
@@ -53,7 +53,8 @@ config :phoenix_sync,
   env: config_env(),
   mode: :embedded,
   repo: Chat.Repo,
-  storage_dir: "/root/electric"
+  # Unit.path(Unit.internal(), :electric); /root/electric is removed by the PQ reset
+  storage_dir: "/root/db/electric"
 
 if Mix.target() == :host or Mix.target() == :"" do
   import_config "host.exs"

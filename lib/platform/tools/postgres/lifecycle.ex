@@ -78,9 +78,9 @@ defmodule Platform.Tools.Postgres.Lifecycle do
 
   # --- Delegated RunDir functions ---
 
-  defdelegate ensure_run_dir(pg_dir, opts \\ []), to: __MODULE__.RunDir
+  defdelegate ensure_run_dir(opts), to: __MODULE__.RunDir
   defdelegate cleanup_run_dir_files(run_dir), to: __MODULE__.RunDir
-  defdelegate extract_pg_run_dir(pg_dir, opts \\ []), to: __MODULE__.RunDir
+  defdelegate extract_pg_run_dir(opts), to: __MODULE__.RunDir
 
   # --- Server start/stop ---
 
@@ -88,7 +88,8 @@ defmodule Platform.Tools.Postgres.Lifecycle do
   Start the PostgreSQL server with configurable options.
 
   ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
+  - `:pg_dir` - Base directory for PostgreSQL data (required)
+  - `:run_dir` - Socket directory, `Chat.Storage.Unit.pg_run/1` (required)
   - `:pg_port` - PostgreSQL port (default: 5432)
 
   ## Returns
@@ -137,7 +138,7 @@ defmodule Platform.Tools.Postgres.Lifecycle do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_port = Keyword.get(opts, :pg_port, @default_pg_port)
     pg_data_dir = Path.join(pg_dir, "data")
-    run_dir = extract_pg_run_dir(pg_dir, opts)
+    run_dir = extract_pg_run_dir(opts)
 
     settings = Enum.join(@pg_minimal_settings ++ @pg_recovery_optimized_settings, " ")
 
@@ -162,6 +163,7 @@ defmodule Platform.Tools.Postgres.Lifecycle do
 
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data (required)
+  - `:run_dir` - Socket directory, `Chat.Storage.Unit.pg_run/1` (required)
 
   ## Returns
   - `:ok` if the PostgreSQL server was stopped successfully
@@ -170,7 +172,7 @@ defmodule Platform.Tools.Postgres.Lifecycle do
   def stop(opts) do
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = Path.join(pg_dir, "data")
-    run_dir = extract_pg_run_dir(pg_dir, opts)
+    run_dir = extract_pg_run_dir(opts)
 
     check_if_running = fn
       false ->

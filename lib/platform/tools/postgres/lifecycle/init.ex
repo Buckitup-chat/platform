@@ -13,7 +13,8 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
   Initialize the PostgreSQL database with configurable options.
 
   ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
+  - `:pg_dir` - Base directory for PostgreSQL data (required)
+  - `:run_dir` - Socket directory, `Chat.Storage.Unit.pg_run/1` (required)
 
   ## Returns
   - `:ok` if the PostgreSQL database was initialized successfully
@@ -24,7 +25,7 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
 
     pg_dir = Keyword.fetch!(opts, :pg_dir)
     pg_data_dir = data_dir(opts)
-    run_dir = Lifecycle.ensure_run_dir(pg_dir, opts)
+    run_dir = Lifecycle.ensure_run_dir(opts)
 
     prepare_data_dir(pg_data_dir, pg_dir, run_dir)
 
@@ -155,7 +156,8 @@ defmodule Platform.Tools.Postgres.Lifecycle.Init do
     Permissions.ensure_dirs([pg_data_dir], Permissions.get_uid(), Permissions.get_gid())
     ["[initialize] permissions set"] |> log(:debug)
 
-    File.chmod!(pg_dir, 0o755)
+    # postgres traverses the unit's role dir (`<root>/<role_dir>/pg`), which root creates
+    [pg_dir |> Path.dirname(), pg_dir] |> Enum.each(&File.chmod!(&1, 0o755))
     ["[initialize] dir permissions set"] |> log(:debug)
   end
 

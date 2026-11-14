@@ -21,11 +21,12 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
   end
 
   @impl true
-  def init([device, path, pg_opts]) do
+  def init([device, _path, pg_opts]) do
     log("start", :info)
 
+    unit = Unit.usb(device, :backup)
     type = "backup_db"
-    full_path = [path, type, Chat.Db.version_path()] |> Path.join()
+    full_path = Unit.path(unit, :cub_db)
     db = Chat.Db.BackupDb
     continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
 
@@ -33,7 +34,7 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
     chunk_pipeline =
       case Map.get(pg_opts, :repo) do
         nil -> []
-        _ -> [{ChunkPipelineSupervisor, unit: Unit.usb(device, :backup)}]
+        _ -> [{ChunkPipelineSupervisor, unit: unit}]
       end
 
     ([

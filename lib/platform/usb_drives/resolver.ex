@@ -9,7 +9,8 @@ defmodule Platform.UsbDrives.Resolver do
   ignored, as before: no PG, no scenario, no indication.
 
   The resolution builds the rest of the boot tree (`:tree` option), so PG stages
-  run only for roles with `:pg`. See `pq_storage_units.proposed.md` §1.5, §3.
+  run only for roles with `:pg`. The one-time PQ relocation (`PqReset`, §7.2)
+  runs before the role is read. See `pq_storage_units.proposed.md` §1.5, §3.
   """
   use GracefulGenServer, timeout: :timer.minutes(1)
   use Toolbox.OriginLog
@@ -18,6 +19,7 @@ defmodule Platform.UsbDrives.Resolver do
   alias Chat.AdminRoom
   alias Chat.Storage.Role
   alias Chat.Sync.UsbDriveDumpRoom
+  alias Platform.Storage.PqReset
   alias Platform.UsbDrives.Decider
 
   @type resolution :: {:role, Role.t()} | :dump | :ignore
@@ -46,11 +48,14 @@ defmodule Platform.UsbDrives.Resolver do
   @impl true
   def on_exit(_reason, _state), do: :ok
 
-  # Dump is a scenario, not a role: a camera card gets no role dir and no PG
-  defp resolve(%{path: path} = state) do
+  # Dump is a scenario, not a role: a camera card gets no role dir and no PG.
+  # The PQ reset runs first: the legacy cluster moves into the role dir, and a drive
+  # with only `<mount>/pg` (no role dir) reads as blank.
+  defp resolve(%{device: device, path: path} = state) do
     if UsbDriveDumpRoom.get() do
       :dump
     else
+      PqReset.usb(device)
       path |> Role.from_mount() |> from_disk(state)
     end
   end
