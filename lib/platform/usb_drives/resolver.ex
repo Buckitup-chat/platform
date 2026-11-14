@@ -16,7 +16,6 @@ defmodule Platform.UsbDrives.Resolver do
 
   alias Chat.Admin.MediaSettings
   alias Chat.AdminRoom
-  alias Chat.Db.Common
   alias Chat.Storage.Role
   alias Chat.Sync.UsbDriveDumpRoom
   alias Platform.UsbDrives.Decider
@@ -84,19 +83,14 @@ defmodule Platform.UsbDrives.Resolver do
     end
   end
 
-  # At most one unit per role. Main is taken once Chat has switched to it.
-  defp taken?(role) do
-    case role do
-      :main -> not on_internal_db?()
-      _ -> role |> Decider.supervisor_for() |> Process.whereis() |> is_pid()
-    end
-  end
+  # At most one unit per role: its scenario supervisor is up
+  defp taken?(role), do: role |> Decider.supervisor_for() |> Process.whereis() |> is_pid()
 
   defp blank_role do
     %MediaSettings{main: create_main?, functionality: functionality} =
       AdminRoom.get_media_settings()
 
-    if create_main? and on_internal_db?(), do: :main, else: functionality
+    if create_main? and not taken?(:main), do: :main, else: functionality
   end
 
   defp settle_blank(path, role, optimizer) do
@@ -111,6 +105,4 @@ defmodule Platform.UsbDrives.Resolver do
 
   # No role dir is not enough to format: a camera card has DCIM/
   defp empty?(path), do: path |> File.ls!() |> Enum.empty?()
-
-  defp on_internal_db?, do: Common.get_chat_db_env(:mode) == :internal
 end

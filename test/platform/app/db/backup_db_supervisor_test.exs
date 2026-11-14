@@ -60,7 +60,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
       |> DynamicSupervisor.start_child({MainDbSupervisor, [nil]})
 
       retry_until(5_000, fn ->
-        assert Common.get_chat_db_env(:mode) == :main
+        assert Chat.Storage.Default.unit().role == :main
       end)
 
       charlie = User.login("Charlie")
@@ -124,7 +124,7 @@ defmodule Platform.App.Db.BackupDbSupervisorTest do
       |> DynamicSupervisor.start_child({MainDbSupervisor, [nil]})
 
       retry_until(5_000, fn ->
-        assert Common.get_chat_db_env(:mode) == :main
+        assert Chat.Storage.Default.unit().role == :main
       end)
 
       assert {:ok, _pid} =

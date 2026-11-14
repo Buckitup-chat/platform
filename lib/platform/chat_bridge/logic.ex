@@ -3,8 +3,8 @@ defmodule Platform.ChatBridge.Logic do
 
   alias Platform.Tools.Fwup
 
-  alias Chat.Db.Common
-  alias Chat.Db.Maintenance
+  alias Chat.Storage.Unit
+  alias Chat.Storage.Units
   alias Platform.ChatBridge.Lan
   alias Platform.ChatBridge.Wifi
   alias Platform.Sensor.Weigh
@@ -58,20 +58,13 @@ defmodule Platform.ChatBridge.Logic do
   end
 
   def unmount_main do
-    if Common.get_chat_db_env(:mode) == :main do
-      Chat.Db.MainDb
-      |> CubDB.data_dir()
-      |> Maintenance.path_to_device()
-      |> then(fn
-        "/dev/" <> device -> device
-        "/" <> device -> device
-        device -> device
-      end)
-      |> Drive.terminate()
+    case Units.by_role(:main) do
+      {:ok, %Unit{id: device}} ->
+        Drive.terminate(device)
+        :unmounted
 
-      :unmounted
-    else
-      :ignored
+      :error ->
+        :ignored
     end
     |> mark(:unmounted_main)
   end

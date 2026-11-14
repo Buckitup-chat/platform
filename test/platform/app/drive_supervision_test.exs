@@ -3,23 +3,22 @@ defmodule DriveSupervisionTest do
 
   import Support.Drive.Manipulation
 
+  alias Chat.Storage.Default
+
   @drive "sde1"
 
-  test "main dies by last stage" do
+  test "main dies by its plan" do
     prepare()
     await_main_set_up_completely(@drive)
-    # print_supervision_tree()
 
-    kill_last_stage_children(@drive)
+    kill_plan(@drive)
     Process.sleep(100)
     await_main_set_up_completely(@drive)
-    # print_supervision_tree()
 
-    # and one more time to trigger prev stage killing
-    kill_last_stage_children(@drive)
+    # and one more time to exceed the scenario's restart intensity
+    kill_plan(@drive)
     Process.sleep(100)
     await_main_set_up_completely(@drive)
-    # print_supervision_tree()
 
     cleanup()
   end
@@ -58,13 +57,14 @@ defmodule DriveSupervisionTest do
     cleanup()
   end
 
-  defp kill_last_stage_children(drive) do
-    get_drive_scenarios()
-    |> Map.get(drive)
-    |> find_next_stage()
-    |> stage_children()
-    |> Enum.map(&elem(&1, 0))
-    |> Enum.each(&Process.exit(&1, :test))
+  defp kill_plan(drive) do
+    {_, pid, _, _} =
+      get_drive_scenarios()
+      |> Map.get(drive)
+      |> Supervisor.which_children()
+      |> List.keyfind(Platform.Storage.MainPlan, 0)
+
+    Process.exit(pid, :test)
   end
 
   defp kill_a_child_in_scenario(drive) do
@@ -88,27 +88,32 @@ defmodule DriveSupervisionTest do
     |> Process.exit(:test)
   end
 
+  # Every scenario child is up and the attach plan has made main the Default
   defp await_main_set_up_completely(drive) do
     refute :timeout ==
              await_till(
                fn ->
-                 get_drive_scenarios()
-                 |> Map.get(drive)
-                 |> find_next_stage()
-                 |> stage_children()
-                 |> case do
-                   false ->
-                     false
-
-                   list ->
-                     list
-                     |> Enum.map(&elem(&1, 0))
-                     |> Enum.all?(&Process.alive?/1)
-                 end
+                 scenario_children_alive?(drive) and
+                   Default.unit().role == :main
                end,
                step: 500,
-               time: 10_000
+               time: 20_000
              )
+  end
+
+  defp scenario_children_alive?(drive) do
+    case get_drive_scenarios() |> Map.get(drive) do
+      nil ->
+        false
+
+      scenario ->
+        scenario
+        |> Supervisor.which_children()
+        |> Enum.all?(fn {_, pid, _, _} -> is_pid(pid) and Process.alive?(pid) end)
+    end
+  catch
+    # The supervisor went down while being asked: the tree is still restarting
+    :exit, _ -> false
   end
 
   defp stage_children(pid) do
@@ -123,20 +128,6 @@ defmodule DriveSupervisionTest do
     end
   catch
     # The supervisor went down while being asked: the tree is still restarting
-    :exit, _ -> false
-  end
-
-  defp find_next_stage(supervisor) do
-    with sup_pid <- Process.whereis(supervisor),
-         true <- is_pid(sup_pid),
-         sup_child_specs <- Supervisor.which_children(sup_pid),
-         [{_, pid, _, _} | _] <-
-           Enum.filter(sup_child_specs, &(elem(&1, 3) == [DynamicSupervisor])) do
-      pid
-    else
-      _ -> false
-    end
-  catch
     :exit, _ -> false
   end
 
