@@ -1,4 +1,3 @@
-File.rm_rf("priv/test_admin_db")
 File.rm_rf("priv/test_db")
 
 "priv/test_media/**/*"
