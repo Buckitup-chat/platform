@@ -7,16 +7,18 @@ defmodule Platform.Storage.Bouncer do
   use Toolbox.OriginLog
 
   alias Chat.Db.DbType
+  alias Chat.Storage.Role
 
   def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, [])
   end
 
   @impl true
-  def init([db: db, type: type] = opts) do
+  def init([db: db, role: role] = opts) do
     log("starting with opts #{inspect(opts)}", :info)
 
-    expected_type = determine_type(type)
+    type = Role.dir(role)
+    expected_type = expected_type(role)
 
     case DbType.get(db) do
       nil ->
@@ -38,6 +40,7 @@ defmodule Platform.Storage.Bouncer do
     end
   end
 
-  defp determine_type("backup_db"), do: "main_db"
-  defp determine_type(type), do: type
+  # A backup drive holds a copy of main, so it is stamped with main's type
+  defp expected_type(:backup), do: Role.dir(:main)
+  defp expected_type(role), do: Role.dir(role)
 end

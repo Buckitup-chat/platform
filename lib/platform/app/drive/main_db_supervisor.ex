@@ -29,7 +29,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
     [
       dir_creator(full_path),
       {Chat.Db.MainDbSupervisor, full_path} |> exit_takes(20_000),
-      {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
+      {Bouncer, db: Chat.Db.MainDb, role: :main},
       # Registers the main unit and is the upload writer once the plan makes main the Default
       {Chat.Data.File.ChunkPipelineSupervisor, unit: unit},
       # Attach plan on start, eject plan on exit: stops links + switches Default back

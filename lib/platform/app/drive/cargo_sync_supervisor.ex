@@ -33,7 +33,6 @@ defmodule Platform.App.Drive.CargoSyncSupervisor do
   def init([device | _]) do
     log("start", :info)
 
-    type = "cargo_db"
     full_path = device |> Unit.usb(:cargo) |> Unit.path(:cub_db)
     tasks = Tasks
     target_db = Chat.Db.CargoDb
@@ -42,7 +41,7 @@ defmodule Platform.App.Drive.CargoSyncSupervisor do
       use_task(tasks),
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
-      {Bouncer, db: target_db, type: type} |> exit_takes(1000),
+      {Bouncer, db: target_db, role: :cargo} |> exit_takes(1000),
       {Starter, flag: :cargo} |> exit_takes(500),
       {:stage, Ready, {ScopeProvider, target: target_db} |> exit_takes(1000)},
       {:stage, Copying,

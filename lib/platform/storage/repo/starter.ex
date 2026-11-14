@@ -6,6 +6,7 @@ defmodule Platform.Storage.Repo.Starter do
   use GracefulGenServer, timeout: :timer.minutes(3)
   use Toolbox.OriginLog
 
+  alias Chat.Storage.Link
   alias Chat.Storage.Pg.LogicalReplicator
 
   @impl true
@@ -53,11 +54,14 @@ defmodule Platform.Storage.Repo.Starter do
     :ok
   end
 
+  # Leftovers of a main ~> internal link from a previous session
   defp cleanup_stale_replication(Chat.Repo) do
-    _ = LogicalReplicator.disable_subscription_if_exists(Chat.Repo, "internal_from_main")
+    _ = LogicalReplicator.disable_subscription_if_exists(Chat.Repo, stale_link_name())
   end
 
   defp cleanup_stale_replication(repo) do
-    _ = LogicalReplicator.drop_slot_if_exists(repo, "internal_from_main")
+    _ = LogicalReplicator.drop_slot_if_exists(repo, stale_link_name())
   end
+
+  defp stale_link_name, do: Link.name({:main, :internal}, :subscription)
 end
