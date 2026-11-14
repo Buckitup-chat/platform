@@ -1,6 +1,6 @@
 defmodule Platform.Storage.PqReset do
   @moduledoc """
-  One-time PQ relocation (`pq_storage_units.proposed.md` §7.2).
+  One-time PQ relocation (`pq_storage_units.done.md` §7.2).
 
   Before storage units, PostgreSQL, chunk blobs and the Electric cache lived
   outside the role dir. They are moved under `<root>/<role_dir>/`, so PQ data

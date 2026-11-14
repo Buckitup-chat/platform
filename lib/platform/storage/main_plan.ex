@@ -8,7 +8,7 @@ defmodule Platform.Storage.MainPlan do
 
   Options: `device:` (required).
 
-  See `chat/docs/pq/reqs/files/pq_storage_units.proposed.md` §2.7.3–2.7.5.
+  See `chat/docs/pq/reqs/files/pq_storage_units.done.md` §2.7.3–2.7.5.
   """
 
   use GracefulGenServer
