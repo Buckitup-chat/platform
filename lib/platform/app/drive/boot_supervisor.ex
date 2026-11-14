@@ -12,6 +12,7 @@ defmodule Platform.App.Drive.BootSupervisor do
   import Platform
 
   alias Chat.Storage.Role
+  alias Chat.Storage.Unit
   alias Platform.Storage.DriveIndicationStarter
   alias Platform.Storage.InternalDbAwaiter
   alias Platform.Tools.Postgres
@@ -47,7 +48,7 @@ defmodule Platform.App.Drive.BootSupervisor do
     @fs_optimizer Platform.Emulator.Drive.FsOptimizer
 
     # No per-drive PG server on host: each drive gets its own database on the local one
-    defp pg_port_for_device(_device), do: Application.get_env(:chat, Chat.Repo)[:port]
+    defp pg_port(_unit), do: Application.get_env(:chat, Chat.Repo)[:port]
 
     defp drive_repo_config(device, _port) do
       config = Application.get_env(:chat, Chat.Repo)
@@ -63,18 +64,12 @@ defmodule Platform.App.Drive.BootSupervisor do
     @pg_migration_runner Platform.Storage.Repo.MigrationRunner
     @fs_optimizer Platform.Storage.FsOptimizer
 
-    defp pg_port_for_device(device) do
-      "sd" <> <<index::8>> <> _ = device
-
-      5432 + 1 + index - ?a
-    end
+    defp pg_port(unit), do: Unit.pg_port(unit)
 
     defp drive_repo_config(_device, port) do
       Application.get_env(:chat, Chat.Repo) |> Keyword.put(:port, port)
     end
   end
-
-  @mount_path Application.compile_env(:platform, :mount_path_media)
 
   def supervision_tree(device) do
     task_supervisor = name(BootTask, device)
@@ -89,14 +84,14 @@ defmodule Platform.App.Drive.BootSupervisor do
       {:step, name(Mounted, device),
        {@mounter,
         device: device,
-        at: mount_path(device),
+        at: Unit.root(device),
         mount_options: mount_options(),
         task_in: task_supervisor}
        |> exit_takes(15_000)},
       {:step, name(InternalDbReady, device), {InternalDbAwaiter, task_in: task_supervisor}},
       {Resolver,
        device: device,
-       at: mount_path(device),
+       at: Unit.root(device),
        optimizer: @fs_optimizer,
        under: resolved_supervisor,
        tree: &resolved_tree(device, &1)},
@@ -108,26 +103,26 @@ defmodule Platform.App.Drive.BootSupervisor do
 
   # Engines per role capabilities, then the scenario
   defp resolved_tree(device, resolution) do
-    pg? =
+    pg_unit =
       case resolution do
-        {:role, role} -> :pg in Role.capabilities(role)
-        _ -> false
+        {:role, role} -> if :pg in Role.capabilities(role), do: Unit.usb(device, role)
+        _ -> nil
       end
 
     next_supervisor = name(Scenario, device)
 
     pg_opts =
-      if pg?,
-        do: %{port: pg_port_for_device(device), dir: pg_dir(device), repo: repo_name(device)}
+      if pg_unit,
+        do: %{port: pg_port(pg_unit), dir: Unit.path(pg_unit, :pg), repo: Unit.repo(pg_unit)}
 
     [
-      if(pg?, do: pg_stages(device), else: []),
+      if(pg_unit, do: pg_stages(pg_unit), else: []),
       use_next_stage(next_supervisor) |> exit_takes(90_000),
       {Decider,
        [
          device,
          [
-           mounted: mount_path(device),
+           mounted: Unit.root(device),
            scenario: Decider.scenario(resolution),
            pg: pg_opts,
            next: [under: next_supervisor]
@@ -138,21 +133,23 @@ defmodule Platform.App.Drive.BootSupervisor do
     |> prepare_stages(Platform.App.Drive.Boot)
   end
 
-  defp pg_stages(device) do
+  defp pg_stages(%Unit{id: device} = unit) do
     task_supervisor = name(BootTask, device)
-    pg_dir = pg_dir(device)
-    port = pg_port_for_device(device)
-    repo_name = repo_name(device)
+    pg_dir = Unit.path(unit, :pg)
+    run_dir = Unit.pg_run(unit)
+    port = pg_port(unit)
+    repo_name = Unit.repo(unit)
 
     [
       {:step, name(InitPg, device),
-       {@pg_initializer, pg_dir: pg_dir, pg_port: port, task_in: task_supervisor}
+       {@pg_initializer,
+        pg_dir: pg_dir, pg_port: port, run_dir: run_dir, task_in: task_supervisor}
        |> exit_takes(30_000)},
       {:stage, name(PgServer, device),
        {@pg_daemon,
         pg_dir: pg_dir,
         pg_port: port,
-        device: device,
+        run_dir: run_dir,
         name: name(PgDaemon, device),
         task_in: task_supervisor}
        |> exit_takes(180_000)},
@@ -168,11 +165,14 @@ defmodule Platform.App.Drive.BootSupervisor do
     ]
   end
 
+  # Repo, port and run dir derive from the device alone, so the repo is defined
+  # before the role is resolved
   defp define_repo(device) do
-    repo_name = repo_name(device)
+    unit = device_unit(device)
+    repo_name = Unit.repo(unit)
 
     device
-    |> drive_repo_config(pg_port_for_device(device))
+    |> drive_repo_config(pg_port(unit))
     |> then(&Application.put_env(:platform, repo_name, &1))
 
     repo_module_content =
@@ -185,15 +185,7 @@ defmodule Platform.App.Drive.BootSupervisor do
     Module.create(repo_name, repo_module_content, Macro.Env.location(__ENV__))
   end
 
-  defp mount_path(device), do: Path.join(@mount_path, device)
-  defp pg_dir(device), do: device |> mount_path() |> Path.join("pg")
-  defp repo_name(device), do: atom_name(Repo, device)
-
-  defp atom_name(suffix, device) do
-    "sd" <> <<index::bitstring-size(8)>> <> _ = device
-
-    Module.concat([Platform.Dev, :"Sd#{index}", suffix])
-  end
+  defp device_unit(device), do: Unit.usb(device, :main)
 
   defp name(stage, device) do
     Drive.registry_name(stage, device)

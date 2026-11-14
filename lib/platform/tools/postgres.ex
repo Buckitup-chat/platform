@@ -14,7 +14,7 @@ defmodule Platform.Tools.Postgres do
   defdelegate start(opts), to: Lifecycle
   defdelegate stop(opts), to: Lifecycle
   defdelegate server_running?(opts \\ []), to: Lifecycle
-  defdelegate ensure_run_dir(pg_dir, opts \\ []), to: Lifecycle
+  defdelegate ensure_run_dir(opts), to: Lifecycle
   defdelegate cleanup_run_dir_files(run_dir), to: Lifecycle
   defdelegate remove_stale_postmaster_pid(pg_dir), to: Lifecycle
   defdelegate cleanup_old_server(pg_dir, opts \\ []), to: Lifecycle
@@ -40,7 +40,8 @@ defmodule Platform.Tools.Postgres do
   Create a daemon specification for running PostgreSQL server under supervision.
 
   ## Options
-  - `:pg_dir` - Base directory for PostgreSQL data and run directories (required)
+  - `:pg_dir` - Base directory for PostgreSQL data (required)
+  - `:run_dir` - Socket directory, `Chat.Storage.Unit.pg_run/1` (required)
   - `:pg_port` - PostgreSQL port (default: 5432)
   - `:name` - Name for the daemon process (default: :postgres_daemon)
   """
@@ -49,7 +50,7 @@ defmodule Platform.Tools.Postgres do
     pg_port = Keyword.get(opts, :pg_port, 5432)
     daemon_name = Keyword.get(opts, :name, :postgres_daemon)
 
-    run_dir = Lifecycle.extract_pg_run_dir(pg_dir, opts)
+    run_dir = Lifecycle.extract_pg_run_dir(opts)
     pg_data_dir = Path.join(pg_dir, "data")
 
     {MuonTrap.Daemon,

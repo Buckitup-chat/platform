@@ -9,7 +9,7 @@ defmodule Platform.App.Sync.UsbDriveDumpSupervisorTest do
   alias Phoenix.PubSub
 
   @cub_db_file Application.compile_env(:chat, :cub_db_file)
-  @mount_path Application.compile_env(:platform, :mount_path_media)
+  @mount_path Application.compile_env!(:chat, Chat.Storage)[:media_root]
 
   #  setup do
   #    CubDB.clear(Db.db())
