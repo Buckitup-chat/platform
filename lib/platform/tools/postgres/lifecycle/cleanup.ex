@@ -23,19 +23,20 @@ defmodule Platform.Tools.Postgres.Lifecycle.Cleanup do
 
   ## Options
   - `:pg_dir` - Base directory for PostgreSQL data (required)
+  - `:run_dir` - Socket directory, `Chat.Storage.Unit.pg_run/1` (required)
 
   ## Returns
   `:ok` after cleanup attempt
   """
   def cleanup_old_server(pg_dir, opts \\ []) do
     pg_data_dir = Path.join(pg_dir, "data")
-    run_dir = Lifecycle.extract_pg_run_dir(pg_dir, opts)
+    run_dir = Lifecycle.extract_pg_run_dir(opts)
 
     remove_stale_postmaster_pid(pg_dir)
     force_stop_server(pg_data_dir, run_dir)
     log_ipc_info()
     SharedMemory.cleanup_stale(pg_data_dir)
-    Lifecycle.ensure_run_dir(pg_dir, opts)
+    Lifecycle.ensure_run_dir(opts)
 
     :ok
   end

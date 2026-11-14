@@ -42,7 +42,7 @@ defmodule Platform.Storage.Pg.Daemon do
     %{
       pg_dir: opts |> Keyword.fetch!(:pg_dir),
       pg_port: opts |> Keyword.fetch!(:pg_port),
-      device: Keyword.get(opts, :device),
+      run_dir: opts |> Keyword.fetch!(:run_dir),
       daemon_name: Keyword.get(opts, :name, :postgres_daemon),
       task_supervisor: opts |> Keyword.fetch!(:task_in),
       next_specs: next |> Keyword.fetch!(:run),
@@ -75,7 +75,7 @@ defmodule Platform.Storage.Pg.Daemon do
         %{
           pg_dir: pg_dir,
           pg_port: pg_port,
-          device: device,
+          run_dir: run_dir,
           daemon_name: daemon_name,
           task_supervisor: task_supervisor,
           attempt_timeout: attempt_timeout
@@ -83,7 +83,7 @@ defmodule Platform.Storage.Pg.Daemon do
       ) do
     %{ref: ref, pid: pid} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
-        prepare_daemon_spec(pg_dir, pg_port, device, daemon_name)
+        prepare_daemon_spec(pg_dir, pg_port, run_dir, daemon_name)
       end)
 
     watchdog_ref = Process.send_after(self(), {:attempt_timeout, ref}, attempt_timeout)
@@ -217,15 +217,13 @@ defmodule Platform.Storage.Pg.Daemon do
   end
 
   # Runs in the supervised task: everything here shells out or touches storage.
-  defp prepare_daemon_spec(pg_dir, pg_port, device, daemon_name) do
+  defp prepare_daemon_spec(pg_dir, pg_port, run_dir, daemon_name) do
     if Postgres.initialized?(pg_dir: pg_dir) do
       CrashLogs.capture(pg_dir)
+      Postgres.cleanup_old_server(pg_dir, run_dir: run_dir)
 
-      # Use device from supervision tree for explicit run_dir management
-      device_opts = if device, do: [device: device], else: []
-      Postgres.cleanup_old_server(pg_dir, device_opts)
-
-      {:ok, Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, name: daemon_name)}
+      {:ok,
+       Postgres.daemon_spec(pg_dir: pg_dir, pg_port: pg_port, run_dir: run_dir, name: daemon_name)}
     else
       {:error, :not_initialized}
     end

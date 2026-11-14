@@ -86,6 +86,7 @@ defmodule Platform.Storage.Pg.InitializerTest do
     [
       pg_dir: "/tmp/pg_initializer_test",
       pg_port: 5432,
+      run_dir: "/tmp/pg_run/internal",
       task_in: ctx.task_sup,
       next: [under: ctx.dyn_sup, run: run]
     ]

@@ -29,10 +29,11 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   end
 
   @impl true
-  def init([device, path, pg_opts]) do
+  def init([device, _path, pg_opts]) do
     log("start", :debug)
 
-    full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()
+    unit = Unit.usb(device, :main)
+    full_path = Unit.path(unit, :cub_db)
     task_supervisor = Platform.App.Drive.MainDbSupervisor.Tasks
     pg_opts = Map.put(pg_opts, :device, device)
 
@@ -46,7 +47,7 @@ defmodule Platform.App.Drive.MainDbSupervisor do
        {Copier, task_in: task_supervisor, pg_opts: pg_opts} |> exit_takes(25_000)},
       MainReplicator,
       # The upload writer is up before Switcher makes main the Default
-      {Chat.Data.File.ChunkPipelineSupervisor, unit: Unit.usb(device, :main)},
+      {Chat.Data.File.ChunkPipelineSupervisor, unit: unit},
       {Switcher, pg_opts: pg_opts} |> exit_takes(5000)
     ]
     |> prepare_stages(Platform.App.MainStages)
