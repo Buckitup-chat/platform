@@ -51,7 +51,7 @@ make cover
 
 **Platform.App.DatabaseSupervisor**: Staged startup for the internal PostgreSQL instance (chat DB on device). Mirrors `BootSupervisor`'s pattern with compile-time host/target module selection.
 
-**Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` handles internal→main replication and Phoenix.Sync init. `BackupDbSupervisor` handles backup copying.
+**Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` runs the main drive as link plans (`Platform.Storage.MainPlan`: `:main_attach` on start, `:main_eject` on exit) via chat's `Chat.Storage.PlanRunner`. `BackupDbSupervisor` handles backup copying.
 
 **Platform.App.Drive.BootSupervisor**: Per-drive staged startup sequence
 - Healer → Mounter → InternalDbAwaiter → Resolver → [PG init → daemon → DB creation → Repo → Migrations] → Decider
@@ -82,7 +82,7 @@ The `Platform` module provides helpers for building staged supervision trees:
 
 - **USB drive detection**: `Platform.UsbDrives.Detector` watches for device insert/eject
 - **PostgreSQL**: Per-drive instances with port = 5432 + (device letter - 'a' + 1)
-- **Replication**: `Platform.Storage.Logic` handles main→internal DB replication
+- **Replication**: chat's `Chat.Storage.Link` (bootstrap/replicate/stop across CubDB, PG, blobs); status in `Chat.Storage.Links`, read by `Platform.Storage.Logic.info/0`
 - **Logical replication / diff-copy**: `Chat.Storage.Pg.LogicalReplicator` and `Chat.Storage.Pg.BatchSync` (live in chat)
 
 ### Target vs Host Modules

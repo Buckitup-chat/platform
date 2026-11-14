@@ -17,7 +17,6 @@ defmodule Platform.Storage.Backup.Copier do
   alias Platform.Leds
   alias Platform.Storage.Backup.ChunkAwaiter
   alias Platform.Storage.Stopper
-  alias Platform.Storage.Sync
 
   @impl true
   def on_init(opts) do
@@ -108,7 +107,7 @@ defmodule Platform.Storage.Backup.Copier do
   defp sync_pg(nil), do: :ok
 
   defp sync_pg(backup_repo) do
-    schemas = Sync.schemas()
+    schemas = Shapes.sync_schemas()
 
     [{backup_repo, Chat.Repo, "restore"}, {Chat.Repo, backup_repo, "backup"}]
     |> Enum.each(fn {source, target, label} ->
