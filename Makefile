@@ -13,6 +13,9 @@ platform_version := $(shell git log -1 --date=format:%Y-%m-%d --format=%cd_%h)
 chat_version := $(shell bash chat_version.sh)
 frontend_version := $(shell bash frontend_version.sh)
 domain := $(shell cat ./built_for_domain)
+ifeq ($(strip $(domain)),)
+$(error built_for_domain is missing or empty, put the target domain there (e.g. buckitup.app))
+endif
 version := "$(platform_version)___$(chat_version)___$(frontend_version).$(domain)"
 
 nothing:
@@ -21,16 +24,20 @@ nothing:
 check:
 	mix compile --warnings-as-errors
 
+# Build stamps include the domain: the frontend bakes DOMAIN into its bundle
+# and chat reads it at compile time, so a domain switch must force a rebuild.
+# chat's `make firmware` also rebuilds the frontend, so the chat stamp covers it too.
 chat_commit := $(shell cd ../chat && git rev-parse HEAD)
+chat_stamp := $(chat_commit) $(frontend_version) $(domain)
 
 prepare_chat:
-	@if [ ! -f .chat_compiled ] || [ "$$(cat .chat_compiled)" != "$(chat_commit)" ]; then \
-		echo "Chat changed, recompiling..."; \
-		(cd ../chat && MIX_ENV=prod make firmware); \
-		MIX_ENV=prod mix deps.compile chat --force; \
-		echo "$(chat_commit)" > .chat_compiled; \
+	@if [ ! -f .chat_compiled ] || [ "$$(cat .chat_compiled)" != "$(chat_stamp)" ]; then \
+		echo "Chat, frontend or domain changed, recompiling for $(domain)..."; \
+		(cd ../chat && DOMAIN=$(domain) MIX_ENV=prod make firmware); \
+		DOMAIN=$(domain) MIX_ENV=prod mix deps.compile chat --force; \
+		echo "$(chat_stamp)" > .chat_compiled; \
 	else \
-		echo "Chat unchanged, skipping recompile"; \
+		echo "Chat unchanged for $(domain), skipping recompile"; \
 	fi
 
 prepare_chat_old:
@@ -40,14 +47,15 @@ prepare_chat_old:
 	MIX_ENV=prod mix deps.compile chat --force
 
 frontend_commit := $(shell cd ../chat-frontend && git rev-parse HEAD)
+frontend_stamp := $(frontend_commit) $(domain)
 
 prepare_frontend:
-	@if [ ! -f .frontend_compiled ] || [ "$$(cat .frontend_compiled)" != "$(frontend_commit)" ]; then \
-		echo "Frontend changed, rebuilding..."; \
-		(cd ../chat && make frontend-build); \
-		echo "$(frontend_commit)" > .frontend_compiled; \
+	@if [ ! -f .frontend_compiled ] || [ "$$(cat .frontend_compiled)" != "$(frontend_stamp)" ]; then \
+		echo "Frontend or domain changed, rebuilding for $(domain)..."; \
+		(cd ../chat && DOMAIN=$(domain) make frontend-build); \
+		echo "$(frontend_stamp)" > .frontend_compiled; \
 	else \
-		echo "Frontend unchanged, skipping rebuild"; \
+		echo "Frontend unchanged for $(domain), skipping rebuild"; \
 	fi
 
 clean_chat:
