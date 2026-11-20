@@ -8,6 +8,7 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   import Platform
 
   alias Chat.Db.MediaDbSupervisor
+  alias Chat.Storage.Unit
   alias Platform.App.Drive.OnlinersSyncSupervisor.Tasks
   alias Platform.App.Sync.Onliners.ScopeProvider
   alias Platform.Storage.Backup.Starter
@@ -24,11 +25,10 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
   end
 
   @impl true
-  def init([device, path | _]) do
+  def init([device | _]) do
     log("start", :info)
 
-    type = "onliners_db"
-    full_path = [path, type, Chat.Db.version_path()] |> Path.join()
+    full_path = device |> Unit.usb(:onliners) |> Unit.path(:cub_db)
     tasks = Tasks
     target_db = Chat.Db.OnlinersDb
 
@@ -36,7 +36,7 @@ defmodule Platform.App.Drive.OnlinersSyncSupervisor do
       use_task(tasks),
       {Task, fn -> File.mkdir_p!(full_path) end},
       {MediaDbSupervisor, [target_db, full_path]} |> exit_takes(20_000),
-      {Bouncer, db: target_db, type: type},
+      {Bouncer, db: target_db, role: :onliners},
       Starter,
       {:stage, Ready, {ScopeProvider, target: target_db}},
       {:stage, Copying,

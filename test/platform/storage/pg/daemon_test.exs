@@ -8,7 +8,7 @@ defmodule Platform.Storage.Pg.DaemonTest do
   @moduletag :capture_log
 
   @pg_dir "/tmp/pg_daemon_test"
-  @device "sda1"
+  @run_dir "/tmp/pg_run/sda1"
 
   # Test doubles must precede `rewire`; they report to the test via :persistent_term.
   defmodule PostgresStub do
@@ -79,8 +79,9 @@ defmodule Platform.Storage.Pg.DaemonTest do
     {:ok, _pid} = start_daemon_stage(ctx, run: [notifying_next_stage(:next_stage_started)])
 
     assert_receive {:initialized_called, pg_dir: @pg_dir}, 1_000
-    assert_receive {:cleanup_called, @pg_dir, [device: @device]}, 1_000
-    assert_receive {:daemon_spec_called, _opts}, 1_000
+    assert_receive {:cleanup_called, @pg_dir, [run_dir: @run_dir]}, 1_000
+    assert_receive {:daemon_spec_called, spec_opts}, 1_000
+    assert spec_opts[:run_dir] == @run_dir
     assert_receive :next_stage_started, 1_000
     refute_received :blink_alarm
   end
@@ -137,7 +138,7 @@ defmodule Platform.Storage.Pg.DaemonTest do
     [
       pg_dir: @pg_dir,
       pg_port: 5433,
-      device: @device,
+      run_dir: @run_dir,
       name: :pg_daemon_test,
       task_in: ctx.task_sup,
       next: [under: ctx.dyn_sup, run: run]

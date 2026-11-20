@@ -155,7 +155,7 @@ defmodule Platform.Application do
              System.cmd("modprobe", ["pwm-raspberrypi-poe"])
 
              try do
-               mount_path = Application.get_env(:platform, :mount_path_media)
+               mount_path = Application.fetch_env!(:chat, Chat.Storage)[:media_root]
                File.mkdir_p!(mount_path)
                File.chmod!(mount_path, 0o755)
              catch

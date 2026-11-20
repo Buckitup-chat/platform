@@ -51,10 +51,14 @@ make cover
 
 **Platform.App.DatabaseSupervisor**: Staged startup for the internal PostgreSQL instance (chat DB on device). Mirrors `BootSupervisor`'s pattern with compile-time host/target module selection.
 
-**Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` handles internal→main replication and Phoenix.Sync init. `BackupDbSupervisor` handles backup copying.
+**Platform.App.Drive.MainDbSupervisor / BackupDbSupervisor**: Per-drive supervisors for main and backup USB drives respectively. `MainDbSupervisor` runs the main drive as link plans (`Platform.Storage.MainPlan`: `:main_attach` on start, `:main_eject` on exit) via chat's `Chat.Storage.PlanRunner`. `BackupDbSupervisor` runs the backup drive as link plans (`Platform.Storage.BackupPlan`: `:backup_once` or `:backup_continuous`, following the Default and re-homing on `{:default_switched, _}`).
+
+**CargoSyncSupervisor / OnlinersSyncSupervisor / UsbDriveDumpSupervisor**: not on links yet. Cargo and onliners copy scoped CubDB data with `Platform.Storage.Copier`; they, the dump and `BackupDbSupervisor` start through `Platform.Storage.Backup.Starter`.
 
 **Platform.App.Drive.BootSupervisor**: Per-drive staged startup sequence
-- Healer → Mounter → PostgreSQL initialization → DB creation → Repo → Migrations → Decider
+- Healer → Mounter → InternalDbAwaiter → Resolver → [PG init → daemon → DB creation → Repo → Migrations] → Decider
+- `Platform.UsbDrives.Resolver` resolves the role first (`Chat.Storage.Role.from_mount/1`; blank drive → optional `optimize_fs` → role from `MediaSettings` → role dir; a taken role is ignored), then builds the rest of the tree: PG stages only for roles with `:pg`. Resolver also handles the dump override (`UsbDriveDumpRoom`). `Decider` maps the resolution to a scenario supervisor and starts it.
+- Paths, PG port, run dir and repo come from `Chat.Storage.Unit` (PG at `<mount>/<role_dir>/pg`). The one-time `Platform.Storage.PqReset` moves the pre-unit PQ generation (`<mount>/pg`, `…/v.10.1_files/pq_files`) under the role dir in Resolve (removes what has no home); `DatabaseSupervisor` runs it for the internal unit before `InitPg`.
 - Uses compile-time module selection: real modules on target, emulators on host
 
 **Platform.Storage.BootWatchdog**: Monitors staged boot trees from outside. Fingerprints each tree every 30s; if a stage stalls (alive but wedged), kills the deepest stuck stage so supervisors can recover. Watches internal DB tree and each drive tree up to `Decider`.
@@ -81,8 +85,9 @@ The `Platform` module provides helpers for building staged supervision trees:
 
 - **USB drive detection**: `Platform.UsbDrives.Detector` watches for device insert/eject
 - **PostgreSQL**: Per-drive instances with port = 5432 + (device letter - 'a' + 1)
-- **Replication**: `Platform.Storage.Logic` handles main→internal DB replication
-- **Logical replication**: `Platform.Tools.Postgres.LogicalReplicator` for PostgreSQL streaming
+- **Storage units**: a unit is one `(drive, role)` (`Chat.Storage.Unit`, `Role`, registry `Units`); the unit the system writes to is `Chat.Storage.Default`, switched only by `Default.switch_to/1`. Design: `../chat/docs/pq/reqs/files/pq_storage_units.done.md`
+- **Replication**: chat's `Chat.Storage.Link` (bootstrap/replicate/stop across CubDB, PG, blobs); status in `Chat.Storage.Links`, read by `Platform.Storage.Logic.info/0`
+- **Logical replication / diff-copy**: `Chat.Storage.Pg.LogicalReplicator` and `Chat.Storage.Pg.BatchSync` (live in chat)
 
 ### Target vs Host Modules
 
@@ -91,7 +96,12 @@ Compile-time switches in `BootSupervisor`:
 |--------------|---------------|
 | `Platform.Storage.Healer` | `Platform.Emulator.Drive.Healer` |
 | `Platform.Storage.Mounter` | `Platform.Emulator.Drive.Mounter` |
-| `Platform.Storage.Pg.*` | `Platform.Emulator.EmptyBypass` |
+| `Platform.Storage.Pg.*` (initdb, daemon, db creator) | `Platform.Emulator.EmptyBypass` |
+| `Platform.Storage.Repo.Starter` | `Platform.Emulator.Drive.RepoStarter` |
+| `Platform.Storage.Repo.MigrationRunner` | `Platform.Emulator.Drive.MigrationRunner` |
+| `Platform.Storage.FsOptimizer` | `Platform.Emulator.Drive.FsOptimizer` |
+
+On host each drive repo uses its own database (`<Chat.Repo database>_<device>`) on the local PG server, so drive scenarios run real sync and logical replication. In tests `Chat.Repo` uses `platform_test_chat` (created and migrated by the `mix test` alias); `DatabaseHelper.drop_drive_databases/0` drops drive DBs and their subscriptions/slots.
 
 ## Dependencies
 

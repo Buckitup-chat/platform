@@ -22,7 +22,12 @@ defmodule Platform.Emulator.Drive.Mounter do
 
   @impl true
 
-  def on_msg(:mounted, %{next_specs: next_specs, next_supervisor: next_supervisor} = state) do
+  def on_msg(
+        :mounted,
+        %{path: path, next_specs: next_specs, next_supervisor: next_supervisor} = state
+      ) do
+    # A real mount guarantees the mount point exists
+    File.mkdir_p!(path)
     Platform.start_next_stage(next_supervisor, next_specs)
     {:noreply, state}
   end

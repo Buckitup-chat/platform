@@ -7,20 +7,9 @@ defmodule Platform.App.Drive.MainDbSupervisor do
 
   import Platform
 
-  alias Platform.Storage.{
-    Bouncer,
-    MainReplicator
-  }
-
-  alias Platform.Storage.InternalToMain.{
-    Copier,
-    Starter,
-    Switcher
-  }
-
-  alias Platform.Storage.PhoenixSyncInit
-
-  alias Chat.Data.File.DriveDirs
+  alias Chat.Storage.Unit
+  alias Platform.Storage.Bouncer
+  alias Platform.Storage.MainPlan
 
   def start_link(init_arg) do
     Supervisor.start_link(__MODULE__, init_arg,
@@ -31,28 +20,21 @@ defmodule Platform.App.Drive.MainDbSupervisor do
   end
 
   @impl true
-  def init([device, path, pg_opts]) do
+  def init([device, _path, _pg_opts]) do
     log("start", :debug)
 
-    full_path = [path, "main_db", Chat.Db.version_path()] |> Path.join()
-    task_supervisor = Platform.App.Drive.MainDbSupervisor.Tasks
-    pg_opts = Map.put(pg_opts, :device, device)
+    unit = Unit.usb(device, :main)
+    full_path = Unit.path(unit, :cub_db)
 
     [
-      use_task(task_supervisor),
       dir_creator(full_path),
       {Chat.Db.MainDbSupervisor, full_path} |> exit_takes(20_000),
-      {Bouncer, db: Chat.Db.MainDb, type: "main_db"},
-      Starter |> exit_takes(1000),
-      {:stage, Copying,
-       {Copier, task_in: task_supervisor, pg_opts: pg_opts} |> exit_takes(25_000)},
-      MainReplicator,
-      {Switcher, pg_opts: pg_opts} |> exit_takes(1000),
-      {:step, PhoenixSyncReady, PhoenixSyncInit |> exit_takes(5000)},
-      {Chat.Data.File.ChunkPipelineSupervisor,
-       drive_id: device, repo: pg_opts.repo, base_dir: DriveDirs.usb_files_dir(path)}
+      {Bouncer, db: Chat.Db.MainDb, role: :main},
+      # Registers the main unit and is the upload writer once the plan makes main the Default
+      {Chat.Data.File.ChunkPipelineSupervisor, unit: unit},
+      # Attach plan on start, eject plan on exit: stops links + switches Default back
+      {MainPlan, device: device} |> exit_takes(25_000)
     ]
-    |> prepare_stages(Platform.App.MainStages)
     |> tap(fn specs ->
       specs
       |> calc_exit_time()

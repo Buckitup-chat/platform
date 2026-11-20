@@ -10,7 +10,6 @@ Quick links:
 - [PostgreSQL lifecycle](./docs/pg_lifecycle.md) — initialization, supervision, replication
 - [PostgreSQL management requirements](./docs/reqs/postgresql-management.md)
 - [Future ideas](./docs/future_ideas.md)
-- [OpenSpec workflow](./openspec/AGENTS.md) — spec-driven change process
 - [Style guide](./STYLE.md)
 
 Module-level docs live next to the code:

@@ -1,5 +1,5 @@
 defmodule Platform.App.Drive.BackupDbSupervisor do
-  @moduledoc "Backup DB device mount — starts CubDB, chunk pipeline, and Copier for a backup USB drive."
+  @moduledoc "Backup DB device mount — starts CubDB, chunk pipeline, and the backup link plan (`Platform.Storage.BackupPlan`)."
   use Supervisor
   use Toolbox.OriginLog
 
@@ -8,7 +8,8 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
   alias Chat.Admin.BackupSettings
   alias Chat.AdminRoom
   alias Chat.Data.File.ChunkPipelineSupervisor
-  alias Platform.Storage.Backup.Copier
+  alias Chat.Storage.Unit
+  alias Platform.Storage.BackupPlan
   alias Platform.Storage.Bouncer
 
   def start_link(init_arg) do
@@ -20,44 +21,30 @@ defmodule Platform.App.Drive.BackupDbSupervisor do
   end
 
   @impl true
-  def init([device, path, pg_opts]) do
+  def init([device, _path, pg_opts]) do
     log("start", :info)
 
-    type = "backup_db"
-    full_path = [path, type, Chat.Db.version_path()] |> Path.join()
-    tasks = Platform.App.Drive.BackupDbSupervisor.Tasks
+    unit = Unit.usb(device, :backup)
+    full_path = Unit.path(unit, :cub_db)
     db = Chat.Db.BackupDb
     continuous? = match?(%BackupSettings{type: :continuous}, AdminRoom.get_backup_settings())
-    backup_repo = Map.get(pg_opts, :repo)
-    backup_base_dir = full_path <> "_files"
 
+    # Registers the backup unit and pulls the blobs the plan's links queue for it
     chunk_pipeline =
-      case backup_repo do
-        nil ->
-          []
-
-        _ ->
-          [
-            {ChunkPipelineSupervisor,
-             drive_id: device, base_dir: backup_base_dir, repo: backup_repo}
-          ]
+      case Map.get(pg_opts, :repo) do
+        nil -> []
+        _ -> [{ChunkPipelineSupervisor, unit: unit}]
       end
 
     ([
-       {Task.Supervisor, name: tasks},
        {Task, fn -> File.mkdir_p!(full_path) end},
        {Chat.Db.MediaDbSupervisor, [db, full_path]} |> exit_takes(20_000),
-       {Bouncer, db: db, type: type}
+       {Bouncer, db: db, role: :backup}
      ] ++
        chunk_pipeline ++
        [
-         {Copier,
-          continuous?: continuous?,
-          tasks_name: tasks,
-          device: device,
-          backup_repo: backup_repo,
-          backup_base_dir: backup_base_dir}
-         |> exit_takes(35_000)
+         # Follows the Default: restarts or re-homes on {:default_switched, _}
+         {BackupPlan, device: device, continuous?: continuous?} |> exit_takes(35_000)
        ])
     |> Supervisor.init(strategy: :rest_for_one, max_restarts: 1, max_seconds: 5)
     |> tap(fn res ->

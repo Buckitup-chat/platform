@@ -38,6 +38,19 @@ defmodule Support.Drive.Manipulation do
   def main_and_onliners_scenario_started?, do: check_scenario(2, main: 1, onliners: 1)
   def main_and_backup_scenario_started?, do: check_scenario(2, main: 1, backup: 1)
 
+  @doc "PG stages run for the drive (only roles with `:pg` get them)"
+  def pg_started?(drive), do: InitPg |> get_registered_drives() |> List.keymember?(drive, 0)
+
+  @doc "Waits till the drive's boot tree reaches `Decider`, even with no scenario"
+  def await_resolved(drive) do
+    await_till(fn -> Scenario |> get_registered_drives() |> List.keymember?(drive, 0) end,
+      step: 50
+    )
+  end
+
+  def drive_path(drive),
+    do: Application.fetch_env!(:chat, Chat.Storage)[:media_root] |> Path.join(drive)
+
   def await_supervision_started do
     await_till(
       fn ->
@@ -54,24 +67,30 @@ defmodule Support.Drive.Manipulation do
     get_registered_drives(Platform.App.Drive.BootSupervisor)
     |> Enum.each(fn {drive, _pid} -> Detector.eject(drive) end)
 
-    await_till(fn ->
-      [] == get_registered_drives(Platform.App.Drive.BootSupervisor)
-    end)
+    # Main drive teardown (replication cleanup, Phoenix.Sync reinit) takes seconds
+    await_till(
+      fn -> [] == get_registered_drives(Platform.App.Drive.BootSupervisor) end,
+      time: 15_000
+    )
+
+    # A finished sync ejects its drive by name from an unlinked task (`Stopper`);
+    # left running, it ejects the next test's drive of the same name
+    await_till(fn -> [] == Task.Supervisor.children(Platform.TaskSupervisor) end, step: 50)
   end
 
   def clean_filesystem do
-    Application.get_env(:platform, :mount_path_media)
+    Application.fetch_env!(:chat, Chat.Storage)[:media_root]
     |> Path.join("*")
     |> Path.wildcard()
     |> Enum.each(&File.rm_rf!/1)
   end
 
   defp insert_drive(drive, type \\ :empty) do
-    Application.get_env(:platform, :mount_path_media)
+    Application.fetch_env!(:chat, Chat.Storage)[:media_root]
     |> File.ls()
 
     if type != :empty do
-      base = Application.get_env(:platform, :mount_path_media)
+      base = Application.fetch_env!(:chat, Chat.Storage)[:media_root]
 
       [base, drive, @type_folder |> Map.fetch!(type)]
       |> Path.join()
@@ -101,7 +120,8 @@ defmodule Support.Drive.Manipulation do
     Scenario
     |> get_registered_drives()
     |> Enum.map(fn {drive, pid} ->
-      Supervisor.which_children(pid)
+      pid
+      |> which_children()
       |> case do
         [{_, _, _, [supervisor]}] -> {drive, supervisor}
         _ -> nil
@@ -109,6 +129,13 @@ defmodule Support.Drive.Manipulation do
     end)
     |> Enum.reject(&is_nil/1)
     |> Map.new()
+  end
+
+  # A scenario supervisor can go down while being asked
+  defp which_children(pid) do
+    Supervisor.which_children(pid)
+  catch
+    :exit, _ -> []
   end
 
   defp check_scenario(total, started) do

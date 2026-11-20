@@ -30,6 +30,7 @@ defmodule Platform.Storage.Pg.Initializer do
     %{
       pg_dir: opts |> Keyword.fetch!(:pg_dir),
       pg_port: opts |> Keyword.fetch!(:pg_port),
+      run_dir: opts |> Keyword.fetch!(:run_dir),
       task_supervisor: opts |> Keyword.fetch!(:task_in),
       next_specs: next |> Keyword.fetch!(:run),
       next_supervisor: next |> Keyword.fetch!(:under),
@@ -50,6 +51,7 @@ defmodule Platform.Storage.Pg.Initializer do
         %{
           pg_dir: pg_dir,
           pg_port: pg_port,
+          run_dir: run_dir,
           task_supervisor: task_supervisor,
           attempt_timeout: attempt_timeout
         } = state
@@ -57,7 +59,7 @@ defmodule Platform.Storage.Pg.Initializer do
     # Normal failure returns {:error, _}; a crash (e.g. :epipe) arrives as {:DOWN}.
     %{ref: ref, pid: pid} =
       Task.Supervisor.async_nolink(task_supervisor, fn ->
-        Postgres.initialize(pg_dir: pg_dir, pg_port: pg_port)
+        Postgres.initialize(pg_dir: pg_dir, pg_port: pg_port, run_dir: run_dir)
       end)
 
     watchdog_ref = Process.send_after(self(), {:attempt_timeout, ref}, attempt_timeout)

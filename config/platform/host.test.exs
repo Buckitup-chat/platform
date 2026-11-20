@@ -1,21 +1,34 @@
 import Config
 
-config :chat, :cub_db_file, "priv/test_db"
 config :chat, :admin_cub_db_file, "priv/test_admin_db"
-config :chat, :usb_media_root, "priv/test_media"
+
+# Internal CubDB stays at priv/test_db/v.10.1
+config :chat, Chat.Storage,
+  internal_root: "priv",
+  internal_dir: "test_db",
+  media_root: "priv/test_media"
 
 config :chat,
-  files_base_dir: "priv/test_db/files",
   write_budget: 100_000_000,
   writable: :yes
 
 config :chat, ChatWeb.Endpoint, pubsub_server: Chat.PubSub
 
 config :platform,
-  mount_path_media: "priv/test_media",
   mount_path_storage: "priv/test_storage"
 
 config :chat, Chat.Db.ChangeTracker, expire_seconds: 3
+
+# At :debug the Ecto query flood pushes Logger into sync mode, where
+# AdminLogger's CubDB writes can wedge every logging process.
+# :info, not :warning - some tests assert on info logs.
+config :logger, level: :info
+
+# Drive repos on host derive their database names from this one
+# (platform_test_chat_<device>), keeping tests off the dev "chat" databases.
+config :chat, Chat.Repo,
+  database: "platform_test_chat",
+  password: System.get_env("POSTGRES_PASSWORD", "postgres")
 
 # Test repositories for integration testing
 config :platform, Platform.Test.InternalRepo,
