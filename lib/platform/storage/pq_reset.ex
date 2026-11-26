@@ -22,6 +22,10 @@ defmodule Platform.Storage.PqReset do
   capability (cargo, onliners), the drive has no role dir, the unit already has
   its own copy, or the rename fails (e.g. across filesystems).
 
+  A legacy `pg/` counts only when it holds a cluster (`data/PG_VERSION`). A move
+  whose source or target has a symlink below the root is skipped: a crafted drive
+  could otherwise point the move or the removal at another drive or the internal unit.
+
   Runs in Resolve, before any engine starts: `Resolver` for a USB drive, the
   first step of `DatabaseSupervisor` for the internal unit. Idempotent - only
   legacy locations are touched, so a second boot does nothing. Remove this
@@ -41,7 +45,7 @@ defmodule Platform.Storage.PqReset do
   @legacy_pq_files "pq_files"
   @legacy_electric "electric"
 
-  @type outcome :: {:moved, Path.t(), Path.t()} | {:removed, Path.t()}
+  @type outcome :: {:moved, Path.t(), Path.t()} | {:removed, Path.t()} | {:skipped, Path.t()}
 
   @doc "Relocates the legacy PQ generation of the internal unit."
   @spec internal(Unit.t()) :: [outcome()]
@@ -51,7 +55,7 @@ defmodule Platform.Storage.PqReset do
       {legacy_pq_files(unit), Unit.path(unit, :pq_files)},
       {Path.join(root, @legacy_electric), Unit.path(unit, :electric)}
     ]
-    |> relocate()
+    |> relocate(root)
   end
 
   @doc """
@@ -66,8 +70,10 @@ defmodule Platform.Storage.PqReset do
       |> Enum.map(&Unit.usb(device, &1))
       |> Enum.map(&{legacy_pq_files(&1), home(&1, :pq_files)})
 
-    [{device |> Unit.root() |> Path.join(@legacy_pg), pg_home(device)} | pq_files]
-    |> relocate()
+    root = Unit.root(device)
+
+    [{Path.join(root, @legacy_pg), pg_home(device)} | pq_files]
+    |> relocate(root)
   end
 
   @impl true
@@ -106,12 +112,37 @@ defmodule Platform.Storage.PqReset do
     if resource in Unit.capabilities(unit), do: Unit.path(unit, resource)
   end
 
-  defp relocate(moves) do
+  defp relocate(moves, root) do
     moves
-    |> Enum.filter(fn {from, _to} -> File.exists?(from) end)
+    |> Enum.filter(fn {from, _to} -> legacy?(from) end)
     |> Enum.map(fn {from, to} ->
-      if to && not File.exists?(to), do: move(from, to), else: remove(from)
+      cond do
+        symlinked?(from, root) or (to && symlinked?(to, root)) -> skip(from)
+        to && not File.exists?(to) -> move(from, to)
+        true -> remove(from)
+      end
     end)
+  end
+
+  defp legacy?(from) do
+    if Path.basename(from) == @legacy_pg,
+      do: from |> Path.join("data/PG_VERSION") |> File.regular?(),
+      else: File.exists?(from)
+  end
+
+  # Any component below `root` being a link: `rename` and `rm_rf` resolve
+  # intermediate links, so the move would act on the link target
+  defp symlinked?(path, root) do
+    path
+    |> Path.relative_to(root)
+    |> Path.split()
+    |> Enum.scan(root, &Path.join(&2, &1))
+    |> Enum.any?(&match?({:ok, %File.Stat{type: :symlink}}, File.lstat(&1)))
+  end
+
+  defp skip(path) do
+    ["PQ reset: skipped ", path, ", a symlink is on its path"] |> log(:warning)
+    {:skipped, path}
   end
 
   # postgres traverses the role dir, as `Lifecycle.Init` sets it up for a fresh cluster
@@ -121,18 +152,18 @@ defmodule Platform.Storage.PqReset do
     case File.rename(from, to) do
       :ok ->
         File.chmod!(parent, 0o755)
-        log("PQ reset: moved #{from} to #{to}", :info)
+        ["PQ reset: moved ", from, " to ", to] |> log(:info)
         {:moved, from, to}
 
       {:error, reason} ->
-        log("PQ reset: can't move #{from} to #{to} (#{inspect(reason)})", :warning)
+        ["PQ reset: can't move ", from, " to ", to, " (", inspect(reason), ")"] |> log(:warning)
         remove(from)
     end
   end
 
   defp remove(path) do
     File.rm_rf!(path)
-    log("PQ reset: removed #{path}", :info)
+    ["PQ reset: removed ", path] |> log(:info)
     {:removed, path}
   end
 end
